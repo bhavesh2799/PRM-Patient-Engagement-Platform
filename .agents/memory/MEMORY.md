@@ -1,0 +1,3 @@
+- [Notification read field](notification-read.md) — DB stores read as text "true"/"false"; generated API type may say boolean — always use `String(n.read) !== "true"` to check unread
+- [Segment schema no sourceListTag](segment-schema.md) — segmentsTable has no sourceListTag column; remove from any insert
+- [Query key functions removed](query-key-cleanup.md) — when removing `getXxxQueryKey()` import, also grep for inline usages in `invalidateQueries` calls

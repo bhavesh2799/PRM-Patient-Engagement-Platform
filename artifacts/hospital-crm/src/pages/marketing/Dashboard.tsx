@@ -1,6 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetEngagementDashboard, useListCampaigns, useGetWallet, usePauseCampaign } from "@workspace/api-client-react";
-import { getGetEngagementDashboardQueryKey, getListCampaignsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +20,8 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function MarketingDashboard() {
-  const { data: dashboard, isLoading } = useGetEngagementDashboard({
-    query: { queryKey: getGetEngagementDashboardQueryKey() },
-  });
-  const { data: campaigns } = useListCampaigns({
-    query: { queryKey: getListCampaignsQueryKey() },
-  });
+  const { data: dashboard, isLoading } = useGetEngagementDashboard();
+  const { data: campaigns } = useListCampaigns();
   const { data: wallet } = useGetWallet();
   const pauseMutation = usePauseCampaign();
   const queryClient = useQueryClient();
@@ -49,8 +44,8 @@ export default function MarketingDashboard() {
   const handlePause = (id: number) => {
     pauseMutation.mutate({ id }, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListCampaignsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetEngagementDashboardQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        queryClient.invalidateQueries({ queryKey: ["engagementDashboard"] });
       },
     });
   };

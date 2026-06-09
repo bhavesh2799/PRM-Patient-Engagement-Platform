@@ -297,7 +297,7 @@ export async function runSeed(force = false): Promise<void> {
     { firstName: "Deepak", lastName: "Kumar", mobile: "9900123456", specialization: "Neurology", sourceChannel: "waba" as const, status: "new" as const, hasActiveSession: true, sessionExpiresAt: new Date(Date.now() + 22 * 3600 * 1000) },
     // Web chat
     { firstName: "Lakshmi", lastName: "Narayanan", mobile: "9845500123", specialization: "Cardiology", sourceChannel: "web_chat" as const, status: "in_progress" as const, ownerUserId: u1.id, hasActiveSession: true, sessionExpiresAt: new Date(Date.now() + 14 * 3600 * 1000) },
-    { firstName: "Prashant", lastName: "Joshi", mobile: "9741234567", specialization: "Orthopedics", sourceChannel: "web_chat" as const, status: "new" as const, hasActiveSession: false },
+    { firstName: "Prashant", lastName: "Joshi", mobile: "9741234567", specialization: "Orthopedics", sourceChannel: "web_chat" as const, status: "new" as const, hasActiveSession: true, sessionExpiresAt: new Date(Date.now() + 21 * 3600 * 1000) },
     // Form leads
     { firstName: "Meghna", lastName: "Pillai", mobile: "9800234567", specialization: "Gynaecology", sourceChannel: "form" as const, status: "new" as const, optedIn: true },
     { firstName: "Vikram", lastName: "Singh", mobile: "9811234567", specialization: "General Medicine", sourceChannel: "form" as const, status: "contacted" as const, ownerUserId: u1.id },
@@ -345,29 +345,63 @@ export async function runSeed(force = false): Promise<void> {
     return lead;
   }));
 
-  // Messages for waba/web_chat leads
-  const chatLeads = insertedLeads.filter(l => l.sourceChannel === "waba" || l.sourceChannel === "web_chat");
-  for (const lead of chatLeads) {
-    await db.insert(messagesTable).values([
-      {
-        leadId: lead.id,
-        direction: "in",
-        body: "Hello, I need to book an appointment",
-        channel: lead.sourceChannel,
-        status: "received",
-        timestamp: new Date(now - 2 * 3600 * 1000),
-      },
-      {
-        leadId: lead.id,
-        direction: "out",
-        body: `Dear ${lead.firstName}, thank you for reaching out to Sunrise Hospital. Our team will assist you shortly.`,
-        channel: lead.sourceChannel,
-        templateId: t6.id,
-        status: "delivered",
-        timestamp: new Date(now - 1.5 * 3600 * 1000),
-      },
-    ]);
-  }
+  // Rich chat threads for waba/web_chat leads
+  // leads[0] = Arjun Verma (waba, in_progress) — multi-turn thread, session open
+  const arjun = insertedLeads[0];
+  await db.insert(messagesTable).values([
+    { leadId: arjun.id, direction: "in", body: "Hello, I have been having chest pain for the last two days. Can I see a cardiologist?", channel: "waba", status: "received", timestamp: new Date(now - 5 * 3600 * 1000) },
+    { leadId: arjun.id, direction: "out", body: "Dear Arjun,\n\nThank you for reaching out to Sunrise Hospital. We take chest pain very seriously. Dr. Ananya Krishnan (Cardiology) has availability this week. Shall I check slots for you?", channel: "waba", templateId: t6.id, status: "read", timestamp: new Date(now - 4.5 * 3600 * 1000) },
+    { leadId: arjun.id, direction: "in", body: "Yes please! Preferably morning slots. Also is this covered under cashless insurance?", channel: "waba", status: "received", timestamp: new Date(now - 4 * 3600 * 1000) },
+    { leadId: arjun.id, direction: "out", body: "Dr. Krishnan is available Monday 10 AM or Wednesday 11 AM. Both are morning slots.\n\nFor insurance, we accept most cashless policies. Please bring your TPA card and policy number. Our billing desk can verify on the day.", channel: "waba", status: "read", timestamp: new Date(now - 3.5 * 3600 * 1000) },
+    { leadId: arjun.id, direction: "in", body: "Monday 10 AM works. My policy is from Star Health. Please confirm the appointment.", channel: "waba", status: "received", timestamp: new Date(now - 3 * 3600 * 1000) },
+    { leadId: arjun.id, direction: "out", body: "Your appointment with Dr. Ananya Krishnan is confirmed for Monday at 10:00 AM.\n\n📅 Date: Mon, 16 Jun 2026\n👨‍⚕️ Doctor: Dr. Ananya Krishnan\n🏥 Dept: Cardiology\n\nPlease arrive 15 minutes early. Bring your previous ECG/Echo reports if any. Star Health cashless is accepted — carry your TPA card.", channel: "waba", templateId: t6.id, status: "read", timestamp: new Date(now - 2.5 * 3600 * 1000) },
+    { leadId: arjun.id, direction: "in", body: "Thank you so much! Will do.", channel: "waba", status: "received", timestamp: new Date(now - 30 * 60 * 1000) },
+  ]);
+  await db.insert(activityLogTable).values([
+    { leadId: arjun.id, type: "message_received", description: "Patient messaged: chest pain, requesting cardiology consultation", userId: null, createdAt: new Date(now - 5 * 3600 * 1000) },
+    { leadId: arjun.id, type: "template_sent", description: "Template sent: Appointment Booking Confirmation (WhatsApp)", userId: u1.id, createdAt: new Date(now - 4.5 * 3600 * 1000) },
+    { leadId: arjun.id, type: "status_change", description: "Status changed from new → in_progress", userId: u1.id, createdAt: new Date(now - 4 * 3600 * 1000) },
+    { leadId: arjun.id, type: "message_received", description: "Patient confirmed Monday 10 AM appointment", userId: null, createdAt: new Date(now - 3 * 3600 * 1000) },
+  ]);
+
+  // leads[1] = Sunita Rao (waba, contacted) — thread with 4 messages
+  const sunita = insertedLeads[1];
+  await db.insert(messagesTable).values([
+    { leadId: sunita.id, direction: "in", body: "Hi, I want to know about gynaecology OPD. I'm 28 weeks pregnant.", channel: "waba", status: "received", timestamp: new Date(now - 8 * 3600 * 1000) },
+    { leadId: sunita.id, direction: "out", body: "Hello Sunita 🙏\n\nCongratulations! Dr. Kavitha Reddy (Gynaecology & Obstetrics) handles high-risk and normal pregnancies. She is available Tuesday 9 AM–1 PM.\n\nShall I book a slot for you?", channel: "waba", status: "read", timestamp: new Date(now - 7.5 * 3600 * 1000) },
+    { leadId: sunita.id, direction: "in", body: "Yes please. Tuesday 11 AM would be perfect. Do I need to bring any reports?", channel: "waba", status: "received", timestamp: new Date(now - 7 * 3600 * 1000) },
+    { leadId: sunita.id, direction: "out", body: "Tuesday 11 AM with Dr. Kavitha Reddy is confirmed ✅\n\nPlease bring:\n• Previous USG reports\n• Blood test reports (CBC, blood sugar)\n• Vaccination records\n\nFor any urgent queries call 080-4567-8901.", channel: "waba", templateId: t6.id, status: "delivered", timestamp: new Date(now - 6.5 * 3600 * 1000) },
+  ]);
+
+  // leads[2] = Deepak Kumar (waba, new) — UNREAD: recent inbound with no reply
+  const deepak = insertedLeads[2];
+  await db.insert(messagesTable).values([
+    { leadId: deepak.id, direction: "in", body: "I've been getting severe headaches and dizziness for a week. My GP referred me to a neurologist. Is Dr. Meera Pillai available?", channel: "waba", status: "received", timestamp: new Date(now - 45 * 60 * 1000) },
+  ]);
+
+  // leads[3] = Lakshmi Narayanan (web_chat, in_progress) — active thread
+  const lakshmi = insertedLeads[3];
+  await db.insert(messagesTable).values([
+    { leadId: lakshmi.id, direction: "in", body: "Hello, I saw your website. I need a cardiology checkup. My father had a heart attack last year and I'm concerned about my own risk.", channel: "web_chat", status: "received", timestamp: new Date(now - 6 * 3600 * 1000) },
+    { leadId: lakshmi.id, direction: "out", body: "Hello Lakshmi! Thank you for reaching out. A preventive cardiology consultation is a great idea given your family history. Dr. Ananya Krishnan specialises in exactly this. I'll check her slots.", channel: "web_chat", status: "read", timestamp: new Date(now - 5.5 * 3600 * 1000) },
+    { leadId: lakshmi.id, direction: "in", body: "Thank you. What tests will she order? I want to be prepared.", channel: "web_chat", status: "received", timestamp: new Date(now - 5 * 3600 * 1000) },
+    { leadId: lakshmi.id, direction: "out", body: "For a preventive cardiac assessment, Dr. Krishnan typically orders:\n• ECG (electrocardiogram)\n• 2D Echo\n• Lipid profile (fasting blood test)\n• Blood pressure monitoring\n\nThese are usually done the same day at our diagnostics centre. You'll get results in 2–4 hours.", channel: "web_chat", status: "delivered", timestamp: new Date(now - 4.5 * 3600 * 1000) },
+    { leadId: lakshmi.id, direction: "in", body: "That's very helpful. I'm free next Friday. Can I book online?", channel: "web_chat", status: "received", timestamp: new Date(now - 4 * 3600 * 1000) },
+    { leadId: lakshmi.id, direction: "out", body: "Absolutely! Friday at 10 AM or 2 PM is available with Dr. Krishnan. Which do you prefer?", channel: "web_chat", status: "sent", timestamp: new Date(now - 3.5 * 3600 * 1000) },
+  ]);
+
+  // leads[4] = Prashant Joshi (web_chat, new) — UNREAD: latest inbound just came in
+  const prashant = insertedLeads[4];
+  await db.insert(messagesTable).values([
+    { leadId: prashant.id, direction: "in", body: "Hi! I had a knee injury playing cricket 3 months ago. It still hurts when I climb stairs. Can I see Dr. Ramesh Nair?", channel: "web_chat", status: "received", timestamp: new Date(now - 20 * 60 * 1000) },
+  ]);
+
+  // Additional activity logs for the other leads
+  await db.insert(activityLogTable).values([
+    { leadId: sunita.id, type: "assignment", description: "Assigned to Priya Sharma", userId: u1.id, createdAt: new Date(now - 7.8 * 3600 * 1000) },
+    { leadId: lakshmi.id, type: "assignment", description: "Assigned to Priya Sharma", userId: u1.id, createdAt: new Date(now - 5.8 * 3600 * 1000) },
+    { leadId: lakshmi.id, type: "status_change", description: "Status changed from new → in_progress", userId: u1.id, createdAt: new Date(now - 5.5 * 3600 * 1000) },
+  ]);
 
   // Segments
   const csvLeadIds = insertedLeads.filter(l => l.sourceChannel === "csv").map(l => l.id);
@@ -383,7 +417,6 @@ export async function runSeed(force = false): Promise<void> {
       source: "csv",
       memberLeadIds: csvLeadIds,
       count: csvLeadIds.length,
-      sourceListTag: "Q1-Ortho-Followup",
     },
     {
       name: "Cardiac Risk Patients",

@@ -296,7 +296,7 @@ export default function Campaigns() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {campaign.costBreakdown ? `₹${campaign.costBreakdown.total.toLocaleString()}` : '-'}
+                        {campaign.costBreakdown ? `₹${(campaign.costBreakdown.total ?? 0).toLocaleString()}` : '-'}
                       </TableCell>
                       <TableCell className="text-right">
                         {campaign.status === 'live' && session?.role !== 'exec' && (

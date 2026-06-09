@@ -1,0 +1,165 @@
+The current prototype has non-functional areas. **Treat every acceptance criterion (AC) below as a test that must pass by actually clicking through the running UI.** Where an AC isn't met, wire it up. Nothing here should be a static mockup — filters filter, buttons act, messages send, state persists across reloads.
+
+---
+
+## 0. Things that are broken right now — fix these first
+
+These were reported as not working. They are P0.
+
+- **0.1 Role switching does nothing.** The role dropdown is display-only. Make it real (§1).
+- **0.2 Dashboards are static.** Cards, filters, and rows don't respond. Make them interactive (§2).
+- **0.3 Inbox can't send messages.** There's no working compose/send. Build a real two-way chat (§3).
+- **0.4 PRODUCT RULE CORRECTION — read carefully.**
+  > "No free-text" applies to **campaigns only**. In the **CRM unified inbox**, an agent **CAN type and send free-text messages** in a 1:1 conversation. These are WhatsApp/web-chat **"session" messages**, allowed while the **24-hour customer-care window is open**. Agents may **also** drop a pre-approved **template** into a chat. So the inbox is a genuine two-way chat: **free-text + templates + simulated inbound, all in one thread.** A template is **only mandatory** (a) for marketing campaigns, and (b) to message a lead **after** the 24h session has closed.
+
+---
+
+## 1. Role switching & permissions
+
+The role switcher must change global app state, persist across reloads, and visibly change what the user can see and do.
+
+**AC 1.1 — Switch is global and persistent.**
+*Given* I'm any role, *when* I pick another role in the top-bar switcher, *then* the active role updates app-wide immediately (no manual refresh) and **survives a page reload**.
+
+**AC 1.2 — Nav visibility changes.**
+*Given* I switch to **Front-office Exec** or **Marketing Manager**, *then* the **Super-Admin** section is **hidden**. *Given* I switch to **Affordplan Ops/Admin**, *then* Super-Admin is **visible**.
+
+**AC 1.3 — Action gating is enforced, not cosmetic.**
+- As **Exec**: I can create leads, upload, reply in inbox, create campaigns/segments/template-requests — but the **Approve** control on a submitted campaign is **absent or disabled** with a tooltip ("Manager approval required"). **Add money to wallet** is disabled. Message **bodies are not editable** in templates.
+- As **Manager**: I additionally see and can use **Approve campaign**, **Pause**, **Add money to wallet**, and **modify Integrations Hub**.
+- As **AP Admin**: I can do everything, including **override frequency cap** and **unlock advanced builder**.
+
+**AC 1.4 — Identity reflects everywhere.** The current user's name appears as the actor on any action they take (assignment, status change, sent message, approval) in the lead activity log.
+
+**AC 1.5 — No dead ends.** Switching role never lands me on a blank or erroring page; if my current page is now forbidden, redirect me to Home with a brief "Not available for this role" note.
+
+---
+
+## 2. CRM dashboards must be interactive (Home Collective + Incoming)
+
+Applies to the **Home Collective Dashboard** and the **Incoming Engagements Dashboard**.
+
+**AC 2.1 — Filters actually filter.** Channel, status, owner, and **date-range** filters update **every** card and table on the page from the live data set. Clearing filters restores totals.
+
+**AC 2.2 — KPI cards are live and clickable.** Counts (incoming by channel, active vs fulfilled, conversion by channel, appointment rollup, revenue attribution) are computed from seeded data — not hard-coded. Clicking a KPI/segment of a chart **drills down**: it navigates to the inbox pre-filtered to those leads (e.g., click "WABA – 12" → inbox filtered to WABA).
+
+**AC 2.3 — Row click opens the lead.** Clicking any lead row opens its **profile drawer/page** with full history (§3.8).
+
+**AC 2.4 — Channel attribution is correct.** Every lead and chart bucket shows the right source channel; no lead is uncategorized and no channel is a silo.
+
+**AC 2.5 — Lead ageing / SLA visible.** The Incoming dashboard shows lead age and flags leads breaching the SLA window (use a demo threshold, e.g. >24h in `new`). Sorting by age works.
+
+**AC 2.6 — Empty + loading states.** Filtering down to zero shows a clean "No leads match" state, not a broken table.
+
+---
+
+## 3. Unified Inbox — conversations & messaging (the core fix)
+
+The inbox is a real, working two-way messaging surface. Build it like Intercom/HubSpot inbox.
+
+### Inbox list
+**AC 3.1 — One list, every channel.** All inbound channels resolve into ONE list with source attribution: WABA, Website Chat Widget, Form, CSV, App/Web booking, Push. (Email greyed "to confirm"; Socials greyed "Phase 2".)
+**AC 3.2 — Filter / search / sort work** across source, name, contact, doctor/specialization, status, owner, last action, created date.
+**AC 3.3 — Unread indicators.** Leads with new inbound messages show an unread badge; opening the conversation clears it.
+**AC 3.4 — Pick up / assign.** I can **pick up** an unassigned lead (it becomes mine) or **assign** to another user. A lead has **exactly one owner**, shown in the list; only the owner or a Manager can reassign.
+
+### Conversation thread + composer
+**AC 3.5 — Threaded conversation renders.** Opening a lead shows a chat thread: inbound (left) and outbound (right) bubbles, timestamps, channel label, and WhatsApp-style delivery ticks on outbound (sent → delivered → read), driven by mock timers.
+**AC 3.6 — Send a FREE-TEXT message (primary fix).**
+*Given* a lead with an **open 24h session**, *when* I type free text and click **Send**, *then* the message appears instantly in the thread (optimistic), is **persisted** (survives reload), is **logged** to the activity log with my name + timestamp, and progresses sent → delivered → read on a short timer.
+**AC 3.7 — Insert a template into a chat.** A **"Use template"** picker lets me select a pre-approved template for the lead's channel; its body (with variables bound from the lead) is inserted/sent as an outbound message. I **cannot edit the template body**, but I **can** still send free text in the same thread.
+**AC 3.8 — Lead profile drawer.** The conversation view includes the lead's details (name, mobile, UHID, specialization, source, owner, status, opt-in/DND flags) and the **full activity log** (messages, status changes, assignments, campaign touches), timestamped and in order.
+
+### Session window & gating (per message type)
+**AC 3.9 — 24h session rule enforced.**
+- *Given* the session is **OPEN** (within 24h of the last inbound message): free-text **and** templates are allowed.
+- *Given* the session is **CLOSED/EXPIRED** (>24h since last inbound): the **free-text box is disabled** with a clear note ("Session expired — send an approved template to re-open"), and **only templates can be sent**. Sending a template **re-opens** the session.
+**AC 3.10 — Suppression always applies to 1:1.** If a lead is **opted-out** or **DND-listed**, sending is blocked with a reason; this holds for both free-text and template sends.
+**AC 3.11 — Message-type gating + wallet:**
+
+| Send type (in inbox) | Allowed when | Checks applied | Wallet effect |
+|---|---|---|---|
+| **Free-text session msg** | Session OPEN; not opted-out/DND | Session-open + suppression only (no DLT/Meta body checks) | Small simulated service-conversation cost (or free — make it a clearly labelled constant) |
+| **Template msg (1:1)** | Anytime; **required** when session CLOSED | Channel approval (Meta-APPROVED WA / DLT-matched SMS) + suppression + wallet balance | Per-message cost + 5% fee + 18% GST debited |
+
+**AC 3.12 — Channel nuances.** Rich two-way chat is required for **WABA** and **Website Chat Widget** (both session-based). **SMS/Push** are primarily campaign channels; in the inbox they may appear read-only or template-only (SMS has no session; show "SMS is template/DLT-bound" rather than a free-text box). Don't crash on a non-chat channel.
+
+### Simulated inbound
+**AC 3.13 — Inbound simulation exists.** On load, at least **2 leads have a recent inbound message** (open session, unread). A dev **"Simulate inbound message"** button generates a new inbound message on the selected (or a random) lead, opening/refreshing its session and incrementing the unread badge.
+**AC 3.14 — Optional canned reply (nice-to-have).** After an agent sends a free-text message, a simulated patient reply may arrive a few seconds later on some leads, to make the thread feel alive. This must not break session/state logic.
+
+---
+
+## 4. Lead capture & attribution
+
+**AC 4.1 — Web form → lead.** Submitting the public booking/enquiry/contact form creates a lead attributed to **`form`**, maps fields → contact variables, validates mandatory fields, and rejects invalid input with **field-level errors**. The new lead appears in the inbox and dashboards within the session.
+**AC 4.2 — CSV upload end to end.** Uploading a CSV shows the **column → variable mapping before import**; a **missing mandatory column throws a clear error naming the column**; rows **de-dupe by UHID/mobile** (merge into existing, never duplicate); the list is **tagged with a source** and can be **saved as a reusable segment**.
+**AC 4.3 — Booking → lead.** App/website bookings appear in the inbox as attributed leads (source distinguishes **app vs website**) and roll up on the Appointment dashboard.
+**AC 4.4 — Identifier guard.** A lead **without a usable UHID/mobile** is flagged and **excluded from automated outreach** (cannot be added to a campaign audience) until fixed.
+**AC 4.5 — De-dupe is global.** The same UHID/mobile arriving from two channels links to **one** lead record (with both source touches in history), not two rows.
+
+---
+
+## 5. Lead lifecycle & assignment
+
+**AC 5.1 — Lifecycle transitions.** Status follows **New → Contacted → In-progress → Fulfilled/Closed**; the UI **prevents invalid jumps**; each change is **timestamped and logged** with the actor.
+**AC 5.2 — Status drives dashboards.** Changing a lead's status immediately updates the active-vs-fulfilled counts and conversion charts.
+**AC 5.3 — First-action timing.** Replying or changing status from `new` records a **time-to-first-action**, surfaced on the Incoming dashboard SLA view.
+**AC 5.4 — Bulk select.** I can multi-select leads in the inbox for assignment or for grouping into a segment (§6).
+
+---
+
+## 6. Handoff to Engagement
+
+**AC 6.1 — Group to segment.** Selecting qualified leads in the inbox and choosing **"Group into segment"** creates a **named segment** containing exactly those leads, visible in the Segments table with a correct count.
+**AC 6.2 — Selectable as audience.** That segment is immediately selectable as a **campaign audience** in the builder, and **"Show count"** returns its size.
+**AC 6.3 — Shared stack.** Outreach to that segment reuses the **same channels / templates / compliance gate / wallet** — no separate sending path.
+**AC 6.4 — Attribution loops back.** When a campaign to that segment runs, **outcomes attribute back** to each originating lead **and** its source channel, visible on the lead profile and the CRM dashboards (e.g., a "converted via Win-back campaign" entry in the lead's history).
+
+---
+
+## 7. Appointment-as-lead (CRM linkage)
+
+**AC 7.1** Bookings appear in the unified inbox with channel attribution and an updatable status.
+**AC 7.2** Booking status changes feed back into the inbox lead and the Appointment dashboard breakdown.
+**AC 7.3** A booking's doctor/specialization shows on the linked lead and is filterable in the inbox.
+
+---
+
+## 8. Cross-cutting behavior
+
+**AC 8.1 — Persistence.** Every action in §§1–7 (sent messages, assignments, status, new leads, segments, top-ups) **survives a page reload**.
+**AC 8.2 — Activity log integrity.** The lead activity log is append-only and ordered; nothing silently disappears.
+**AC 8.3 — Wallet reacts to CRM template sends.** A 1:1 **template** send debits the wallet (cost + 5% + 18% GST) and, if balance is insufficient, is **blocked with the wallet reason** — consistent with campaigns. Free-text session sends follow the labelled session-cost rule in AC 3.11.
+**AC 8.4 — Reset works.** "Reset demo data" restores the seeded state including conversations and sessions.
+
+---
+
+## 9. Seed data additions (so the inbox is interactive on first load)
+
+Extend the existing seed with conversational state:
+- At least **6 leads with full chat threads** (mix of inbound + outbound bubbles).
+- **≥2 leads with an OPEN session** and a **recent unread inbound** message.
+- **≥2 leads with an EXPIRED session** (>24h) — to demo the template-only / re-open path.
+- **≥3 unassigned leads** (so pick-up is demoable) and a few owned by different users.
+- A couple of leads flagged **opted-out / DND** (so suppression blocks are demoable).
+- A lead **missing a UHID/mobile** (so the AC 4.4 guard is demoable).
+- For WABA + Website Chat channels specifically, ensure threads exist; SMS/Push leads need not have free-text threads.
+
+---
+
+## 10. Definition of Done — click-through verification
+
+The build is done when a reviewer can, in one sitting:
+1. **Switch** from Exec → Manager → AP Admin and **see nav + permissions change** (and persist on reload). ✔/�’
+2. On a dashboard, **apply a channel + date filter**, watch all cards update, **click a chart slice**, and land in a filtered inbox. ✔/✗
+3. Open a lead with an **open session**, **type and send a free-text message**, see it deliver/read, and find it in the **activity log** after reload. ✔/✗
+4. **Insert a template** into the same chat and send it. ✔/✗
+5. Open a lead with an **expired session**, confirm free-text is disabled, **send a template to re-open** it, then send free text. ✔/✗
+6. Click **"Simulate inbound message"** and watch a new inbound arrive with an unread badge. ✔/✗
+7. Try to message an **opted-out** lead and get **blocked with a reason**. ✔/✗
+8. **Upload a CSV** with a missing mandatory column (clear error), fix it, import, **de-dupe**, and **save as a segment**. ✔/✗
+9. **Multi-select** leads → **group into a segment** → see it usable as a campaign audience. ✔/✗
+10. As **Exec**, confirm the campaign **Approve** button is disabled; as **Manager**, approve and watch the **compliance gate + wallet debit** run. ✔/✗
+
+Fix anything that fails the click-through. Nothing in this list may be a static placeholder.

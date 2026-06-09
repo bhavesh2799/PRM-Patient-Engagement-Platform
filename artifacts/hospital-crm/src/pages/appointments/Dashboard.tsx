@@ -1,6 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetAppointmentsDashboard } from "@workspace/api-client-react";
-import { getGetAppointmentsDashboardQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
 
@@ -12,9 +11,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AppointmentsDashboard() {
-  const { data: dashboard, isLoading } = useGetAppointmentsDashboard({
-    query: { queryKey: getGetAppointmentsDashboardQueryKey() },
-  });
+  const { data: dashboard, isLoading } = useGetAppointmentsDashboard();
 
   const d = dashboard as any;
 
