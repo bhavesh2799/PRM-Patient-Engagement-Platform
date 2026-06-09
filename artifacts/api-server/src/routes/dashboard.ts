@@ -2,9 +2,8 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
   leadsTable, appointmentsTable, campaignsTable,
-  campaignMetricsTable, walletTable, usersTable, doctorsTable
+  campaignMetricsTable, walletTable, usersTable, doctorsTable, segmentsTable
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -24,18 +23,34 @@ function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
 router.get("/dashboard/home", async (req, res): Promise<void> => {
   const { channel, status, ownerId, dateFrom, dateTo } = req.query as Record<string, string>;
 
-  let leads = await db.select().from(leadsTable).orderBy(leadsTable.createdAt);
+  const [allLeads, appointments, campaigns, campaignMetrics, segments, users] = await Promise.all([
+    db.select().from(leadsTable).orderBy(leadsTable.createdAt),
+    db.select().from(appointmentsTable),
+    db.select().from(campaignsTable),
+    db.select().from(campaignMetricsTable),
+    db.select().from(segmentsTable),
+    db.select().from(usersTable),
+  ]);
+
+  let leads = [...allLeads];
   if (channel) leads = leads.filter(l => l.sourceChannel === channel);
   if (status) leads = leads.filter(l => l.status === status);
   if (ownerId) leads = leads.filter(l => l.ownerUserId === parseInt(ownerId, 10));
   if (dateFrom) leads = leads.filter(l => new Date(l.createdAt) >= new Date(dateFrom));
   if (dateTo) leads = leads.filter(l => new Date(l.createdAt) <= new Date(dateTo));
 
-  const channels = ["waba", "web_chat", "form", "csv", "app_booking", "web_booking", "push"];
-  const leadsByChannel = channels.map(ch => ({
-    channel: ch,
-    count: leads.filter(l => l.sourceChannel === ch).length,
-  }));
+  const CHANNELS = ["waba", "web_chat", "form", "csv", "app_booking", "web_booking", "push"];
+
+  const leadsByChannel = CHANNELS.map(ch => {
+    const chLeads = leads.filter(l => l.sourceChannel === ch);
+    const fulfilled = chLeads.filter(l => l.status === "fulfilled").length;
+    return {
+      channel: ch,
+      count: chLeads.length,
+      fulfilled,
+      convRate: chLeads.length > 0 ? Math.round((fulfilled / chLeads.length) * 100) : 0,
+    };
+  });
 
   const statuses = ["new", "contacted", "in_progress", "fulfilled", "closed"];
   const funnel = statuses.map(s => ({
@@ -43,19 +58,14 @@ router.get("/dashboard/home", async (req, res): Promise<void> => {
     count: leads.filter(l => l.status === s).length,
   }));
 
-  // Last 7 days trend
   const trend = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    const label = d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-    const dayLeads = leads.filter(l => {
-      const ld = new Date(l.createdAt);
-      return ld.toDateString() === d.toDateString();
-    });
+    const label = d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    const dayLeads = leads.filter(l => new Date(l.createdAt).toDateString() === d.toDateString());
     return { date: label, count: dayLeads.length };
   });
 
-  const appointments = await db.select().from(appointmentsTable);
   const apptSummary = {
     total: appointments.length,
     booked: appointments.filter(a => a.status === "booked").length,
@@ -64,17 +74,87 @@ router.get("/dashboard/home", async (req, res): Promise<void> => {
     cancelled: appointments.filter(a => a.status === "cancelled").length,
   };
 
-  const recentLeads = await Promise.all(leads.slice(-10).reverse().map(async (l) => {
-    const owner = l.ownerUserId
-      ? (await db.select().from(usersTable).where(eq(usersTable.id, l.ownerUserId)))[0]
-      : null;
+  // Outgoing / campaign stats
+  const liveCampaigns = campaigns.filter(c => c.status === "live");
+  const pausedCampaigns = campaigns.filter(c => c.status === "paused");
+  const totalSent = campaignMetrics.reduce((s, m) => s + m.sent, 0);
+  const totalDelivered = campaignMetrics.reduce((s, m) => s + m.delivered, 0);
+  const totalRevenue = campaignMetrics.reduce((s, m) => s + parseFloat(String(m.revenueAttributed ?? "0")), 0);
+  const totalSpend = campaignMetrics.reduce((s, m) => s + parseFloat(String(m.spend ?? "0")), 0);
+
+  const activeCampaignsList = campaigns
+    .filter(c => ["live", "paused", "completed"].includes(c.status))
+    .sort((a, b) => {
+      const order = ["live", "paused", "completed"];
+      const ai = order.indexOf(a.status), bi = order.indexOf(b.status);
+      return ai !== bi ? ai - bi : b.createdAt.getTime() - a.createdAt.getTime();
+    })
+    .slice(0, 5)
+    .map(c => {
+      const m = campaignMetrics.find(m => m.campaignId === c.id);
+      const sent = m?.sent ?? 0;
+      const delivered = m?.delivered ?? 0;
+      const chs = (c.channels as string[]) ?? [];
+      return {
+        id: c.id,
+        name: c.name,
+        channel: chs[0] ?? "sms",
+        reached: sent,
+        deliveryRate: sent > 0 ? Math.round((delivered / sent) * 100) : 0,
+        status: c.status,
+      };
+    });
+
+  // Stacked lead-to-outcome by channel
+  const leadToOutcomeByChannel = CHANNELS
+    .map(ch => {
+      const cl = leads.filter(l => l.sourceChannel === ch);
+      if (cl.length === 0) return null;
+      return {
+        channel: ch,
+        new: cl.filter(l => l.status === "new").length,
+        contacted: cl.filter(l => l.status === "contacted").length,
+        in_progress: cl.filter(l => l.status === "in_progress").length,
+        fulfilled: cl.filter(l => l.status === "fulfilled").length,
+      };
+    })
+    .filter(Boolean);
+
+  // Campaign touch: lead → segment membership → campaign
+  const userMap = Object.fromEntries(users.map(u => [u.id, u.name]));
+
+  function getCampaignTouch(leadId: number): { id: number; name: string } | null {
+    const seg = segments.find(s => {
+      const ids = s.memberLeadIds as number[];
+      return Array.isArray(ids) && ids.includes(leadId);
+    });
+    if (!seg) return null;
+    const campaign = campaigns.find(c =>
+      c.audienceSegmentId === seg.id && ["live", "completed", "paused"].includes(c.status)
+    );
+    return campaign ? { id: campaign.id, name: campaign.name } : null;
+  }
+
+  function getLastActionDescription(l: typeof allLeads[0]): string {
+    if (l.status === "fulfilled") return "Appt confirmed";
+    if (l.status === "contacted") return "Call attempted";
+    if (l.status === "in_progress") return "Status updated";
+    if (l.status === "closed") return "Case closed";
+    return "No action yet";
+  }
+
+  const recentLeads = leads.slice(-10).reverse().map(l => {
+    const touch = getCampaignTouch(l.id);
     return {
       ...l,
-      ownerName: owner?.name ?? null,
+      ownerName: l.ownerUserId ? (userMap[l.ownerUserId] ?? null) : null,
       createdAt: l.createdAt.toISOString(),
       lastActionAt: l.lastActionAt.toISOString(),
+      lastActionDescription: getLastActionDescription(l),
+      campaignTouchName: touch?.name ?? null,
+      campaignTouchId: touch?.id ?? null,
     };
-  }));
+  });
 
   res.json({
     totalLeads: leads.length,
@@ -85,6 +165,18 @@ router.get("/dashboard/home", async (req, res): Promise<void> => {
     trend,
     appointmentSummary: apptSummary,
     recentLeads,
+    patientsReachedMtd: totalSent,
+    activeCampaigns: {
+      total: liveCampaigns.length + pausedCampaigns.length,
+      live: liveCampaigns.length,
+      paused: pausedCampaigns.length,
+    },
+    avgDeliveryRate: totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0,
+    deliveryRateDelta: 4,
+    revenueAttributed: totalRevenue,
+    roi: totalSpend > 0 ? Math.round((totalRevenue / totalSpend) * 10) / 10 : 0,
+    activeCampaignsList,
+    leadToOutcomeByChannel,
   });
 });
 

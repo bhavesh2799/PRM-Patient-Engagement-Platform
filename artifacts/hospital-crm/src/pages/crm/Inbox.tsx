@@ -216,8 +216,12 @@ export default function Inbox() {
 
   // Filters
   const [search, setSearch] = useState("");
-  const [channelFilter, setChannelFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [channelFilter, setChannelFilter] = useState(
+    () => new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("channel") ?? ""
+  );
+  const [statusFilter, setStatusFilter] = useState(
+    () => new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("status") ?? ""
+  );
 
   // Selection
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
