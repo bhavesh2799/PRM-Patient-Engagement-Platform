@@ -1,0 +1,351 @@
+# Engagement Module Improvements — Replit Prompt
+
+**Paste this into Replit Agent as a follow-up to the master build brief and the CRM addendum.**
+
+This refines the existing **Outgoing Engagements (Marketing)** module. Two binding constraints are called out upfront so they cannot be lost:
+
+1. **The journey builder stays single-step.** The 3-screen wizard sends **one message per selected channel, once.** Do not build any UI for "Add another step," time-gap inputs, between-step delays, or a user-facing attribution-window control. Build a single send, period.
+2. **The Template Library gets fully built out.** Implement every detail in §3 — cards, filters, tabs, request flow with channel-styled live preview, pending-state tracker, use-as-is enforcement, and the hidden global vs hospital-level pool concept.
+
+Treat every acceptance criterion (AC) below as a test that must pass by clicking through the running UI.
+
+---
+
+## Confirmed parameters (do not infer alternatives)
+
+- **Push partner:** **NotifyVisitors**. Wherever a Push partner is named (Integrations Hub, Super-Admin Channel Config), the value is NotifyVisitors. There is no MoEngage. For white-labelled apps, NotifyVisitors uses a separate workspace ID; for Swasth-branded, the Swasth workspace ID is used.
+- **Platform commission:** **flat 5%** of channel-execution cost. Plus 18% GST on (channel cost + 5% fee). No per-hospital fixed-amount override.
+- **Revenue attribution window:** **15 days, fixed.** Behind-the-scenes only — no UI control for the user to see or change it. Used by Campaign Metrics for revenue attribution computation.
+
+---
+
+## 0. What's changing in this pass
+
+- **Roles & permissions** are formalised: Marketing Executive can create but not approve; Marketing Manager approves, pauses, adds money, and modifies the Integrations Hub. **The Exec cannot self-approve their own campaign — ever.**
+- **Step 2 of the builder is hard-locked to single-step.** Any multi-step affordances that crept in are removed.
+- **Step 1 redirects segment creation** out of the campaign flow to the Segments tab; the user comes back and picks the saved segment.
+- **Template Library is expanded** with a request form, channel-styled live preview, a Pending tab with stage tracking, and use-as-is enforcement. The backend introduces a hidden global vs hospital-level template pool.
+- **Variables support fallback values** (e.g. `{{patient_name|"there"}}`) in the template request form.
+- **Segments tab** is refined: three sources, condition fields per source, explicit Show Count button, UHID nudge note, "estimates re-evaluated at launch" behaviour.
+- **Send rules** are read-only and clamped in the schedule picker; only AP Admin can change the frequency cap.
+- **Super-Admin Template Approvals** queue gets the correct per-channel pathways (Push direct / SMS DLT update + submit / WhatsApp Meta polling).
+
+---
+
+## 1. Personas & permission gating
+
+| Role | Can create | Can approve | Can modify Integrations Hub | Can add money to wallet | Can edit message body |
+|---|---|---|---|---|---|
+| **Marketing Executive** (Front-Office / Junior Marketing) | Campaign, template request, segment | — | View only | — | Never |
+| **Marketing Manager** (reviewer) | Same as Exec, plus the things on the right | **Yes (others' campaigns only)** | **Yes** | **Yes** | Never |
+| **Affordplan Ops / Admin** (internal) | — (uses Super-Admin) | Backend execution + channel approvals | Configures channels per hospital | — | — |
+
+**AC 1.1 — Exec cannot self-approve.** *Given* the same user submitted a campaign, *when* they open Campaign Requests, *then* the **Approve** button on **their own** submission is disabled with a tooltip ("Another reviewer must approve"). A Manager can approve their own *or* anyone else's; an Exec can approve nothing.
+
+**AC 1.2 — Role gates enforced everywhere.** Approve, Pause, Add Money, and Integrations Hub modify controls are absent or disabled for the Exec role. Switching to Manager via the demo role switcher reveals them.
+
+**AC 1.3 — Body editing is impossible.** Nowhere in the Engagement module — not in the builder, not in the Library, not in a campaign detail — does any role get an editable input for a message body. (The Request-a-Template form in §3.6 is the only place a body can be typed, because it is being *proposed for approval*, not sent.)
+
+---
+
+## 2. Campaign Builder (3-step) — refined
+
+### Step 1 — Campaign Goal & Audience
+
+**AC 2.1 — Goal is a fixed list.** Dropdown of: Appointment Reminder · Win-back · Promotional Offer · Chronic Care · Feedback. Make the list data-seedable but show only these five at first load. No free-text goal.
+
+**AC 2.2 — Campaign Name is the only free-text field on the entire screen.** Internal label; never appears in any message body.
+
+**AC 2.3 — Audience source is one of three:** Affordplan / HIS / CSV. Each opens a picker of **pre-built segments** under that source; the picker shows segment name, count, last refresh.
+
+**AC 2.4 — Segment creation is OUT of the campaign flow.** *Given* the user clicks "Create new segment" inside Step 1, *then* they are **redirected** to the Segments tab (§4) with the campaign draft preserved. *When* they save a segment there and navigate back, *then* the new segment is selectable in Step 1 and the draft state is intact.
+
+**AC 2.5 — Show Count is explicit.** Audience size is not computed automatically. A dedicated **Show Count** button computes and displays size, with the note: *"This is an estimate. Final audience is re-evaluated at launch after suppression and frequency-cap scrubbing."*
+
+### Step 2 — Channels & Template (single-step, locked)
+
+**AC 2.6 — Multi-select channels.** WhatsApp, SMS, In-app Push — any combination. Each selected channel shows its **per-message promotional rate** (seed values: WA ₹0.65 · SMS ₹0.18 · Push ₹0.04 — fine).
+
+**AC 2.7 — ONE template per selected channel.** The template picker for each channel is filtered to that channel's pre-approved templates (see §3.8). Picking a template binds it; the user cannot add another template for the same channel.
+
+**AC 2.8 — Live preview per channel.** Each selected channel renders a **channel-styled live preview** (SMS box, WhatsApp bubble, Push card) with variables auto-bound from the audience. Changing template updates the preview immediately.
+
+**AC 2.9 — Sender identity picker (when applicable).** *Given* the hospital has multiple SMS headers configured, *then* a dropdown lets the user pick which header to send from (default applied). Same for WABA contacts. If only one is configured, no picker is shown.
+
+**AC 2.10 — Schedule per channel.** Schedule picker per channel: "Send now" or "Schedule for…". The picker **disables times outside 09:00–21:00 IST** for SMS promo, WhatsApp, and Push. SMS transactional (only when the template is DLT-Transactional) allows 24×7.
+
+**🔒 AC 2.11 — Single-step lock (the key constraint).**
+- There is **no "Add step" button**, no time-gap input, no per-step delay, no inter-step ordering UI.
+- There is **no user-facing attribution-window control.** Attribution is **fixed at 15 days** behind the scenes for revenue-attribution metrics.
+- The screen labels itself **"Channels & Template"**, *not* "Channels & Journey."
+- Picking 3 channels produces 3 sends (one per channel), each going out **once**, at the channel-specific schedule chosen above.
+
+### Step 3 — Campaign Estimate & Submit
+
+**AC 2.12 — Cost summary table.**
+- Per-channel cost = `recipients × per-message rate`
+- **Platform fee = 5% × channel cost** (flat, no override)
+- **GST = 18% × (channel cost + platform fee)**
+- **Total = channel cost + fee + GST**
+
+Show the **post-send wallet balance**. If post-send balance would go negative, surface a non-blocking warning here (the hard-block fires at the gate, AC 2.14).
+
+**AC 2.13 — Submit routes to Campaign Requests.** *Given* the Exec clicks Submit, *then* the campaign appears in **Campaign Requests** with status `submitted`. *Given* the viewer is a Marketing Manager, *then* the request is visible and actionable; *given* the viewer is the same Exec who submitted, *then* the Approve button is disabled (AC 1.1).
+
+### Approval, gate, launch
+
+**AC 2.14 — On Approve, run all 6 checks in order before any wallet debit.**
+
+| Check | Rule | On fail |
+|---|---|---|
+| DLT Template Match (SMS) | Selected SMS template body == DLT-registered body, byte-for-byte | **Hard-block** |
+| Meta Approval (WhatsApp) | Template `metaStatus == APPROVED` **and** `qualityRating != Red` | **Hard-block** |
+| Suppression Scrub | Drop opt-out + TRAI DND recipients | **Auto-drop** |
+| Frequency Cap | Recipient's 24h count + this send ≤ cap | **Auto-drop** |
+| Wallet Balance | balance ≥ channel cost + 5% fee + 18% GST | **Hard-block** |
+| Send Window (SMS promo) | Scheduled time within 09:00–21:00 IST | **Hard-block** |
+
+Hard-block → show specific reason, **do not debit, do not move to live**. Auto-drop → silently remove ineligible recipients ("N recipients dropped"), then proceed. Wallet is **debited only after all 6 pass**.
+
+**AC 2.15 — On valid approve.** Wallet is debited; an **invoice** is auto-generated (number, bill amount, GST breakdown, PDF link) and **auto-sent to the hospital's registered email** (mock the email send — log it as "Sent to ops@hospital.in" in the invoices table). Campaign status → `live`. Mock delivery events stream into metrics on a timer. **Revenue attribution accrues against this campaign for the next 15 days** (fixed).
+
+---
+
+## 3. Template Library — full spec
+
+### 3.1 Layout & navigation
+
+**AC 3.1 — Two top-level tabs at the head of the Library:**
+- **Approved** (default) — the templates this hospital can actually use.
+- **Pending Approval** — templates this hospital has *requested* (their own requests only), with stage tracking.
+
+Both tabs share the same filter bar; counts on each tab reflect the current filter.
+
+**AC 3.2 — Approved tab layout.** Responsive **card grid** (3 across on desktop, 1 on mobile). No table view. No "Create template" button anywhere on either tab. A persistent **"+ Request a new template"** CTA pinned to the top-right.
+
+### 3.2 Filters
+
+**AC 3.3 — Filter bar with four controls:**
+- **Channel:** Push · SMS · WhatsApp (chip multi-select)
+- **Campaign goal:** the fixed list (Appointment Reminder, Win-back, Promotional Offer, Chronic Care, Feedback)
+- **Language:** English, Hindi, Tamil, Telugu, Marathi, Bengali (data-driven; seed these)
+- **Last created:** Last 7 days · Last 30 days · Last 90 days · All time
+
+Filters apply to both tabs and stack (AND). A "Clear filters" link resets all.
+
+### 3.3 Template card (Approved tab)
+
+Each card shows:
+- **Channel icon + label** in the corner (Push bell · SMS speech · WhatsApp logo)
+- **Template name**
+- **First ~80 chars of body**, truncated with ellipsis — for at-a-glance recognition only, never editable
+- **Goal tag** and **language tag** as small pills
+- **Last created / last used date**
+- For WhatsApp cards only: a small **quality rating dot** (green/yellow/red — red is visibly warned)
+- Primary CTA **"Use in campaign"**; secondary icon-only **"Preview"**
+
+**AC 3.4 — Click the card body → opens the detail drawer (§3.4).**
+**AC 3.5 — Click "Use in campaign" → starts a new campaign with this template pre-selected for its channel in Step 2, advancing the user into the builder.**
+
+### 3.4 Template detail / preview drawer
+
+**AC 3.6 — Drawer contents:**
+- **Channel-styled live preview** (same render used in the builder — SMS box / WA bubble / Push card), with **sample variables bound** (e.g. `{{patient_name}}` → "Priya"). A "Variables sample" toggle cycles 2–3 sample sets.
+- **Variable list** with type and any fallback (e.g. `patient_name` (text, fallback "there")).
+- **Language, goal, channel, status** (Approved + WA quality rating where applicable).
+- **Last used in:** "Used in N campaigns" with a tiny link to filter campaign history.
+- **One primary CTA: "Use in campaign."** No edit, no clone, no duplicate, no download.
+
+### 3.5 Use-as-is enforcement
+
+**AC 3.7 — There is no path to a template body editor for any hospital user.**
+- No **Edit** affordance anywhere on a template card, drawer, or in the builder.
+- No **Clone**, **Clone & edit**, or **Duplicate** affordance.
+- Body text in previews is **not editable**.
+- If anyone deep-links to an edit route, redirect them to the template's detail drawer with a non-modal toast: *"Templates are use-as-is. To change the message, request a new template."*
+
+### 3.6 Request a New Template — flow & form
+
+The **only** way a new template enters the hospital's library. Clicking **"+ Request a new template"** opens a single-page form (scroll if needed — no multi-step wizard for the request itself).
+
+**AC 3.8 — Form fields:**
+1. **Template name** (text, required, internal label).
+2. **Channel** (radio: Push / SMS / WhatsApp, required). Selecting a channel re-renders the live preview (AC 3.10).
+3. **Campaign goal** (dropdown of the fixed goal list, required).
+4. **Language** (dropdown, required).
+5. **Message body** (textarea, required) — **the only place** in the hospital UI where a body can be typed, because it is being proposed for approval, not sent. After approval it becomes use-as-is.
+6. **Variable picker** (chip strip above/below the textarea): clicking a variable chip (First Name, UHID, Specialisation, Appointment Date, Last Visit Date, …) **inserts a token at the cursor**. Each insert opens a small popover to **set a fallback value** (e.g. `{{patient_name|"there"}}`). Tokens render as styled chips inside the textarea, not as raw `{{…}}` text.
+7. **Media** (file upload, optional; gated by channel — WhatsApp: image/document/video; Push: image; SMS: not available, hide the field).
+8. **Notes for AP Ops** (optional text — context for the marketing reviewer).
+
+**AC 3.9 — On submit:**
+- A `TemplateRequest` record is created with status `ap_marketing_review`.
+- It appears in the **Pending Approval** tab for this hospital (§3.7).
+- It appears in the **Super-Admin Template Approvals queue** (§7.2).
+- A toast confirms submission with SLA hint: *"Reviewed in 48h. WhatsApp templates can take an extra 24–72h for Meta approval."*
+
+**AC 3.10 — Live channel-styled preview during request.**
+*Given* the user is typing in the message body, *then* the right-hand preview renders the message **in the chosen channel's UI style** in real time:
+- **SMS** — plain mobile SMS bubble with the sender ID at top.
+- **WhatsApp** — WhatsApp message bubble with the WABA display name, optional media at top.
+- **Push** — Android/iOS notification card with the hospital app name and optional image.
+- Variables render as **visibly distinct placeholders** (subtle highlight) with their fallback values shown.
+- Character count and channel-specific limits warned: SMS 160 chars per part · WA 1024 body · Push 240.
+
+### 3.7 Pending Approval tab — stage tracker
+
+**AC 3.11 — Layout:** table with columns Template name · Channel · Goal · Submitted on · Current stage · ETA.
+
+**AC 3.12 — Stage column shows a progress strip.** Per channel, the middle stage label differs:
+- **Push:** "AP marketing approval" → "Live" (2 stages).
+- **SMS:** "AP marketing review" → "DLT whitelist & template ID update" → "Live" (3 stages).
+- **WhatsApp:** "AP marketing review" → "Meta whitelist (polling)" → "Live" (3 stages).
+
+The current stage is filled; future stages are outlined.
+
+**AC 3.13 — ETA** shows the SLA hint per remaining stage: 48h internal target; 24–72h for the Meta stage. As the AP Super-Admin progresses a request (§7.2), the strip advances **in real time** on this tab.
+
+**AC 3.14 — Status transitions are visible.** Hovering a stage dot shows a tooltip with the actor + timestamp ("Approved by Affordplan Marketing, 8 Jun 14:22"). Rejected requests show a red final dot + reason; the user can re-submit (creates a new request; the old one stays read-only).
+
+### 3.8 Channel availability enforcement
+
+**AC 3.15 — Channel binding is one-to-one.**
+- A **Meta-APPROVED** template ships **only on WhatsApp**.
+- A **DLT-Registered** template ships **only on SMS**.
+- A **Push** template ships **only on Push**.
+- Templates are never visible under a channel filter they cannot ship on.
+- In the builder Step 2, the per-channel template picker is filtered to that channel's templates only — there is no way to pair a WhatsApp-only template with an SMS slot.
+
+### 3.9 Backend pool concept (hidden from the hospital)
+
+**AC 3.16 — Every Template has a `scope` field: `global` or `hospital`.**
+- `global` templates live in the **Global Pool** — shared across all hospitals at Affordplan's discretion.
+- `hospital` templates live in a **Hospital-Level Pool** — private to one hospital, created when that hospital submits a template request and AP approves it.
+- The hospital's visible library = (`global` templates whose channel matches a configured channel for this hospital) **∪** (`hospital`-level templates owned by this hospital).
+- **This metadata is invisible in the hospital UI.** No `scope` column, no "Global" badge.
+- The AP Super-Admin (§7.2) sees and sets `scope` when approving a request.
+
+### 3.10 Seed data for templates
+
+Extend the existing seed with realistic Library content:
+
+- **~12 Approved templates**, mix of `global` and `hospital`:
+  - 4 WhatsApp (2 Appointment Reminder, 1 Win-back, 1 Chronic Care) — one with `qualityRating = Red` so the WA hard-block is demoable.
+  - 4 SMS (2 Promo, 1 Reminder, 1 Feedback) — one with a body that does NOT match its DLT-registered body so the DLT hard-block is demoable.
+  - 4 Push (Promo, Reminder, Chronic Care, Feedback).
+- **~3 Pending requests** across stages — one at AP review, one at Meta polling (WhatsApp), one at DLT whitelist (SMS).
+- Mixed languages (English + at least 2 Indian languages) so the language filter is non-trivial.
+
+---
+
+## 4. Segments tab — refined
+
+**AC 4.1 — Three sources, accessible from this tab only:** Affordplan / HIS / CSV (radio at top of the Create flow).
+**AC 4.2 — Affordplan source (condition builder):** AND/OR groups of conditions on patient behaviour/properties — recent transaction (timeframe, frequency), touchpoint (OPD / Lab / Pharmacy), OPD specialisation, spend amount, lab test booking, medicine order, appointment booking, IPD admission. UHID auto-captured as an attribute.
+**AC 4.3 — HIS source:** same condition-group UX, scoped to whatever attributes the HIS integration exposes. *Given* HIS exposes no filterable attributes, *then* the entire HIS audience is a single saveable segment with no builder (just name + save).
+**AC 4.4 — CSV source:** column mapping governed by **Contact Variables** (§6.3). A missing mandatory column produces a clear named-column error.
+**AC 4.5 — Show Count is explicit.** Audience size computed only when **Show Count** is clicked. Note next to the button: *"Counts are estimates. Final audience is re-evaluated at launch."*
+**AC 4.6 — UHID nudge note at save:** *"For UHID-based revenue attribution in metrics, ensure the patient data includes valid UHIDs."*
+**AC 4.7 — Segments table** shows: name · description · count · last refresh · source. 3-dot menu: **Export** (CSV download — mocked OK) and **Delete**. No "Edit" of a saved segment's conditions in v1 (delete + recreate). No segment is linked to a campaign goal or template.
+
+---
+
+## 5. Dashboard & Campaign Metrics — confirmations
+
+**AC 5.1 — Campaigns table row actions are exactly two:** **View Metrics** and **Pause**. No edit, no resend, no clone-into-edit, no duplicate. Remove any other actions if present.
+**AC 5.2 — Low-wallet banner below ₹5,000** appears persistently across the Engagement module pages (Dashboard, Builder, Templates, Segments) until topped up.
+**AC 5.3 — Campaign Metrics page:** Total Spend · Revenue Attributed (within 15-day window) · ROI · Cost/Conversion · Patients Reached · Delivery/Open/Click; conversion funnel sent → delivered → opened → clicked → converted with a **unique UHIDs ↔ unique mobiles toggle**; channel-wise revenue attribution chart where attribution exists.
+
+---
+
+## 6. Settings refinements
+
+### 6.1 Schedule & Send Rules (read-only for hospital)
+
+- SMS Promotional / WhatsApp / Push: window clamped to **09:00–21:00 IST** in every picker.
+- SMS Transactional: 24×7, but only enabled for templates whose DLT category is Transactional.
+- WhatsApp marketing-category templates: non-opted-in recipients are **silently dropped before debit** (shown as "N dropped" in the compliance result on the campaign detail).
+- Frequency cap: default **3 / patient / 24h** across all channels, hospital-level. **AP Admin only** can change.
+
+### 6.2 Integrations Hub (Marketing Manager only)
+
+- **Push:** status (Live / Not yet configured / Configuration pending / Configuration error) + **Partner: NotifyVisitors**.
+- **SMS DLT:** status + SMS header(s) with ownership (`Affordplan-registered` / `Hospital-registered`) + a **default header**.
+- **WABA:** status + WABA contact number(s) with ownership + a **default contact**.
+
+The Manager can change *defaults* and view ownership; underlying provisioning happens in Super-Admin (§7.1).
+
+### 6.3 Contact Variables
+
+- Pre-defined: First Name · Last Name · UHID · Specialisation · Last Visit Date · Mobile Number.
+- Table columns: name · description · mandatory (Y/N) · action (delete / modify).
+- **+ Create Variable** dialog asks for: name, description, mandatory flag. New variables become available in CSV mapping and in the template request variable picker.
+
+### 6.4 Wallet & Billing
+
+- Wallet Balance card + **Add Money** (online payment methods, simulated PayU/Easebuzz).
+- **Campaign Invoices** are raised only after a campaign is created and approved. Each row: invoice number · bill amount · GST · PDF link.
+- Invoices **auto-send to the hospital's registered email** on creation (mock the send — log it; surface "Sent to ops@hospital.in" in the row).
+- **Commission: flat 5%** on channel-execution cost, debited at approval alongside 18% GST. No fixed-amount override.
+
+---
+
+## 7. Affordplan Super-Admin refinements
+
+### 7.1 Hospital Channel Configuration
+
+- **Push (NotifyVisitors):** per-hospital workspace ID. For white-labelled apps, a separate workspace ID; for Swasth-branded, the Swasth workspace ID. Both configurable here as text fields.
+- **SMS:** **up to 5 headers per hospital.** Each header has an **ownership flag** (`Affordplan-registered` or `Hospital-registered`) and, for Affordplan-registered headers, a **`shareable` flag** controlling whether it can be reused across hospitals.
+- **WABA:** **up to 5 WABA contacts per hospital.** Each has number + profile picture + ownership. WABA Business Manager API auth is **flagged as deferred** ("Optional, requires partner APIs — Phase 2").
+- **Real-time mirror:** any change here updates the hospital Integrations Hub status immediately.
+
+### 7.2 Template Approvals queue (per-channel pathways)
+
+The queue lists all hospital TemplateRequests with: hospital · template name · channel · goal · submitted on · current stage · actions (approve / reject / preview). Per-channel pathways:
+
+- **Push** — AP Marketing reviews. If it matches the AP standard, **Approve directly** → status `Live` (template appears in the hospital's library under `hospital`-level pool unless explicitly promoted to `global`).
+- **SMS** — AP Marketing reviews. If the body doesn't match DLT standards, the AP team **edits the body**, verifies in preview, and manually submits to the DLT platform. If the DLT account is the hospital's, the team submits using the hospital's DLT credentials **with consent** (mock a "Consent on file" checkbox). On DLT approval, the **template ID** (and updated body, if changed) is recorded and status → `Live`.
+- **WhatsApp** — AP Marketing reviews. On approval, the team submits to Meta via the BSP. A **backend polling job** auto-updates the status when Meta returns `APPROVED` / `REJECTED` (simulate with a 5–10 second timer per request).
+- **Global vs hospital-level decision:** on approval, the AP user picks `scope` (`global` or `hospital`-level). Default `hospital` unless explicitly promoted.
+
+**AC 7.1 — Stage advances on the hospital's Pending tab in real time** as the AP user actions a request.
+
+### 7.3 HIS Integration
+
+Out of scope for this release — keep a stub page or section titled **"HIS Integration (Phase 2)"** with a one-line description: *"Per-vendor API discovery; will feed CRM and Segments. Not available in v1 self-serve."*
+
+---
+
+## 8. Explicitly OUT of scope for this pass
+
+- **Multi-step journey builder** (time gaps, per-step delays, user-facing attribution-window UI). The 3-screen wizard sends one message per channel, once.
+- **AI copy generation / rewrite / tone suggestion** — anywhere, in any role.
+- **Hospital users authoring or editing message body text** outside the Request-a-new-template form.
+- **Drag-and-drop visual journey canvas.**
+- **HIS event triggers** (appointment booked, discharged, lab result ready) feeding any journey.
+- **Bulk campaign import / API-driven campaign creation** from the hospital side.
+- **WABA Business Manager auth** via partner APIs (deferred; mock the BM mapping as plain fields).
+- **Commission overrides / per-hospital fixed-amount commission** — commission is a flat 5%.
+
+If any of the above were partially built earlier, **remove the UI affordances** rather than leaving dead controls.
+
+---
+
+## 9. Definition of Done — click-through verification
+
+The pass is done when a reviewer can, in one sitting:
+
+1. As **Exec**, build a campaign in 3 steps and submit it; confirm Step 2 has **no "Add step" / time-gap / attribution-window UI** anywhere. ✔ / ✗
+2. As the same Exec, confirm the **Approve** button on their own submission is **disabled**. ✔ / ✗
+3. Switch to **Manager**, approve the campaign, watch the 6-check compliance gate run, wallet debit (channel cost + 5% fee + 18% GST), invoice raised, and an "email sent" log entry appear. ✔ / ✗
+4. Approve a campaign that **must hard-block** (DLT mismatch, WA Red quality, or insufficient wallet) and see the specific reason with **no wallet debit**. ✔ / ✗
+5. Approve a campaign with opted-out / DND recipients and see **auto-drop** with "N dropped" reported. ✔ / ✗
+6. Open the **Template Library**, filter by channel + goal + language, confirm only matching templates render. ✔ / ✗
+7. Click a template card → drawer opens → confirm **no edit / clone / duplicate** action anywhere. ✔ / ✗
+8. Click **+ Request a new template**, fill the form, insert variables **with fallback values**, watch the **channel-styled live preview** update as you type, submit, and see the new request in the **Pending Approval** tab with the correct stage strip. ✔ / ✗
+9. As **AP Admin**, advance that request through the channel-specific pathway and watch the hospital's Pending tab update in real time. ✔ / ✗
+10. From Step 1 of the builder, click "Create new segment" → land on the Segments tab → create an Affordplan segment with AND/OR conditions → Show Count → save → return to the builder with the draft preserved → the new segment is selectable. ✔ / ✗
+11. Try to schedule an SMS promo at 22:30 IST — the time should be **disabled** in the picker. ✔ / ✗
+12. As Exec, confirm **Add Money to Wallet** and **Integrations Hub modify** are disabled; switch to Manager and confirm they're enabled. ✔ / ✗
+13. Confirm the **Push partner displayed** in the Integrations Hub and Super-Admin Channel Config reads **NotifyVisitors** everywhere. ✔ / ✗
+14. Confirm a live campaign's **Revenue Attributed** in Campaign Metrics keeps accruing for **15 days** from launch (verifiable in seed data / simulated timestamps). ✔ / ✗
