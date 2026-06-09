@@ -111,6 +111,8 @@ router.patch("/leads/:id", async (req, res): Promise<void> => {
     specialization: z.string().optional(),
     optedIn: z.boolean().optional(),
     dndListed: z.boolean().optional(),
+    lastVisitDate: z.string().nullable().optional(),
+    tags: z.array(z.string()).optional(),
     userId: z.number().int().nullable().optional(), // actor for logging
   });
   const parsed = schema.safeParse(req.body);
@@ -153,6 +155,24 @@ router.delete("/leads/:id", async (req, res): Promise<void> => {
   await db.delete(messagesTable).where(eq(messagesTable.leadId, id));
   await db.delete(leadsTable).where(eq(leadsTable.id, id));
   res.sendStatus(204);
+});
+
+// ─── Add internal note ────────────────────────────────────────
+router.post("/leads/:id/notes", async (req, res): Promise<void> => {
+  const leadId = parseId(req.params.id);
+  const schema = z.object({
+    note: z.string().min(1),
+    userId: z.number().int().nullable().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, leadId));
+  if (!lead) { res.status(404).json({ error: "Lead not found" }); return; }
+  const [entry] = await db.insert(activityLogTable).values({
+    leadId, type: "note", description: parsed.data.note, userId: parsed.data.userId ?? null,
+  }).returning();
+  await db.update(leadsTable).set({ lastActionAt: new Date() }).where(eq(leadsTable.id, leadId));
+  res.status(201).json(entry);
 });
 
 // ─── Get messages ─────────────────────────────────────────────

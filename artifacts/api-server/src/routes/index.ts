@@ -17,6 +17,7 @@ import sendRulesRouter from "./sendRules";
 import notificationsRouter from "./notifications";
 import dashboardRouter from "./dashboard";
 import publicFormRouter from "./publicForm";
+import tagsRouter from "./tags";
 
 const router: IRouter = Router();
 
@@ -27,6 +28,7 @@ router.use(usersRouter);
 router.use(specializationsRouter);
 router.use(doctorsRouter);
 router.use(contactVariablesRouter);
+router.use(tagsRouter);
 router.use(leadsRouter);
 router.use(appointmentsRouter);
 router.use(segmentsRouter);

@@ -488,16 +488,25 @@ export default function Segments() {
               </div>
             )}
 
-            {/* CSV — column mapping note */}
+            {/* CSV — link to CSV upload page */}
             {basicForm.source === "csv" && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-3">
                 <div className="flex items-start gap-2">
                   <Info size={15} className="flex-shrink-0 mt-0.5" />
-                  <span>
-                    CSV segments use previously uploaded patient lists. Column mapping is governed by Contact Variables (Settings → Contact Variables).
-                    Mandatory columns: <strong>first_name</strong>, <strong>mobile</strong>.
-                  </span>
+                  <div>
+                    <p className="font-medium mb-1">CSV segments are created during the import flow.</p>
+                    <p>
+                      Go to <strong>CSV Bulk Upload</strong>, complete the 4-step import, and tick{" "}
+                      <em>"Save as Audience Segment"</em> on the final step. The segment will appear here automatically.
+                    </p>
+                  </div>
                 </div>
+                <a
+                  href="/crm/csv-upload"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Go to CSV Upload →
+                </a>
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -17,6 +17,8 @@ export const leadsTable = pgTable("leads", {
   dndListed: boolean("dnd_listed").notNull().default(false),
   hasActiveSession: boolean("has_active_session").notNull().default(false),
   sessionExpiresAt: timestamp("session_expires_at", { withTimezone: true }),
+  lastVisitDate: text("last_visit_date"),
+  tags: jsonb("tags").default([]).$type<string[]>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastActionAt: timestamp("last_action_at", { withTimezone: true }).notNull().defaultNow(),
 });

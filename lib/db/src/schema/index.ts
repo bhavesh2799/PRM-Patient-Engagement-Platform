@@ -10,3 +10,4 @@ export * from "./templates";
 export * from "./campaigns";
 export * from "./wallet";
 export * from "./settings";
+export * from "./tags";

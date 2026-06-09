@@ -2,7 +2,8 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
   leadsTable, appointmentsTable, campaignsTable,
-  campaignMetricsTable, walletTable, usersTable, doctorsTable, segmentsTable
+  campaignMetricsTable, walletTable, usersTable, doctorsTable, segmentsTable,
+  activityLogTable
 } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -181,9 +182,10 @@ router.get("/dashboard/home", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard/crm", async (req, res): Promise<void> => {
-  const { channel, dateFrom, dateTo } = req.query as Record<string, string>;
+  const { channel, ownerId, dateFrom, dateTo } = req.query as Record<string, string>;
   let leads = await db.select().from(leadsTable);
   if (channel) leads = leads.filter(l => l.sourceChannel === channel);
+  if (ownerId) leads = leads.filter(l => l.ownerUserId === parseInt(ownerId, 10));
   if (dateFrom) leads = leads.filter(l => new Date(l.createdAt) >= new Date(dateFrom));
   if (dateTo) leads = leads.filter(l => new Date(l.createdAt) <= new Date(dateTo));
 
@@ -215,15 +217,51 @@ router.get("/dashboard/crm", async (req, res): Promise<void> => {
     };
   });
 
+  // TTFA (Time-to-first-action) — median minutes from lead creation to first non-"created" activity
+  const allLogs = await db.select().from(activityLogTable);
+  const ttfaValues: number[] = [];
+  for (const lead of leads) {
+    const firstAction = allLogs
+      .filter(a => a.leadId === lead.id && a.type !== "created")
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+    if (firstAction) {
+      const diff = (new Date(firstAction.createdAt).getTime() - new Date(lead.createdAt).getTime()) / 60000;
+      if (diff >= 0) ttfaValues.push(diff);
+    }
+  }
+  const sorted = ttfaValues.sort((a, b) => a - b);
+  const ttfaMedianMinutes = sorted.length > 0 ? Math.round(sorted[Math.floor(sorted.length / 2)]) : null;
+
+  // Owner workload
+  const allUsers = await db.select().from(usersTable);
+  const allLeadsUnfiltered = ownerId ? await db.select().from(leadsTable) : leads;
+  const ownerWorkload = allUsers.map(u => {
+    const ul = allLeadsUnfiltered.filter(l => l.ownerUserId === u.id);
+    return {
+      userId: u.id,
+      name: u.name,
+      role: u.role,
+      new: ul.filter(l => l.status === "new").length,
+      contacted: ul.filter(l => l.status === "contacted").length,
+      in_progress: ul.filter(l => l.status === "in_progress").length,
+      fulfilled: ul.filter(l => l.status === "fulfilled").length,
+      total: ul.length,
+    };
+  }).filter(u => u.total > 0);
+
   res.json({
     totalLeads: leads.length,
     newLeads: leads.filter(l => l.status === "new").length,
     fulfilledLeads: leads.filter(l => l.status === "fulfilled").length,
     closedLeads: leads.filter(l => l.status === "closed").length,
+    inProgressLeads: leads.filter(l => l.status === "in_progress").length,
     slaBreach,
     byChannel,
     trend,
     optOutRate: leads.length ? Math.round((leads.filter(l => !l.optedIn).length / leads.length) * 100) : 0,
+    dndRate: leads.length ? Math.round((leads.filter(l => l.dndListed).length / leads.length) * 100) : 0,
+    ttfaMedianMinutes,
+    ownerWorkload,
   });
 });
 

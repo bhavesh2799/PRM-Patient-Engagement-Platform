@@ -4,12 +4,15 @@ import {
   contactVariablesTable, leadsTable, activityLogTable, messagesTable,
   appointmentsTable, segmentsTable, templatesTable, templateRequestsTable,
   campaignsTable, campaignMetricsTable, walletTable, walletTransactionsTable,
-  invoicesTable, channelConfigTable, sendRulesTable, notificationsTable, sessionTable
+  invoicesTable, channelConfigTable, sendRulesTable, notificationsTable, sessionTable,
+  tagsTable, quickRepliesTable, uploadHistoryTable
 } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { logger } from "./logger.js";
 
 async function clearAll(): Promise<void> {
   await db.delete(notificationsTable);
+  await db.delete(uploadHistoryTable);
   await db.delete(invoicesTable);
   await db.delete(walletTransactionsTable);
   await db.delete(walletTable);
@@ -28,6 +31,8 @@ async function clearAll(): Promise<void> {
   await db.delete(usersTable);
   await db.delete(channelConfigTable);
   await db.delete(sendRulesTable);
+  await db.delete(quickRepliesTable);
+  await db.delete(tagsTable);
   await db.delete(sessionTable);
   await db.delete(hospitalTable);
 }
@@ -463,6 +468,33 @@ export async function runSeed(force = false): Promise<void> {
     { leadId: lakshmi.id, type: "assignment", description: "Assigned to Priya Sharma", userId: u1.id, createdAt: new Date(now - 5.8 * 3600 * 1000) },
     { leadId: lakshmi.id, type: "status_change", description: "Status changed from new → in_progress", userId: u1.id, createdAt: new Date(now - 5.5 * 3600 * 1000) },
   ]);
+
+  // Predefined tag palette
+  await db.insert(tagsTable).values([
+    { name: "High Value",        color: "#ef4444" },
+    { name: "Follow-up Needed",  color: "#f97316" },
+    { name: "VIP",               color: "#8b5cf6" },
+    { name: "Insurance Query",   color: "#06b6d4" },
+    { name: "Rural Outreach",    color: "#84cc16" },
+    { name: "Chronic Condition", color: "#ec4899" },
+    { name: "Recent Discharge",  color: "#14b8a6" },
+  ]);
+
+  // Quick replies
+  await db.insert(quickRepliesTable).values([
+    { text: "Your appointment is confirmed. Please arrive 15 minutes early and carry a valid photo ID.", sortOrder: 1 },
+    { text: "Our specialist will call you back within 2 hours. Please keep your phone reachable.", sortOrder: 2 },
+    { text: "Please carry previous reports, X-rays, and your insurance TPA card for the consultation.", sortOrder: 3 },
+    { text: "Thank you for choosing Sunrise Hospital. Wishing you a speedy recovery!", sortOrder: 4 },
+    { text: "Your insurance documents are being verified. We will update you by end of day.", sortOrder: 5 },
+  ]);
+
+  // Assign tags to named leads
+  await db.update(leadsTable).set({ tags: ["High Value", "Insurance Query"] }).where(eq(leadsTable.id, arjun.id));
+  await db.update(leadsTable).set({ tags: ["Chronic Condition", "Follow-up Needed"] }).where(eq(leadsTable.id, sunita.id));
+  await db.update(leadsTable).set({ tags: ["VIP"] }).where(eq(leadsTable.id, lakshmi.id));
+  if (insertedLeads[8])  await db.update(leadsTable).set({ tags: ["Recent Discharge"] }).where(eq(leadsTable.id, insertedLeads[8].id));
+  if (insertedLeads[16]) await db.update(leadsTable).set({ tags: ["Rural Outreach", "Follow-up Needed"] }).where(eq(leadsTable.id, insertedLeads[16].id));
 
   // Segments
   const csvLeadIds = insertedLeads.filter(l => l.sourceChannel === "csv").map(l => l.id);

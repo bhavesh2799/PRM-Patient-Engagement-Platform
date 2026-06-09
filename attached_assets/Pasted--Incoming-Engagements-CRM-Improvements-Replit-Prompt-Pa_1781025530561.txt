@@ -1,0 +1,276 @@
+# Incoming Engagements (CRM) Improvements — Replit Prompt
+
+**Paste this into Replit Agent as a follow-up to the master build brief and the CRM acceptance-criteria addendum.**
+
+This refines the existing **Incoming Engagements (CRM)** module against current prototype gaps. Two priorities, called out upfront:
+
+1. **CSV Bulk Upload must implement the full mapping + validation flow.** Today the screen accepts a file and imports silently. This violates a hard requirement: *"column → variable mapping must be shown before import; a missing mandatory column produces a clear error naming the column."* Fix §1 completely — it is the only outright spec violation in the module.
+2. **The inbox needs to work for a team, not just a single viewer.** Today bulk-select checkboxes exist but produce no action. Add the **Owner Workload** panel on the dashboard, the **"My leads"** filter on the inbox, and **bulk actions** when rows are checked (§2, §4). Together these turn the inbox from a viewer into a worker's tool.
+
+Treat every acceptance criterion (AC) below as a test that must pass by clicking through the running UI.
+
+---
+
+## 1. CSV Bulk Upload — full mapping flow (biggest fix)
+
+Replace the single-step upload with a **4-step flow**: File → Map → Preview → Import. Each step has its own screen state; the user can back-step.
+
+### 1.1 Step 1 — File selection (already exists)
+
+**AC 1.1** Keep the existing drag-and-drop zone and Browse Files button. Remove the "Ensure your file includes columns for First Name, Last Name, Mobile Number" hint from the drop zone — that guarantee moves to validation in Step 2.
+**AC 1.2** On file selected, advance to Step 2 automatically. Show file name, size, and detected row count at the top of subsequent steps.
+**AC 1.3** Reject non-CSV files at this step with a clear error ("Only .csv files are supported"). Reject files > 10MB at this step.
+
+### 1.2 Step 2 — Column mapping (new)
+
+**AC 1.4** Show a **two-column mapping table**:
+- **Left column:** the CSV's detected column names (header row of the uploaded file).
+- **Right column:** a dropdown per row, populated with the hospital's **Contact Variables** (First Name, Last Name, UHID, Specialisation, Last Visit Date, Mobile Number, plus any custom variables the hospital has created), plus a **"— Don't import —"** option.
+
+**AC 1.5** **Auto-suggest mappings** by fuzzy-matching CSV headers to variable names ("mobile_no" → Mobile Number, "first_name" → First Name, "uhid" → UHID). The user can override every suggestion.
+
+**AC 1.6** **Mandatory-variable validation is enforced before advancing:**
+- *Given* a Contact Variable is flagged `mandatory: true` (UHID and Mobile Number at minimum), *when* the user clicks Next, *then* the system checks every mandatory variable is mapped to some CSV column.
+- *Given* any mandatory variable is unmapped, *then* the Next button is disabled and **a clear, named error banner** appears at the top: *"'Mobile Number' must be mapped to a column before you can continue."* (Name the specific variable; do not say "a required field is missing.")
+
+**AC 1.7** Two mandatory variables cannot both map to the same CSV column. If the user tries, show an inline error on the second mapping ("This column is already mapped to UHID").
+
+**AC 1.8** Show a small **inline preview** under each mapping: the first 2 sample values from that CSV column. ("Sample: 9876543210, 9933445566") — so the user catches when "mobile" actually contains email addresses.
+
+### 1.3 Step 3 — 5-row preview & validation (new)
+
+**AC 1.9** Show **the first 5 rows** of the CSV as they will be imported — columns are the *mapped variables* (not the original CSV headers), so the user sees the data as the system will interpret it.
+
+**AC 1.10** **Validate each preview row** and tag it with a status pill:
+- `OK` (green) — all mandatory fields valid.
+- `Will merge` (blue) — UHID or Mobile matches an existing lead; this row will merge into that record (link to the existing lead).
+- `Reject` (red) — mandatory field missing, malformed mobile, or invalid country code.
+
+For each rejected row, show the **specific reason** in a tooltip or inline ("Mobile must include country code 91XXXXXXXXXX").
+
+**AC 1.11** Show an **aggregate summary above the preview**: *"Of N total rows: X will import as new, Y will merge into existing leads, Z will be rejected."* Computed across the full file, not just the 5 visible.
+
+### 1.4 Step 4 — Batch metadata & import (new)
+
+**AC 1.12** Two required inputs before commit:
+- **Source list name** (text, required). Default suggestion: the uploaded filename without extension. This name becomes the `sourceListTag` on every imported lead and is what surfaces in dashboards and filters ("Health Camp June 5"), so leads don't all just say "CSV."
+- **Save as a reusable segment** (toggle, default ON). When ON, ask for a segment name (default = source list name) and create a Segment containing exactly the imported leads.
+
+**AC 1.13** Show the final commit panel with: *Total rows · New leads · Merged · Rejected · Source name · Save-as-segment Yes/No*. The **Import N Leads** button is the only path forward.
+
+**AC 1.14** **On Import:** show a progress bar (mock smooth ticks for the demo). On completion, show a **summary card**:
+- ✓ 117 leads imported
+- ↻ 8 duplicates merged into existing records
+- ✗ 5 rejected ([Download rejection report] link — mocked CSV download with the rejected rows + reasons)
+- → Segment "Health Camp June 5" created (123 leads) [Open segment]
+
+**AC 1.15** From the summary, two CTAs: **"Open in Inbox"** (filters inbox to source list = this batch) and **"Upload another file"** (returns to Step 1).
+
+### 1.5 Upload history (new, below the upload zone)
+
+**AC 1.16** Below the upload zone, show an **Upload History** table — last 20 uploads:
+
+| Source name | Uploaded | Rows | Imported | Merged | Rejected | Segment | Actions |
+|---|---|---|---|---|---|---|---|
+
+Row actions: **View in inbox** (deep-link), **Download rejection report**, **Delete batch** (Marketing Manager only — removes the source-list tag from leads but keeps the leads themselves; show a confirmation modal explaining this).
+
+---
+
+## 2. Unified Inbox — list view improvements
+
+### 2.1 Sort, filter expansion, "My leads"
+
+**AC 2.1 — Sort control.** Add a Sort dropdown next to the filter chips. Options: *Created (newest)*, *Created (oldest)*, *Last action (most recent)*, *Lead age (oldest first)*, *Status*, *Channel*. Default = Last action (most recent).
+**AC 2.2 — "My leads" toggle.** A prominent toggle at the top of the inbox: **"All leads / My leads"**. *Given* "My leads" is on, *then* the list scopes to leads where `owner == currentUser`. This is the single most-used view; make it visually clear when active (filled state, different background).
+**AC 2.3 — Filter chip counts.** Every filter option shows a count: "All channels (25)", "WhatsApp (3)", "New (9)", "Contacted (4)", etc. Counts reflect the *other* active filters (combined narrowing).
+**AC 2.4 — Source list filter.** Add a filter dropdown for `sourceListTag` (populated from CSV batch names) — so the team can ask "show me leads from Health Camp June 5."
+
+### 2.2 Row-level information density
+
+**AC 2.5 — Unread indicator.** Leads with inbound messages received after the last agent action show **a coloured dot** next to the name and the name in **medium weight**. Opening the conversation clears the indicator.
+**AC 2.6 — Lead age on the row.** Add a small grey line under the channel + status pills: *"Last action 4h ago"* or *"No action · 6 days"* (the latter in amber if past SLA). Replaces or supplements the current right-aligned "Jun 5" timestamp.
+**AC 2.7 — Lead-row badges.** Show small badges for VIP, DND, Opted-out (see §5.3 on tags) so dangerous-to-message leads are visible at a glance in the list, not just in the profile.
+
+### 2.3 Bulk actions (currently checkboxes do nothing)
+
+**AC 2.8 — Bulk action bar appears when ≥1 lead is checked.** A horizontal bar slides in at the top of the list with the **count** ("3 selected") and these actions:
+- **Assign to…** (user picker — Manager/AP Admin only can assign to others; Exec can self-assign)
+- **Change status** (lifecycle dropdown)
+- **Group into segment** (opens a small dialog: segment name → creates segment → confirms with link)
+- **Add tags** (multi-select from the hospital's tag list — see §5.3)
+- **Export selected** (CSV download — mocked OK)
+
+**AC 2.9 — Select-all.** A header checkbox selects every lead currently visible *after filters* (not the entire database).
+**AC 2.10 — Confirmation on destructive bulk actions** (status → Closed, bulk delete if introduced). Other bulk actions apply immediately with a toast and Undo for 5 seconds.
+
+### 2.4 Empty state
+
+**AC 2.11 — When no conversation is selected, the right pane shows queue health, not just "Select a lead to start chatting":**
+- *"9 unassigned"* (clickable → filters inbox to unassigned)
+- *"9 SLA-breached"* (clickable → filters to breached)
+- *"3 unread since yesterday"* (clickable → filters to unread)
+
+When the inbox is genuinely empty (post-filter), show the existing "no results" state.
+
+### 2.5 Realtime
+
+**AC 2.12 — Drop the manual refresh.** Inbound messages and new leads appear without the user clicking the refresh button. The refresh icon can remain as a safety net, but it should rarely be needed.
+**AC 2.13 — Visual cue for new arrivals.** A new lead or inbound message arriving while the inbox is open causes a brief highlight on the affected row (1-second background flash). If the user is on a different view, the sidebar Inbox item gets a count badge.
+
+---
+
+## 3. Conversation pane improvements
+
+### 3.1 Composer fixes
+
+**AC 3.1 — Label the template button.** Replace the bare doc icon with a labelled button: **"Use template"** (icon + text). Position it consistently next to the message field.
+**AC 3.2 — Template picker UX.** Clicking "Use template" opens a small popover listing templates filtered to this lead's channel; clicking one inserts the rendered body (variables bound) into the composer for the user to send. The user can still type free text alongside if session is open.
+**AC 3.3 — Delivery state on outbound bubbles.** Every outbound message shows ticks: ✓ sent → ✓✓ delivered → ✓✓ (blue) read, driven by the mock messaging service. Without these the demo feels static.
+**AC 3.4 — Inbound message animation.** When a simulated inbound arrives in the open conversation, it animates in at the bottom and the thread auto-scrolls.
+
+### 3.2 Lead profile (right rail) — full information
+
+The current profile shows Channel, Status, Specialization, Owner, Lead Age, Opted In. Add the missing fields the spec lists as pre-defined Contact Variables:
+
+**AC 3.5 — Add fields to the profile:**
+- **UHID** (with copy-to-clipboard icon)
+- **Last Visit Date**
+- **Last Name** if not already shown alongside first name
+- **DND status** (red badge if listed)
+- **Opt-out status** explicit (in addition to the existing Opted-In green)
+- **Source list / batch name** (e.g. "Health Camp June 5") with a link that filters the inbox to that batch
+- **Tags** (see §5.3) — visible as small pills, editable inline
+
+**AC 3.6 — Reassign action.** Add a "Reassign" button next to the status dropdown (gated by role per §1.2 of the CRM addendum).
+**AC 3.7 — Book appointment quick action.** A **"Book appointment for this patient"** button in the profile opens the booking flow (or a slot picker dialog) with the lead pre-filled, without leaving the conversation.
+
+### 3.3 Activity log — log everything
+
+The current log shows only "Created" for most leads. This is too sparse.
+
+**AC 3.8 — Log every state change and action with actor + timestamp:**
+- Lead created (channel)
+- Assignment / reassignment ("Assigned to Priya Sharma by Manager")
+- Status changes
+- Every message sent or received (with channel)
+- Template used
+- Tag added / removed
+- Campaign touch ("Received WhatsApp message from 'Win-back June' campaign")
+- Campaign conversion ("Booked appointment within 15-day attribution window of 'Win-back June'")
+- Internal note added (with note preview)
+- Appointment created from this lead
+- Merged from CSV upload "Health Camp June 5"
+
+**AC 3.9 — Activity log is filterable** by entry type (Messages / Status / Assignment / Campaign / Notes / All).
+
+### 3.4 Campaign Touches section (new)
+
+**AC 3.10** A dedicated **Campaign Touches** card in the right rail (under Activity Log or as its own collapsible section): shows every campaign that has touched this lead — campaign name, channel, sent date, delivery state, and whether the lead converted within the 15-day attribution window. Without this card the CRM↔Engagement loop is invisible at the lead level.
+
+### 3.5 Internal notes (new)
+
+**AC 3.11** Add an **Internal Notes** section in the profile, separate from the conversation thread. Notes are visible only to staff (never sent to the patient). Each note: text, author, timestamp. Notes appear in the activity log as a distinct entry type.
+**AC 3.12** Composer area for the conversation has a small toggle: **Reply** (default — sends to patient via the channel) / **Add internal note** (saves a note, never sends). The visual treatment for the two modes should be clearly different (note mode = yellow-tinted background or similar) so an agent never accidentally writes a private note into a public reply.
+
+---
+
+## 4. CRM Dashboard improvements
+
+### 4.1 Filters
+
+**AC 4.1 — Add a date-range filter** alongside the existing channel filter. Default = last 30 days. Filtering should drive every card and chart on the page.
+**AC 4.2 — Add Owner filter** for managers (filter the whole dashboard to one agent's leads). Hidden for Execs (they default to their own).
+
+### 4.2 New KPI
+
+**AC 4.3 — Add a "Median Time-to-First-Action" card** next to SLA Breaches. Computes the median time between lead creation and first agent action (status change or outbound message). Format: "2h 14m" or "Within SLA" indicator. Without this, the breach count is reactive; TTFA is the rhythm.
+
+### 4.3 Owner Workload panel (new)
+
+**AC 4.4 — Add an Owner Workload card/table** showing, per agent:
+- Name (with avatar/initials)
+- Assigned (open) leads
+- In-progress count
+- Fulfilled this period
+- Avg time-to-first-action
+- Unassigned column at the bottom
+
+This is the single most useful operational view for a Marketing Manager and is currently absent. Make rows clickable → inbox filtered to that owner. Visible to Managers and AP Admin; hidden for Execs.
+
+### 4.4 Chart redundancy
+
+**AC 4.5 — Resolve Leads-by-Channel vs Channel-Conversion-Rates duplication.** Either:
+- **(a)** Replace both with a single horizontal bar chart per channel showing total + fulfilled stacked, with the conversion % to the right of the bar; or
+- **(b)** Keep both but differentiate: left chart = volume (totals), right chart = conversion-rate funnel (a vertical funnel chart, not a row of progress bars).
+
+Pick (a) for the prototype — simpler and uses space better. Horizontal bars also fix the channel-label truncation visible in the current build (CSV / App / Web / Push appear cramped vertically).
+
+### 4.5 Make the SLA banner functional
+
+**AC 4.6 — The "9 leads have breached SLA" banner is clickable** → navigates to the inbox pre-filtered to breached leads (lead age > 24h in `new` status).
+**AC 4.7 — The banner shows owner breakdown on hover** ("4 unassigned · 3 owned by Priya · 2 owned by Rajeev") — pushes action ownership.
+
+### 4.6 Misc dashboard housekeeping
+
+**AC 4.8 — Group orphaned cards.** Opt-out Rate and Closed Leads currently sit at the bottom in isolation. Group them into a **"Lead Quality"** section with: Opt-out rate · DND rate · Closed-without-action rate · Duplicate-merge rate.
+**AC 4.9 — Volume Trend** chart x-axis labels are dense and overlap on small widths. Show every 3rd day on widths under 1200px; show all days otherwise.
+
+---
+
+## 5. Cross-cutting CRM improvements
+
+### 5.1 Search robustness
+
+**AC 5.1** Inbox search currently matches name and mobile. Extend to also match: **UHID, email (if present), assigned doctor, specialization, source list name, and tag**. Each match category gets a small label in the search dropdown ("Match: UHID" / "Match: Source list").
+
+### 5.2 Source granularity
+
+**AC 5.2 — "Web Form" channel is too coarse.** A lead's source should distinguish:
+- *Web — Booking form* vs *Web — Enquiry form* vs *Web — Contact form*
+- *App — Booking* vs *App — Push reply*
+- *CSV — [batch name]* (e.g. *CSV — Health Camp June 5*)
+
+Update the channel tag rendering accordingly. Dashboard and filters should respect the finer granularity. Keep parent groupings (Web, App, CSV) available as filter shortcuts.
+
+### 5.3 Tags (new entity)
+
+**AC 5.3 — Introduce Tags** as a separate dimension from Status.
+- Status is workflow (New / Contacted / In-progress / Fulfilled / Closed) — one value at a time, governed by lifecycle rules.
+- Tags are context (**VIP, Insurance Patient, Repeat Inquirer, Walk-in, Referral, High-spend, At-risk**, plus hospital-custom) — many can apply to one lead.
+**AC 5.4** Tags are manageable in **Settings → Tags** (Manager/AP Admin): create, rename, choose a colour, archive.
+**AC 5.5** Tags appear on lead-row badges in the inbox list, inside the profile, and as a filter chip in the inbox. Bulk action "Add tags" applies to selected leads.
+
+### 5.4 Quick replies (distinct from templates)
+
+**AC 5.6 — Add Quick Replies** for the conversation composer. Quick replies are **free-text snippets stored locally per hospital** for common patient questions ("Our clinic hours are 9 AM–9 PM, Mon–Sat"). They are not compliance-bound templates — they're just saved phrases.
+**AC 5.7** A **"⚡ Quick reply"** button next to "Use template" in the composer opens a small list; clicking one inserts the text into the message field (still editable before send).
+**AC 5.8** Quick replies are editable in **Settings → Quick Replies** — create, edit, delete. Available to any role with inbox access.
+**AC 5.9** Quick replies are subject to the same 24h session rule as any free-text message: usable when session is open, blocked when expired (use a template to re-open).
+
+---
+
+## 6. Definition of Done — click-through verification
+
+The pass is done when a reviewer can, in one sitting:
+
+1. Upload a CSV; see the **column mapping screen** with auto-suggested mappings; deliberately leave **Mobile Number unmapped** and try to advance — see the **named-column error** and a **disabled Next button**. ✔ / ✗
+2. Map mandatory columns; advance to the **5-row preview**; see at least one row tagged `Will merge` and one tagged `Reject` with a reason. ✔ / ✗
+3. Commit the import with a **source list name** and save-as-segment toggle ON; see the post-import summary; click "Open in Inbox" and land on the inbox filtered to that batch. ✔ / ✗
+4. See the **Upload History** table populated below the upload zone with the just-imported batch. ✔ / ✗
+5. In the inbox, toggle **"My leads"** and confirm the list scopes to the current user's owned leads. ✔ / ✗
+6. Sort by **"Lead age (oldest first)"** and confirm SLA-breached leads surface to the top with amber "No action · N days" labels. ✔ / ✗
+7. Check 3 leads in the inbox; confirm the **bulk action bar** appears with Assign, Change status, Group into segment, Add tags, Export selected. ✔ / ✗
+8. Use bulk **Group into segment**; confirm the new segment is selectable in the Engagement campaign builder. ✔ / ✗
+9. Open a lead; confirm the profile shows **UHID, Last Visit Date, DND, Source list, Tags**, plus **Reassign** and **Book appointment** quick actions. ✔ / ✗
+10. Confirm the **template button is labelled "Use template"** with a visible icon and text; send a templated message and watch the **sent → delivered → read** ticks tick. ✔ / ✗
+11. Add an **Internal Note** via the composer toggle; confirm it does NOT send to the patient and appears in the activity log distinctly. ✔ / ✗
+12. Confirm the **Activity Log** now shows every action (creation, assignment, status changes, messages, template uses, internal notes, campaign touches) for the open lead. ✔ / ✗
+13. Confirm the **Campaign Touches** section appears in the lead profile for any lead that received a campaign, with attribution status. ✔ / ✗
+14. On the CRM Dashboard, see the **Owner Workload** panel with per-agent counts and median TTFA; click a row → inbox filtered to that owner. ✔ / ✗
+15. Click the **SLA breach banner** → land on the inbox filtered to the 9 breached leads. ✔ / ✗
+16. Confirm the dashboard has a **Median Time-to-First-Action** card next to SLA Breaches. ✔ / ✗
+17. Confirm the **Leads by Channel** and **Channel Conversion Rates** are merged into one clear horizontal bar chart with conversion % per channel. ✔ / ✗
+18. Search the inbox for a **UHID** value and see the matching lead in results with a "Match: UHID" label. ✔ / ✗
+19. Apply a custom tag ("VIP") to a lead via bulk action; confirm the badge appears on the lead row and in the profile. ✔ / ✗
+20. Insert a **Quick Reply** in the composer (separate from templates) and send it as free text. ✔ / ✗

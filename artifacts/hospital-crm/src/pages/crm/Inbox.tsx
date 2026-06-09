@@ -1,10 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetSessionRole } from "@workspace/api-client-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow, differenceInHours } from "date-fns";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,10 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
-  Search, Send, MessageSquare, Phone, Clock,
-  AlertCircle, CheckCheck, Check, Zap, UserPlus,
-  Users, FileText, RefreshCw, ChevronDown, X, Plus
+  Search, Send, MessageSquare, Phone, Clock, AlertCircle, CheckCheck, Check,
+  Zap, UserPlus, Users, FileText, RefreshCw, X, StickyNote, Download, Copy,
+  Tag, Plus, ChevronDown
 } from "lucide-react";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -28,6 +27,8 @@ interface Lead {
   uhid: string | null;
   specialization: string | null;
   sourceChannel: string;
+  sourceListTag: string | null;
+  lastVisitDate: string | null;
   status: string;
   ownerUserId: number | null;
   ownerName: string | null;
@@ -38,6 +39,7 @@ interface Lead {
   createdAt: string;
   lastActionAt: string;
   activityLog?: ActivityEntry[];
+  tags?: string[] | null;
 }
 
 interface Message {
@@ -71,47 +73,56 @@ interface Template {
   perMessageCost: string;
 }
 
+interface TagItem { id: number; name: string; color: string; archived: boolean; }
+interface QuickReply { id: number; text: string; sortOrder: number; }
+
 // ─── API helpers ──────────────────────────────────────────────
 
 const api = {
   getLeads: async (p: Record<string, string>): Promise<Lead[]> => {
     const qs = new URLSearchParams(Object.fromEntries(Object.entries(p).filter(([, v]) => v)));
-    const r = await fetch(`/api/leads?${qs}`);
-    return r.json();
+    return fetch(`/api/leads?${qs}`).then(r => r.json());
   },
   getLead: async (id: number): Promise<Lead> => fetch(`/api/leads/${id}`).then(r => r.json()),
   getMessages: async (id: number): Promise<Message[]> => fetch(`/api/leads/${id}/messages`).then(r => r.json()),
   getTemplates: async (): Promise<Template[]> => fetch("/api/templates").then(r => r.json()),
+  getTags: async (): Promise<TagItem[]> => fetch("/api/tags").then(r => r.json()),
+  getQuickReplies: async (): Promise<QuickReply[]> => fetch("/api/settings/quick-replies").then(r => r.json()),
   sendMessage: async (leadId: number, data: object) => {
     const r = await fetch(`/api/leads/${leadId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
     if (!r.ok) throw await r.json();
     return r.json() as Promise<Message>;
   },
   updateLead: async (id: number, data: object) => {
     const r = await fetch(`/api/leads/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
-    return r.json() as Promise<Lead>;
+    return r.json();
+  },
+  addNote: async (leadId: number, note: string, userId: number | null) => {
+    const r = await fetch(`/api/leads/${leadId}/notes`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ note, userId }),
+    });
+    if (!r.ok) throw await r.json();
+    return r.json();
+  },
+  bulkAction: async (data: object) => {
+    const r = await fetch("/api/leads/bulk", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+    });
+    return r.json();
   },
   simulateInbound: async (data: object) => {
     const r = await fetch("/api/leads/simulate-inbound", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
     return r.json();
   },
   groupSegment: async (data: object) => {
     const r = await fetch("/api/leads/group-segment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
     return r.json();
   },
@@ -120,31 +131,19 @@ const api = {
 // ─── Helpers ──────────────────────────────────────────────────
 
 const CHANNEL_LABELS: Record<string, string> = {
-  waba: "WhatsApp",
-  web_chat: "Web Chat",
-  form: "Form",
-  csv: "CSV",
-  app_booking: "App Booking",
-  web_booking: "Web Booking",
-  push: "Push",
+  waba: "WhatsApp", web_chat: "Web Chat", form: "Form", csv: "CSV",
+  app_booking: "App Booking", web_booking: "Web Booking", push: "Push",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  new: "New",
-  contacted: "Contacted",
-  in_progress: "In Progress",
-  fulfilled: "Fulfilled",
-  closed: "Closed",
+  new: "New", contacted: "Contacted", in_progress: "In Progress",
+  fulfilled: "Fulfilled", closed: "Closed",
 };
 
 const SESSION_CHANNELS = ["waba", "web_chat"];
 
 function sessionIsOpen(lead: Lead): boolean {
-  return (
-    lead.hasActiveSession &&
-    !!lead.sessionExpiresAt &&
-    new Date(lead.sessionExpiresAt) > new Date()
-  );
+  return lead.hasActiveSession && !!lead.sessionExpiresAt && new Date(lead.sessionExpiresAt) > new Date();
 }
 
 function sessionHoursLeft(lead: Lead): number {
@@ -153,8 +152,7 @@ function sessionHoursLeft(lead: Lead): number {
 }
 
 function templateChannelFor(sourceChannel: string): string {
-  if (sourceChannel === "waba" || sourceChannel === "web_chat") return "whatsapp";
-  return sourceChannel;
+  return (sourceChannel === "waba" || sourceChannel === "web_chat") ? "whatsapp" : sourceChannel;
 }
 
 // ─── Sub-components ───────────────────────────────────────────
@@ -171,19 +169,13 @@ function MessageBubble({ msg, localStatus }: { msg: Message; localStatus?: strin
   const status = localStatus ?? msg.status;
   return (
     <div className={cn("flex mb-3", isOut ? "justify-end" : "justify-start")}>
-      <div
-        className={cn(
-          "max-w-[72%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-          isOut
-            ? "bg-primary text-primary-foreground rounded-br-sm"
-            : "bg-muted text-foreground rounded-bl-sm"
-        )}
-      >
+      <div className={cn(
+        "max-w-[72%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+        isOut ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"
+      )}>
         <p className="whitespace-pre-wrap">{msg.body}</p>
         <div className={cn("flex items-center gap-1 mt-1", isOut ? "justify-end" : "justify-start")}>
-          <span className="text-[10px] opacity-60">
-            {format(new Date(msg.timestamp), "h:mm a")}
-          </span>
+          <span className="text-[10px] opacity-60">{format(new Date(msg.timestamp), "h:mm a")}</span>
           {isOut && <DeliveryTick status={status} />}
         </div>
       </div>
@@ -191,19 +183,48 @@ function MessageBubble({ msg, localStatus }: { msg: Message; localStatus?: strin
   );
 }
 
+function NoteBubble({ entry }: { entry: ActivityEntry }) {
+  return (
+    <div className="flex justify-center mb-3">
+      <div className="max-w-[80%] rounded-xl px-3.5 py-2 text-sm bg-amber-50 border border-amber-200 text-amber-900">
+        <div className="flex items-center gap-1.5 mb-1 opacity-70">
+          <StickyNote className="w-3 h-3" />
+          <span className="text-[10px] font-medium">Internal note</span>
+          {entry.userName && <span className="text-[10px]">· {entry.userName}</span>}
+        </div>
+        <p className="whitespace-pre-wrap">{entry.description}</p>
+        <p className="text-[10px] opacity-60 mt-1">{format(new Date(entry.createdAt), "h:mm a")}</p>
+      </div>
+    </div>
+  );
+}
+
 function ChannelBadge({ channel }: { channel: string }) {
   const colors: Record<string, string> = {
-    waba: "bg-green-100 text-green-800",
-    web_chat: "bg-blue-100 text-blue-800",
-    form: "bg-orange-100 text-orange-800",
-    csv: "bg-slate-100 text-slate-700",
-    app_booking: "bg-purple-100 text-purple-800",
-    web_booking: "bg-indigo-100 text-indigo-800",
+    waba: "bg-green-100 text-green-800", web_chat: "bg-blue-100 text-blue-800",
+    form: "bg-orange-100 text-orange-800", csv: "bg-slate-100 text-slate-700",
+    app_booking: "bg-purple-100 text-purple-800", web_booking: "bg-indigo-100 text-indigo-800",
     push: "bg-pink-100 text-pink-800",
   };
   return (
     <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded uppercase", colors[channel] || "bg-secondary text-secondary-foreground")}>
       {CHANNEL_LABELS[channel] || channel}
+    </span>
+  );
+}
+
+function TagPill({ name, color, onRemove }: { name: string; color?: string; onRemove?: () => void }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white"
+      style={{ backgroundColor: color || "#94a3b8" }}
+    >
+      {name}
+      {onRemove && (
+        <button onClick={onRemove} className="hover:opacity-70 transition-opacity">
+          <X className="w-2.5 h-2.5" />
+        </button>
+      )}
     </span>
   );
 }
@@ -222,6 +243,8 @@ export default function Inbox() {
   const [statusFilter, setStatusFilter] = useState(
     () => new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("status") ?? ""
   );
+  const [myLeads, setMyLeads] = useState(false);
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "sla" | "unread">("newest");
 
   // Selection
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
@@ -229,17 +252,21 @@ export default function Inbox() {
 
   // Composer
   const [composerText, setComposerText] = useState("");
+  const [composerMode, setComposerMode] = useState<"reply" | "note">("reply");
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
 
-  // Template picker
+  // Dialogs
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-
-  // Segment dialog
   const [showSegmentDialog, setShowSegmentDialog] = useState(false);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [showAddTag, setShowAddTag] = useState(false);
   const [segmentName, setSegmentName] = useState("");
 
-  // Local delivery status tracking
+  // Activity filter
+  const [activityFilter, setActivityFilter] = useState<"all" | "message" | "status_change" | "assignment" | "note">("all");
+
+  // Local delivery
   const [localStatuses, setLocalStatuses] = useState<Record<number, string>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -271,13 +298,41 @@ export default function Inbox() {
     queryFn: api.getTemplates,
   });
 
-  // ── Auto-scroll messages ───────────────────────────────────
+  const { data: availableTags = [] } = useQuery<TagItem[]>({
+    queryKey: ["tags"],
+    queryFn: api.getTags,
+  });
+
+  const { data: quickReplies = [] } = useQuery<QuickReply[]>({
+    queryKey: ["quick-replies"],
+    queryFn: api.getQuickReplies,
+  });
+
+  // ── Auto-scroll ─────────────────────────────────────────────
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // ── Computed ───────────────────────────────────────────────
+
+  const unreadLeadIds = new Set(leads.filter(l => l.hasActiveSession && l.status === "new").map(l => l.id));
+
+  const sortedLeads = [...leads]
+    .filter(l => !myLeads || l.ownerUserId === session?.userId)
+    .sort((a, b) => {
+      if (sortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortBy === "unread") {
+        const diff = Number(unreadLeadIds.has(b.id)) - Number(unreadLeadIds.has(a.id));
+        if (diff !== 0) return diff;
+      }
+      if (sortBy === "sla") {
+        const sla = (l: Lead) => l.status === "new" && differenceInHours(new Date(), new Date(l.createdAt)) > 24 ? 1 : 0;
+        const diff = sla(b) - sla(a);
+        if (diff !== 0) return diff;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   const isSessionOpen = selectedLead ? sessionIsOpen(selectedLead) : false;
   const isSessionChannel = selectedLead ? SESSION_CHANNELS.includes(selectedLead.sourceChannel) : false;
@@ -287,21 +342,42 @@ export default function Inbox() {
   const channelTemplates = templates.filter(t => {
     if (!selectedLead) return false;
     const tch = templateChannelFor(selectedLead.sourceChannel);
-    if (t.channel !== tch) return false;
-    if (t.status !== "approved") return false;
+    if (t.channel !== tch || t.status !== "approved") return false;
     if (t.channel === "whatsapp" && t.metaStatus !== "APPROVED") return false;
     return true;
   });
 
-  const canFreeText = isSessionChannel && isSessionOpen && !isBlocked;
+  const canFreeText = isSessionChannel && isSessionOpen && !isBlocked && composerMode === "reply";
 
-  // Unread: leads with active session and status=new (approximation)
-  const unreadLeadIds = new Set(leads.filter(l => l.hasActiveSession && l.status === "new").map(l => l.id));
+  const filteredActivity = (selectedLead?.activityLog ?? []).filter(a =>
+    activityFilter === "all" || a.type === activityFilter
+  );
+
+  const tagColorMap = Object.fromEntries(availableTags.filter(t => !t.archived).map(t => [t.name, t.color]));
+  const currentTags = selectedLead?.tags ?? [];
+  const addableTags = availableTags.filter(t => !t.archived && !currentTags.includes(t.name));
 
   // ── Handlers ──────────────────────────────────────────────
 
   const handleSend = async () => {
     if (!selectedLeadId || !selectedLead || !composerText.trim()) return;
+
+    if (composerMode === "note") {
+      setIsSending(true);
+      setSendError(null);
+      try {
+        await api.addNote(selectedLeadId, composerText.trim(), session?.userId ?? null);
+        setComposerText("");
+        refetchLead();
+        toast.success("Note added");
+      } catch {
+        setSendError("Failed to add note");
+      } finally {
+        setIsSending(false);
+      }
+      return;
+    }
+
     setIsSending(true);
     setSendError(null);
     try {
@@ -331,18 +407,14 @@ export default function Inbox() {
     setIsSending(true);
     try {
       const msg = await api.sendMessage(selectedLeadId, {
-        messageType: "template",
-        templateId: template.id,
-        channel: selectedLead.sourceChannel,
-        userId: session?.userId ?? null,
+        messageType: "template", templateId: template.id,
+        channel: selectedLead.sourceChannel, userId: session?.userId ?? null,
       });
       setLocalStatuses(prev => ({ ...prev, [msg.id]: "sent" }));
       setTimeout(() => setLocalStatuses(prev => ({ ...prev, [msg.id]: "delivered" })), 2000);
       setTimeout(() => setLocalStatuses(prev => ({ ...prev, [msg.id]: "read" })), 6000);
       setShowTemplatePicker(false);
-      refetchMessages();
-      refetchLead();
-      refetchLeads();
+      refetchMessages(); refetchLead(); refetchLeads();
     } catch (err: any) {
       setSendError(err?.error || "Failed to send template");
       setShowTemplatePicker(false);
@@ -353,27 +425,20 @@ export default function Inbox() {
 
   const handlePickUp = async () => {
     if (!selectedLeadId || !session?.userId) return;
-    await api.updateLead(selectedLeadId, {
-      ownerUserId: session.userId,
-      status: "in_progress",
-      userId: session.userId,
-    });
-    refetchLead();
-    refetchLeads();
+    await api.updateLead(selectedLeadId, { ownerUserId: session.userId, status: "in_progress", userId: session.userId });
+    refetchLead(); refetchLeads();
   };
 
   const handleStatusChange = async (status: string) => {
     if (!selectedLeadId) return;
     await api.updateLead(selectedLeadId, { status, userId: session?.userId ?? null });
-    refetchLead();
-    refetchLeads();
+    refetchLead(); refetchLeads();
   };
 
   const handleSimulateInbound = async () => {
     const chatLeads = leads.filter(l => SESSION_CHANNELS.includes(l.sourceChannel));
     const targetLead = selectedLeadId && SESSION_CHANNELS.includes(selectedLead?.sourceChannel || "")
-      ? selectedLead
-      : chatLeads[Math.floor(Math.random() * chatLeads.length)];
+      ? selectedLead : chatLeads[Math.floor(Math.random() * chatLeads.length)];
     if (!targetLead) return;
     const channel = (SESSION_CHANNELS.includes(targetLead.sourceChannel) ? targetLead.sourceChannel : "waba") as "waba" | "web_chat";
     await api.simulateInbound({ leadId: targetLead.id, channel });
@@ -384,14 +449,61 @@ export default function Inbox() {
 
   const handleGroupSegment = async () => {
     if (!segmentName.trim() || bulkSelected.size === 0) return;
-    await api.groupSegment({
-      leadIds: Array.from(bulkSelected),
-      name: segmentName.trim(),
-    });
+    await api.groupSegment({ leadIds: Array.from(bulkSelected), name: segmentName.trim() });
     setShowSegmentDialog(false);
     setSegmentName("");
     setBulkSelected(new Set());
     queryClient.invalidateQueries({ queryKey: ["segments"] });
+    toast.success(`Segment "${segmentName}" created`);
+  };
+
+  const handleBulkAssign = async () => {
+    if (bulkSelected.size === 0 || !session?.userId) return;
+    await api.bulkAction({ leadIds: Array.from(bulkSelected), ownerUserId: session.userId, userId: session.userId });
+    setBulkSelected(new Set());
+    refetchLeads();
+    toast.success(`${bulkSelected.size} leads assigned to you`);
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (bulkSelected.size === 0) return;
+    await api.bulkAction({ leadIds: Array.from(bulkSelected), status, userId: session?.userId ?? null });
+    setBulkSelected(new Set());
+    refetchLeads();
+    toast.success(`${bulkSelected.size} leads set to ${STATUS_LABELS[status]}`);
+  };
+
+  const handleExportCsv = () => {
+    const selected = leads.filter(l => bulkSelected.has(l.id));
+    const rows = [
+      ["Name", "Mobile", "Channel", "Status", "Owner", "Specialisation", "Tags", "Created"],
+      ...selected.map(l => [
+        `${l.firstName} ${l.lastName}`, l.mobile, l.sourceChannel, l.status,
+        l.ownerName ?? "", l.specialization ?? "", (l.tags ?? []).join("; "),
+        new Date(l.createdAt).toLocaleDateString("en-IN"),
+      ]),
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `leads-${Date.now()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${selected.length} leads exported`);
+  };
+
+  const handleToggleTag = async (tagName: string) => {
+    if (!selectedLead || !selectedLeadId) return;
+    const current = selectedLead.tags ?? [];
+    const updated = current.includes(tagName) ? current.filter(t => t !== tagName) : [...current, tagName];
+    await api.updateLead(selectedLeadId, { tags: updated, userId: session?.userId ?? null });
+    refetchLead();
+    setShowAddTag(false);
+  };
+
+  const handleCopyUhid = () => {
+    if (!selectedLead?.uhid) return;
+    navigator.clipboard.writeText(selectedLead.uhid);
+    toast.success("UHID copied to clipboard");
   };
 
   const toggleBulk = (id: number, e: React.MouseEvent) => {
@@ -407,6 +519,8 @@ export default function Inbox() {
     setSelectedLeadId(id);
     setSendError(null);
     setComposerText("");
+    setComposerMode("reply");
+    setShowAddTag(false);
   };
 
   // ── Render ─────────────────────────────────────────────────
@@ -419,16 +533,34 @@ export default function Inbox() {
         <div className="px-6 py-4 border-b border-border flex items-center justify-between flex-shrink-0">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Unified Inbox</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              All inbound patient conversations, one place
-            </p>
+            <p className="text-muted-foreground text-sm mt-0.5">All inbound patient conversations, one place</p>
           </div>
           <div className="flex items-center gap-2">
             {bulkSelected.size > 0 && (
-              <Button size="sm" variant="outline" onClick={() => setShowSegmentDialog(true)} className="gap-1.5">
-                <Users className="w-3.5 h-3.5" />
-                Group {bulkSelected.size} into Segment
-              </Button>
+              <>
+                <Button size="sm" variant="outline" onClick={handleBulkAssign} className="gap-1.5 text-xs">
+                  <UserPlus className="w-3 h-3" /> Assign to me
+                </Button>
+                <div className="relative">
+                  <select
+                    className="text-xs border rounded px-2 py-1 bg-background h-8"
+                    defaultValue=""
+                    onChange={e => { if (e.target.value) handleBulkStatus(e.target.value); e.target.value = ""; }}
+                  >
+                    <option value="" disabled>Set status…</option>
+                    {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setShowSegmentDialog(true)} className="gap-1.5 text-xs">
+                  <Users className="w-3 h-3" /> Group ({bulkSelected.size})
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleExportCsv} className="gap-1.5 text-xs">
+                  <Download className="w-3 h-3" /> Export
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setBulkSelected(new Set())} className="text-xs px-2">
+                  <X className="w-3 h-3 mr-1" /> Clear
+                </Button>
+              </>
             )}
             <Button size="sm" variant="outline" onClick={handleSimulateInbound} className="gap-1.5">
               <Zap className="w-3.5 h-3.5 text-yellow-500" />
@@ -446,14 +578,25 @@ export default function Inbox() {
           {/* ── Lead List ─────────────────────────────────── */}
           <div className="w-72 border-r border-border flex flex-col flex-shrink-0 bg-card">
             <div className="p-3 space-y-2 border-b border-border">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Search name, mobile…"
-                  className="pl-8 h-8 text-sm"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
+              <div className="flex items-center gap-1.5">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search name, mobile…"
+                    className="pl-8 h-8 text-sm"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                </div>
+                <button
+                  onClick={() => setMyLeads(!myLeads)}
+                  className={cn(
+                    "h-8 px-2 rounded text-xs font-medium border transition-colors whitespace-nowrap",
+                    myLeads ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:border-primary text-muted-foreground"
+                  )}
+                >
+                  My leads
+                </button>
               </div>
               <div className="flex gap-1.5">
                 <select
@@ -462,9 +605,7 @@ export default function Inbox() {
                   className="flex-1 text-xs border rounded px-2 py-1 bg-background"
                 >
                   <option value="">All channels</option>
-                  {Object.entries(CHANNEL_LABELS).map(([v, l]) => (
-                    <option key={v} value={v}>{l}</option>
-                  ))}
+                  {Object.entries(CHANNEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
                 <select
                   value={statusFilter}
@@ -472,24 +613,41 @@ export default function Inbox() {
                   className="flex-1 text-xs border rounded px-2 py-1 bg-background"
                 >
                   <option value="">All statuses</option>
-                  {Object.entries(STATUS_LABELS).map(([v, l]) => (
-                    <option key={v} value={v}>{l}</option>
-                  ))}
+                  {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">Sort:</span>
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value as typeof sortBy)}
+                  className="flex-1 text-xs border rounded px-2 py-1 bg-background"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="sla">SLA breach first</option>
+                  <option value="unread">Unread first</option>
+                </select>
+                <button
+                  onClick={() => setBulkSelected(new Set(sortedLeads.map(l => l.id)))}
+                  className="text-[10px] text-muted-foreground hover:text-foreground whitespace-nowrap"
+                >
+                  All
+                </button>
               </div>
             </div>
 
             <ScrollArea className="flex-1">
               {leadsLoading ? (
                 <div className="p-4 text-center text-muted-foreground text-sm">Loading leads…</div>
-              ) : leads.length === 0 ? (
+              ) : sortedLeads.length === 0 ? (
                 <div className="p-6 text-center text-muted-foreground text-sm">
                   <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  No leads match your filters
+                  {myLeads ? "No leads assigned to you" : "No leads match your filters"}
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {leads.map(lead => {
+                  {sortedLeads.map(lead => {
                     const isUnread = unreadLeadIds.has(lead.id);
                     const isSelected = selectedLeadId === lead.id;
                     const isBulk = bulkSelected.has(lead.id);
@@ -518,29 +676,31 @@ export default function Inbox() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-1">
-                              <span className={cn("font-medium text-sm truncate", isUnread && "text-foreground font-semibold")}>
+                              <span className={cn("font-medium text-sm truncate", isUnread && "font-semibold")}>
                                 {lead.firstName} {lead.lastName}
                               </span>
                               {isUnread && <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />}
                             </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                               <ChannelBadge channel={lead.sourceChannel} />
                               <span className={cn(
                                 "text-[10px] px-1.5 py-0.5 rounded",
                                 lead.status === "new" ? "bg-blue-100 text-blue-700" :
-                                lead.status === "fulfilled" ? "bg-green-100 text-green-700" :
-                                "bg-secondary text-secondary-foreground"
+                                  lead.status === "fulfilled" ? "bg-green-100 text-green-700" :
+                                    "bg-secondary text-secondary-foreground"
                               )}>
                                 {STATUS_LABELS[lead.status] || lead.status}
                               </span>
                               {slaBreach && <AlertCircle className="w-3 h-3 text-orange-500" />}
+                              {!lead.optedIn && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded">Opt-out</span>}
+                              {lead.dndListed && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded">DND</span>}
                             </div>
                             <div className="flex items-center justify-between mt-1">
                               <span className="text-xs text-muted-foreground truncate">
-                                {lead.ownerName ? `Owned: ${lead.ownerName.split(" ")[0]}` : "Unassigned"}
+                                {lead.ownerName ? lead.ownerName.split(" ")[0] : "Unassigned"}
                               </span>
                               <span className="text-[10px] text-muted-foreground/70 flex-shrink-0">
-                                {format(new Date(lead.lastActionAt), "MMM d")}
+                                {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: false }).replace("about ", "").replace(" hours", "h").replace(" hour", "h").replace(" minutes", "m").replace(" days", "d").replace(" day", "d")} ago
                               </span>
                             </div>
                           </div>
@@ -556,25 +716,37 @@ export default function Inbox() {
           {/* ── Chat Panel ────────────────────────────────── */}
           <div className="flex-1 flex flex-col overflow-hidden">
             {!selectedLeadId ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-                <MessageSquare className="h-12 w-12 mb-4 opacity-20" />
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
+                <MessageSquare className="h-12 w-12 opacity-20" />
                 <p className="text-sm">Select a lead to start chatting</p>
+                <div className="grid grid-cols-3 gap-3 mt-4 text-center">
+                  <div className="rounded-lg bg-muted/40 p-3">
+                    <div className="text-2xl font-bold">{leads.length}</div>
+                    <div className="text-xs text-muted-foreground">Total leads</div>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 p-3">
+                    <div className="text-2xl font-bold text-blue-600">{leads.filter(l => l.status === "new").length}</div>
+                    <div className="text-xs text-muted-foreground">New / unactioned</div>
+                  </div>
+                  <div className="rounded-lg bg-orange-50 p-3">
+                    <div className="text-2xl font-bold text-orange-500">
+                      {leads.filter(l => l.status === "new" && differenceInHours(new Date(), new Date(l.createdAt)) > 24).length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">SLA breaches</div>
+                  </div>
+                </div>
               </div>
             ) : !selectedLead ? (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                Loading conversation…
-              </div>
+              <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Loading conversation…</div>
             ) : (
               <>
                 {/* Chat header */}
                 <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <div className="font-semibold text-sm">{selectedLead.firstName} {selectedLead.lastName}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <Phone className="w-3 h-3" /> {selectedLead.mobile}
-                        {selectedLead.uhid && <span>• UHID: {selectedLead.uhid}</span>}
-                      </div>
+                  <div>
+                    <div className="font-semibold text-sm">{selectedLead.firstName} {selectedLead.lastName}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                      <Phone className="w-3 h-3" /> {selectedLead.mobile}
+                      {selectedLead.uhid && <span>· UHID: {selectedLead.uhid}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -592,130 +764,164 @@ export default function Inbox() {
                       value={selectedLead.status}
                       onChange={e => handleStatusChange(e.target.value)}
                     >
-                      {Object.entries(STATUS_LABELS).map(([v, l]) => (
-                        <option key={v} value={v}>{l}</option>
-                      ))}
+                      {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </div>
                 </div>
 
-                {/* Message thread */}
+                {/* Message thread + Notes */}
                 <ScrollArea className="flex-1 px-4 py-3">
-                  {messages.length === 0 ? (
+                  {messages.length === 0 && filteredActivity.filter(a => a.type === "note").length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
                       <MessageSquare className="w-8 h-8 mb-2 opacity-30" />
                       <p>No messages yet</p>
-                      {isSessionChannel && (
-                        <p className="text-xs mt-1">Start by sending a template or simulating an inbound message</p>
-                      )}
                     </div>
                   ) : (
                     <div className="space-y-1">
                       {messages.map(msg => (
-                        <MessageBubble
-                          key={msg.id}
-                          msg={msg}
-                          localStatus={localStatuses[msg.id]}
-                        />
+                        <MessageBubble key={msg.id} msg={msg} localStatus={localStatuses[msg.id]} />
                       ))}
                       <div ref={messagesEndRef} />
                     </div>
                   )}
                 </ScrollArea>
 
-                {/* Session / channel banner + composer */}
+                {/* Composer */}
                 <div className="border-t border-border flex-shrink-0">
-                  {/* Status banner */}
+                  {/* Status banners */}
                   {isBlocked ? (
                     <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/20 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
                       <span className="text-xs text-destructive font-medium">
-                        {!selectedLead.optedIn ? "Patient has opted out — messaging blocked" : "Patient is on DND list — messaging blocked"}
+                        {!selectedLead.optedIn ? "Patient opted out — messaging blocked" : "Patient on DND list — messaging blocked"}
                       </span>
                     </div>
                   ) : isSessionChannel && !isSessionOpen ? (
                     <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                        <span className="text-xs text-amber-800">
-                          Session expired — send an approved template to re-open the 24h window
-                        </span>
+                        <span className="text-xs text-amber-800">Session expired — send an approved template to re-open</span>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-6 text-xs border-amber-300"
-                        onClick={() => setShowTemplatePicker(true)}
-                      >
-                        <FileText className="w-3 h-3 mr-1" /> Send Template
+                      <Button size="sm" variant="outline" className="h-6 text-xs border-amber-300" onClick={() => setShowTemplatePicker(true)}>
+                        <FileText className="w-3 h-3 mr-1" /> Use template
                       </Button>
                     </div>
                   ) : isSessionChannel && isSessionOpen ? (
                     <div className="px-4 py-1.5 bg-green-50 border-b border-green-200 flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full" />
-                      <span className="text-xs text-green-800">
-                        Session open · expires in {hoursLeft.toFixed(0)}h
-                      </span>
+                      <span className="text-xs text-green-800">Session open · expires in {hoursLeft.toFixed(0)}h</span>
                     </div>
                   ) : !isSessionChannel ? (
-                    <div className="px-4 py-1.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                      <span className="text-xs text-slate-600">
-                        {CHANNEL_LABELS[selectedLead.sourceChannel]} is template-only
-                      </span>
+                    <div className="px-4 py-1.5 bg-slate-50 border-b border-slate-200">
+                      <span className="text-xs text-slate-600">{CHANNEL_LABELS[selectedLead.sourceChannel]} is template-only</span>
                     </div>
                   ) : null}
 
-                  {/* Composer */}
-                  {!isBlocked && (
-                    <div className="p-3">
-                      {sendError && (
-                        <div className="mb-2 text-xs text-destructive bg-destructive/10 rounded px-2 py-1 flex items-center gap-1.5">
-                          <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                          {sendError}
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <Textarea
-                          placeholder={
-                            canFreeText
+                  {/* Mode toggle + composer */}
+                  <div className="p-3">
+                    {/* Reply / Note toggle */}
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <button
+                        onClick={() => setComposerMode("reply")}
+                        className={cn(
+                          "flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors",
+                          composerMode === "reply" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary"
+                        )}
+                      >
+                        <Send className="w-3 h-3" /> Reply
+                      </button>
+                      <button
+                        onClick={() => setComposerMode("note")}
+                        className={cn(
+                          "flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors",
+                          composerMode === "note" ? "bg-amber-100 text-amber-800 border-amber-300" : "border-border text-muted-foreground hover:border-amber-300"
+                        )}
+                      >
+                        <StickyNote className="w-3 h-3" /> Note
+                      </button>
+                    </div>
+
+                    {sendError && (
+                      <div className="mb-2 text-xs text-destructive bg-destructive/10 rounded px-2 py-1 flex items-center gap-1.5">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" /> {sendError}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Textarea
+                        placeholder={
+                          composerMode === "note"
+                            ? "Add an internal note (only visible to team)…"
+                            : canFreeText
                               ? "Type a message… (session is open)"
-                              : "Free text unavailable — use template"
+                              : "Free text unavailable — use template or note"
+                        }
+                        className={cn(
+                          "flex-1 min-h-[60px] max-h-32 text-sm resize-none",
+                          composerMode === "note" && "bg-amber-50/50 border-amber-200 focus-visible:ring-amber-300"
+                        )}
+                        value={composerText}
+                        disabled={composerMode === "reply" && !canFreeText && !isBlocked ? !canFreeText : isBlocked}
+                        onChange={e => setComposerText(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && !e.shiftKey && (canFreeText || composerMode === "note")) {
+                            e.preventDefault();
+                            handleSend();
                           }
-                          className="flex-1 min-h-[60px] max-h-32 text-sm resize-none"
-                          value={composerText}
-                          disabled={!canFreeText}
-                          onChange={e => setComposerText(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSend();
-                            }
-                          }}
-                        />
-                        <div className="flex flex-col gap-1.5">
-                          {canFreeText && (
-                            <Button
-                              size="sm"
-                              onClick={handleSend}
-                              disabled={isSending || !composerText.trim()}
-                              className="h-7 px-2.5"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
+                        }}
+                      />
+                      <div className="flex flex-col gap-1.5">
+                        {(canFreeText || composerMode === "note") && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => setShowTemplatePicker(true)}
-                            className="h-7 px-2.5 text-xs"
-                            title="Insert template"
+                            onClick={handleSend}
+                            disabled={isSending || !composerText.trim()}
+                            className={cn("h-7 px-2.5", composerMode === "note" && "bg-amber-500 hover:bg-amber-600")}
                           >
-                            <FileText className="w-3.5 h-3.5" />
+                            {composerMode === "note" ? <StickyNote className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
                           </Button>
-                        </div>
+                        )}
+                        {composerMode === "reply" && !isBlocked && (
+                          <>
+                            <Button
+                              size="sm" variant="outline"
+                              onClick={() => setShowTemplatePicker(true)}
+                              className="h-7 px-2 text-xs gap-1"
+                              title="Use template"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </Button>
+                            {quickReplies.length > 0 && (
+                              <div className="relative">
+                                <Button
+                                  size="sm" variant="outline"
+                                  onClick={() => setShowQuickReplies(!showQuickReplies)}
+                                  className="h-7 px-2"
+                                  title="Quick replies"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </Button>
+                                {showQuickReplies && (
+                                  <div className="absolute right-0 bottom-full mb-1 w-72 bg-card border rounded-lg shadow-lg z-50 p-2 space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground px-1 pb-1">Quick Replies</p>
+                                    {quickReplies.map(qr => (
+                                      <button
+                                        key={qr.id}
+                                        className="w-full text-left text-xs p-2 rounded hover:bg-muted transition-colors"
+                                        onClick={() => { setComposerText(qr.text); setShowQuickReplies(false); }}
+                                      >
+                                        {qr.text.slice(0, 80)}{qr.text.length > 80 ? "…" : ""}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </>
             )}
@@ -728,7 +934,7 @@ export default function Inbox() {
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lead Profile</h3>
               </div>
               <ScrollArea className="flex-1 p-4">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
                     <p className="text-base font-semibold">{selectedLead.firstName} {selectedLead.lastName}</p>
                     <p className="text-xs text-muted-foreground">{selectedLead.mobile}</p>
@@ -744,31 +950,57 @@ export default function Inbox() {
                       <p className="font-medium">{STATUS_LABELS[selectedLead.status]}</p>
                     </div>
                     {selectedLead.uhid && (
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 col-span-2">
                         <p className="text-muted-foreground">UHID</p>
-                        <p className="font-medium font-mono text-xs">{selectedLead.uhid}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="font-medium font-mono text-xs">{selectedLead.uhid}</p>
+                          <button onClick={handleCopyUhid} className="text-muted-foreground hover:text-foreground transition-colors">
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     )}
                     {selectedLead.specialization && (
-                      <div className="space-y-0.5">
-                        <p className="text-muted-foreground">Specialization</p>
+                      <div className="space-y-0.5 col-span-2">
+                        <p className="text-muted-foreground">Specialisation</p>
                         <p className="font-medium">{selectedLead.specialization}</p>
+                      </div>
+                    )}
+                    {selectedLead.sourceListTag && (
+                      <div className="space-y-0.5 col-span-2">
+                        <p className="text-muted-foreground">Source List</p>
+                        <span className="inline-block text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-medium">
+                          {selectedLead.sourceListTag}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLead.lastVisitDate && (
+                      <div className="space-y-0.5 col-span-2">
+                        <p className="text-muted-foreground">Last Visit</p>
+                        <p className="font-medium text-xs">{selectedLead.lastVisitDate}</p>
                       </div>
                     )}
                     <div className="space-y-0.5">
                       <p className="text-muted-foreground">Owner</p>
-                      <p className="font-medium">{selectedLead.ownerName || "Unassigned"}</p>
+                      <p className="font-medium text-xs truncate">{selectedLead.ownerName || "Unassigned"}</p>
                     </div>
                     <div className="space-y-0.5">
                       <p className="text-muted-foreground">Lead Age</p>
-                      <p className={cn("font-medium text-xs", differenceInHours(new Date(), new Date(selectedLead.createdAt)) > 24 && selectedLead.status === "new" ? "text-orange-600" : "")}>
-                        {formatDistanceToNow(new Date(selectedLead.createdAt), { addSuffix: false })}
-                        {differenceInHours(new Date(), new Date(selectedLead.createdAt)) > 24 && selectedLead.status === "new" && " ⚠️"}
-                      </p>
+                      {selectedLead.createdAt ? (
+                        <p className={cn("font-medium text-xs",
+                          differenceInHours(new Date(), new Date(selectedLead.createdAt)) > 24 && selectedLead.status === "new" ? "text-orange-600" : ""
+                        )}>
+                          {formatDistanceToNow(new Date(selectedLead.createdAt))}
+                          {differenceInHours(new Date(), new Date(selectedLead.createdAt)) > 24 && selectedLead.status === "new" && " ⚠️"}
+                        </p>
+                      ) : (
+                        <p className="font-medium text-xs text-muted-foreground">—</p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex gap-2 text-xs">
+                  {/* Consent badges */}
+                  <div className="flex gap-2 flex-wrap text-xs">
                     <span className={cn("px-2 py-0.5 rounded-full border",
                       selectedLead.optedIn ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700")}>
                       {selectedLead.optedIn ? "✓ Opted In" : "✗ Opted Out"}
@@ -778,18 +1010,90 @@ export default function Inbox() {
                     )}
                   </div>
 
+                  {/* Tags */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags</p>
+                      {addableTags.length > 0 && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowAddTag(!showAddTag)}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          {showAddTag && (
+                            <div className="absolute right-0 top-full mt-1 w-44 bg-card border rounded-lg shadow-lg z-50 p-1.5 space-y-0.5">
+                              {addableTags.map(t => (
+                                <button
+                                  key={t.id}
+                                  onClick={() => handleToggleTag(t.name)}
+                                  className="w-full flex items-center gap-2 text-xs px-2 py-1.5 rounded hover:bg-muted text-left"
+                                >
+                                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                                  {t.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {currentTags.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No tags</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {currentTags.map(tag => (
+                          <TagPill
+                            key={tag}
+                            name={tag}
+                            color={tagColorMap[tag]}
+                            onRemove={() => handleToggleTag(tag)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <Separator />
 
+                  {/* Activity log */}
                   <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Activity Log</h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity</h4>
+                    </div>
+                    {/* Filter chips */}
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {(["all", "message", "status_change", "assignment", "note"] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setActivityFilter(f)}
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full border transition-colors",
+                            activityFilter === f ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary"
+                          )}
+                        >
+                          {f === "all" ? "All" : f === "status_change" ? "Status" : f.charAt(0).toUpperCase() + f.slice(1)}
+                        </button>
+                      ))}
+                    </div>
                     <div className="space-y-3">
-                      {!selectedLead.activityLog?.length ? (
-                        <p className="text-xs text-muted-foreground">No activity yet</p>
+                      {filteredActivity.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No activity</p>
                       ) : (
-                        [...(selectedLead.activityLog || [])].reverse().map(entry => (
-                          <div key={entry.id} className="relative pl-3 border-l-2 border-primary/20 pb-2 last:pb-0">
-                            <div className="absolute w-1.5 h-1.5 bg-primary/40 rounded-full -left-1 top-1" />
-                            <p className="text-xs font-medium capitalize">{entry.type.replace(/_/g, " ")}</p>
+                        [...filteredActivity].reverse().map(entry => (
+                          <div key={entry.id} className={cn(
+                            "relative pl-3 border-l-2 pb-2 last:pb-0",
+                            entry.type === "note" ? "border-amber-300" : "border-primary/20"
+                          )}>
+                            <div className={cn(
+                              "absolute w-1.5 h-1.5 rounded-full -left-1 top-1",
+                              entry.type === "note" ? "bg-amber-400" : "bg-primary/40"
+                            )} />
+                            <p className="text-xs font-medium capitalize flex items-center gap-1">
+                              {entry.type === "note" && <StickyNote className="w-3 h-3 text-amber-500" />}
+                              {entry.type.replace(/_/g, " ")}
+                            </p>
                             <p className="text-xs text-muted-foreground mt-0.5">{entry.description}</p>
                             <p className="text-[10px] text-muted-foreground/60 mt-1">
                               {format(new Date(entry.createdAt), "MMM d, h:mm a")}
@@ -811,7 +1115,7 @@ export default function Inbox() {
       <Dialog open={showTemplatePicker} onOpenChange={setShowTemplatePicker}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Send a Template</DialogTitle>
+            <DialogTitle>Use a Template</DialogTitle>
           </DialogHeader>
           {channelTemplates.length === 0 ? (
             <div className="text-sm text-muted-foreground text-center py-8">
@@ -828,9 +1132,7 @@ export default function Inbox() {
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="font-medium text-sm">{tpl.name}</p>
-                      <span className="text-xs text-muted-foreground">
-                        ₹{(parseFloat(tpl.perMessageCost) * 1.05 * 1.18).toFixed(2)}
-                      </span>
+                      <span className="text-xs text-muted-foreground">₹{(parseFloat(tpl.perMessageCost) * 1.05 * 1.18).toFixed(2)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-3">{tpl.body}</p>
                   </div>
@@ -848,9 +1150,7 @@ export default function Inbox() {
             <DialogTitle>Group into Segment</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Create a named segment from the {bulkSelected.size} selected leads.
-            </p>
+            <p className="text-sm text-muted-foreground">Create a named segment from the {bulkSelected.size} selected leads.</p>
             <Input
               placeholder="Segment name…"
               value={segmentName}
@@ -858,9 +1158,7 @@ export default function Inbox() {
             />
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowSegmentDialog(false)}>Cancel</Button>
-              <Button size="sm" onClick={handleGroupSegment} disabled={!segmentName.trim()}>
-                Create Segment
-              </Button>
+              <Button size="sm" onClick={handleGroupSegment} disabled={!segmentName.trim()}>Create Segment</Button>
             </div>
           </div>
         </DialogContent>

@@ -21,6 +21,8 @@ import Profile from "@/pages/settings/Profile";
 import Variables from "@/pages/settings/Variables";
 import Users from "@/pages/settings/Users";
 import Wallet from "@/pages/settings/Wallet";
+import TagsSettings from "@/pages/settings/Tags";
+import QuickRepliesSettings from "@/pages/settings/QuickReplies";
 import SuperAdminChannels from "@/pages/super-admin/Channels";
 import SuperAdminTemplates from "@/pages/super-admin/Templates";
 import SuperAdminCampaigns from "@/pages/super-admin/Campaigns";
@@ -59,6 +61,8 @@ function Router() {
       <Route path="/settings/variables" component={Variables} />
       <Route path="/settings/users" component={Users} />
       <Route path="/settings/wallet" component={Wallet} />
+      <Route path="/settings/tags" component={TagsSettings} />
+      <Route path="/settings/quick-replies" component={QuickRepliesSettings} />
       
       <Route path="/super-admin/channels" component={SuperAdminChannels} />
       <Route path="/super-admin/templates" component={SuperAdminTemplates} />

@@ -1,7 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
-  Calendar, 
   CalendarCheck, 
   UserRound, 
   Inbox, 
@@ -10,14 +9,14 @@ import {
   FileText, 
   Users, 
   BarChart, 
-  Settings, 
   ShieldCheck, 
   Building2, 
   Clock, 
   Wallet,
   Activity,
   Layers,
-  MessageSquare
+  MessageSquare,
+  Tag
 } from "lucide-react";
 import { useGetSessionRole } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
@@ -60,6 +59,8 @@ const NAV_GROUPS = [
       { title: "Send Rules", href: "/settings/send-rules", icon: Clock },
       { title: "Profile", href: "/settings/profile", icon: LayoutDashboard },
       { title: "Variables", href: "/settings/variables", icon: FileText },
+      { title: "Tags", href: "/settings/tags", icon: Tag },
+      { title: "Quick Replies", href: "/settings/quick-replies", icon: MessageSquare },
       { title: "Users", href: "/settings/users", icon: Users },
       { title: "Wallet", href: "/settings/wallet", icon: Wallet },
     ],
