@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Affordplan Swasth — Appointment Booking (Hospital SaaS)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #2EBF8E;
+    --green-dark: #1F9F75;
+    --green-soft: #E7F7F1;
+    --teal: #38B2C0;
+    --bg: #F7F8FA;
+    --sidebar-bg: #FFFFFF;
+    --border: #E5E8EC;
+    --text: #1F2937;
+    --text-muted: #6B7280;
+    --text-light: #9CA3AF;
+    --pending: #F59E0B;
+    --pending-bg: #FFF7E6;
+    --confirmed: #2EBF8E;
+    --confirmed-bg: #E7F7F1;
+    --cancelled: #EF4444;
+    --cancelled-bg: #FEE2E2;
+    --completed: #3B82F6;
+    --completed-bg: #DBEAFE;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+  input, select, textarea { font-family: inherit; font-size: 14px; }
+
+  /* ======= LAYOUT ======= */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ======= SIDEBAR ======= */
+  .sidebar {
+    width: 260px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh;
+  }
+  .sidebar-logo {
+    padding: 22px 24px 26px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-text {
+    font-weight: 700; font-size: 22px;
+    color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .logo-text .afford { color: var(--text); font-weight: 700; }
+  .logo-text .plan { color: var(--green); font-weight: 700; font-style: italic; }
+  .logo-sub {
+    font-size: 11px; color: var(--text-muted);
+    letter-spacing: 3px; margin-top: 2px;
+    text-align: right; padding-right: 4px;
+  }
+  .logo-icon {
+    display:inline-block; width: 26px; height: 26px;
+    border-radius: 50%; background: var(--green); position: relative;
+  }
+  .logo-icon::before {
+    content: ''; position: absolute; inset: 5px;
+    background: white; border-radius: 50%;
+  }
+  .logo-icon::after {
+    content: ''; position: absolute; left: 9px; top: 9px;
+    width: 8px; height: 8px; background: var(--green); border-radius: 50%;
+  }
+  .nav { padding: 14px 0; flex: 1; overflow-y: auto; }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 24px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+    border-left: 3px solid transparent;
+    user-select: none;
+  }
+  .nav-item:hover { background: #F9FAFB; color: var(--text); }
+  .nav-item.active {
+    color: var(--green-dark);
+    background: var(--green-soft);
+    border-left-color: var(--green);
+  }
+  .nav-item .icon {
+    width: 20px; height: 20px; display: inline-flex;
+    align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .nav-item .chevron {
+    margin-left: auto;
+    transition: transform 0.2s;
+    color: var(--text-light);
+  }
+  .nav-item.expanded .chevron { transform: rotate(180deg); }
+  .nav-children {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.25s ease-out;
+    background: #FAFBFC;
+  }
+  .nav-children.open { max-height: 200px; }
+  .nav-child {
+    padding: 10px 24px 10px 56px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .nav-child:hover { color: var(--text); }
+  .nav-child.active {
+    color: var(--green-dark);
+    background: var(--green-soft);
+    border-left-color: var(--green);
+    font-weight: 600;
+  }
+  .sidebar-footer {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-light);
+    line-height: 1.4;
+  }
+  .sidebar-footer a { color: var(--text-muted); text-decoration: none; }
+
+  /* ======= MAIN ======= */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    background: white;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar h1 {
+    font-size: 18px; font-weight: 600; color: var(--text);
+  }
+  .topbar-right {
+    display: flex; align-items: center; gap: 12px;
+    color: var(--text-muted);
+  }
+  .hospital-pill {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 14px 6px 6px;
+    border-radius: 999px;
+    background: #F3F4F6;
+  }
+  .hospital-pill .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #E0E7FF;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #4F46E5; font-weight: 600;
+  }
+  .hospital-pill .name {
+    font-weight: 600; color: var(--text); font-size: 14px;
+  }
+
+  .content { padding: 28px 32px; flex: 1; }
+
+  /* ======= TABS / SUBTABS ======= */
+  .subtabs {
+    display: flex; gap: 4px;
+    background: white;
+    padding: 6px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    width: fit-content;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .subtab {
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 500; color: var(--text-muted);
+    transition: all 0.15s;
+    font-size: 13.5px;
+  }
+  .subtab.active {
+    background: var(--green);
+    color: white;
+    box-shadow: 0 1px 2px rgba(46,191,142,0.3);
+  }
+  .subtab:not(.active):hover { background: #F3F4F6; color: var(--text); }
+
+  /* ======= PAGE TITLE ======= */
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 22px; flex-wrap: wrap; gap: 16px;
+  }
+  .page-title {
+    font-size: 20px; font-weight: 600; color: var(--text);
+  }
+  .page-subtitle {
+    color: var(--text-muted); font-size: 13px; margin-top: 2px;
+  }
+
+  /* ======= BUTTONS ======= */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 13.5px;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--green);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--green-dark); }
+  .btn-secondary {
+    background: white; color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { background: #F9FAFB; border-color: #D1D5DB; }
+  .btn-ghost {
+    color: var(--text-muted); padding: 6px 10px;
+  }
+  .btn-ghost:hover { color: var(--text); background: #F3F4F6; }
+  .btn-danger {
+    background: white; color: var(--cancelled);
+    border-color: #FECACA;
+  }
+  .btn-danger:hover { background: #FEF2F2; }
+  .btn-sm { padding: 6px 12px; font-size: 12.5px; }
+
+  /* ======= STATS ======= */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card .label {
+    font-size: 12px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+  .stat-card .value {
+    font-size: 26px; font-weight: 700; color: var(--text);
+    margin-top: 6px;
+  }
+  .stat-card .delta {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--green-dark);
+    font-weight: 500;
+  }
+  .stat-card .accent {
+    position: absolute; top: 0; left: 0; height: 3px; width: 100%;
+  }
+  .stat-card.green .accent { background: var(--green); }
+  .stat-card.amber .accent { background: var(--pending); }
+  .stat-card.blue .accent { background: var(--completed); }
+  .stat-card.red .accent { background: var(--cancelled); }
+
+  /* ======= FILTERS ======= */
+  .filters {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex; gap: 12px; flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .field {
+    display: flex; flex-direction: column; gap: 4px;
+    min-width: 0;
+  }
+  .field label {
+    font-size: 11px; color: var(--text-muted);
+    font-weight: 500; letter-spacing: 0.3px;
+  }
+  .field input, .field select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    color: var(--text);
+    min-width: 160px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px var(--green-soft);
+  }
+  .filters .actions { margin-left: auto; display: flex; gap: 8px; }
+
+  /* ======= TABLE ======= */
+  .card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-header h3 {
+    font-size: 15px; font-weight: 600; color: var(--text);
+  }
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead {
+    background: #F9FAFB;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  tbody tr:hover { background: #FAFBFC; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .id-cell { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; color: var(--text-muted); }
+  .patient-cell { font-weight: 600; }
+  .patient-cell .meta { font-weight: 400; color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+  .doctor-cell .speciality { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+
+  /* ======= STATUS PILLS ======= */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .status-pill::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+  }
+  .status-pending { background: var(--pending-bg); color: #B45309; }
+  .status-pending::before { background: var(--pending); }
+  .status-confirmed { background: var(--confirmed-bg); color: var(--green-dark); }
+  .status-confirmed::before { background: var(--confirmed); }
+  .status-cancelled { background: var(--cancelled-bg); color: #B91C1C; }
+  .status-cancelled::before { background: var(--cancelled); }
+  .status-completed { background: var(--completed-bg); color: #1D4ED8; }
+  .status-completed::before { background: var(--completed); }
+
+  .actions-cell { display: flex; gap: 4px; }
+  .icon-btn {
+    padding: 6px;
+    border-radius: 5px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover { background: #F3F4F6; color: var(--text); }
+  .icon-btn.danger:hover { background: #FEF2F2; color: var(--cancelled); }
+
+  /* ======= DOCTORS PAGE ======= */
+  .doctors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .doctor-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.15s;
+    position: relative;
+  }
+  .doctor-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: #D1D5DB;
+  }
+  .doctor-header {
+    display: flex; gap: 14px; align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  .doctor-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--green), var(--teal));
+    color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 18px;
+    flex-shrink: 0;
+  }
+  .doctor-info { flex: 1; min-width: 0; }
+  .doctor-name {
+    font-weight: 600; color: var(--text); font-size: 15px;
+  }
+  .doctor-spec {
+    color: var(--text-muted); font-size: 13px; margin-top: 2px;
+  }
+  .doctor-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 12px 0;
+    margin: 8px 0 14px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .meta-item .label {
+    font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .meta-item .value {
+    font-weight: 600; color: var(--text); font-size: 14px; margin-top: 2px;
+  }
+  .doctor-card-footer {
+    display: flex; gap: 8px;
+    align-items: center;
+  }
+  .availability-dot {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500;
+    margin-right: auto;
+  }
+  .availability-dot::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+  }
+  .availability-dot.available { color: var(--green-dark); }
+  .availability-dot.available::before { background: var(--green); }
+  .availability-dot.unavailable { color: var(--text-muted); }
+  .availability-dot.unavailable::before { background: var(--text-light); }
+
+  /* ======= DRAWER ======= */
+  .drawer-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.4);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 50;
+  }
+  .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 540px; max-width: 100vw;
+    background: white;
+    box-shadow: -8px 0 24px rgba(0,0,0,0.08);
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    z-index: 51;
+    display: flex; flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .drawer-header h2 { font-size: 17px; font-weight: 600; }
+  .drawer-body { padding: 24px; overflow-y: auto; flex: 1; }
+  .drawer-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block;
+    font-size: 12px; color: var(--text); font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .form-group label .req { color: var(--cancelled); }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    color: var(--text);
+    outline: none;
+    transition: all 0.15s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px var(--green-soft);
+  }
+  .form-textarea { resize: vertical; min-height: 70px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-section-title {
+    font-size: 12px; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.5px; font-weight: 600;
+    margin: 22px 0 12px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .form-section-title:first-child { margin-top: 0; }
+
+  /* Slot grid for availability */
+  .day-row {
+    display: grid;
+    grid-template-columns: 80px 70px 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .day-row:last-child { border-bottom: none; }
+  .day-name { font-weight: 500; }
+  .toggle {
+    width: 36px; height: 20px;
+    background: #D1D5DB;
+    border-radius: 999px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle::after {
+    content: ''; position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    background: white; border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .toggle.on { background: var(--green); }
+  .toggle.on::after { transform: translateX(16px); }
+  .time-input {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .time-input:disabled { background: #F3F4F6; color: var(--text-light); }
+
+  /* Patient details modal/drawer card */
+  .info-row {
+    display: grid; grid-template-columns: 130px 1fr;
+    padding: 8px 0;
+    font-size: 13.5px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .lbl { color: var(--text-muted); }
+  .info-row .val { color: var(--text); font-weight: 500; }
+
+  /* Empty state */
+  .empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .empty .icon { font-size: 36px; margin-bottom: 8px; }
+
+  /* Pagination */
+  .pagination {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .page-controls { display: flex; gap: 4px; }
+  .page-btn {
+    min-width: 30px; height: 30px;
+    padding: 0 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: white;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .page-btn.active { background: var(--green); color: white; border-color: var(--green); }
+  .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--text);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 100;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13.5px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: var(--green-dark); }
+
+  /* SVG icon helpers */
+  svg { display: block; }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .sidebar { display: none; }
+    .stats { grid-template-columns: 1fr; }
+    .content { padding: 18px; }
+    .topbar { padding: 14px 18px; }
+    .drawer { width: 100%; }
+  }
+
+  /* Tabs inside drawer */
+  .drawer-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin: -8px 0 18px;
+  }
+  .drawer-tab {
+    padding: 10px 16px;
+    color: var(--text-muted);
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-size: 13.5px;
+  }
+  .drawer-tab.active {
+    color: var(--green-dark);
+    border-bottom-color: var(--green);
+  }
+
+  /* Confirm dialog */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+    z-index: 60; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: white; border-radius: 12px;
+    width: 420px; max-width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+    transform: scale(0.95);
+    transition: transform 0.2s;
+    overflow: hidden;
+  }
+  .modal-backdrop.open .modal { transform: scale(1); }
+  .modal-body { padding: 24px; }
+  .modal-body h3 { font-size: 16px; margin-bottom: 8px; }
+  .modal-body p { color: var(--text-muted); font-size: 13.5px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text"><span class="logo-icon"></span><span class="afford">afford</span><span class="plan">plan</span></div>
+      <div class="logo-sub">SWASTH</div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <div class="nav-item" data-route="user-panel">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        User Panel
+        <span class="chevron">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </div>
+
+      <div class="nav-item" data-route="wallet">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+        </span>
+        Wallet Transactions
+      </div>
+
+      <div class="nav-item" data-route="reconciliation">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        </span>
+        Reconciliation Details
+      </div>
+
+      <!-- ===== APPOINTMENT BOOKING (NEW) ===== -->
+      <div class="nav-item active expanded" data-route="appointments-parent" id="apptParent">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="15" r="2"/></svg>
+        </span>
+        Appointment Booking
+        <span class="chevron">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </div>
+      <div class="nav-children open" id="apptChildren">
+        <div class="nav-child active" data-route="appointments">Appointment Management</div>
+        <div class="nav-child" data-route="doctors">Doctors &amp; Availability</div>
+      </div>
+
+      <div class="nav-item" data-route="marketing">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+        </span>
+        Marketing Comm.
+        <span class="chevron">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </div>
+
+      <div class="nav-item" data-route="analytics">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </span>
+        Analytics
+      </div>
+
+      <div class="nav-item" data-route="working-email">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        </span>
+        Working Email
+      </div>
+
+      <div class="nav-item" data-route="change-password">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        Change Password
+      </div>
+
+      <div class="nav-item" data-route="profile">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+        My Profile
+      </div>
+
+      <div class="nav-item" data-route="logout">
+        <span class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </span>
+        Logout
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      For any queries, Please contact us at<br>
+      <a href="mailto:swasth@affordplan.com">swasth@affordplan.com</a>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <header class="topbar">
+      <h1>Swasth Dashboard</h1>
+      <div class="topbar-right">
+        <div class="hospital-pill">
+          <div class="avatar">B</div>
+          <div class="name">Billroth Hospital</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="content">
+
+      <!-- ====== Subtab navigation ====== -->
+      <div class="subtabs" id="subtabs">
+        <button class="subtab active" data-route="appointments">Appointment Management</button>
+        <button class="subtab" data-route="doctors">Doctors &amp; Availability</button>
+      </div>
+
+      <!-- =================== APPOINTMENT MANAGEMENT =================== -->
+      <div id="page-appointments">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Appointment Management</div>
+            <div class="page-subtitle">Manage all patient appointments booked through Affordplan channels</div>
+          </div>
+          <button class="btn btn-primary" id="btnNewAppointment">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Book Appointment
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+          <div class="stat-card green"><span class="accent"></span>
+            <div class="label">Today's Appointments</div>
+            <div class="value">42</div>
+            <div class="delta">↑ 12% vs yesterday</div>
+          </div>
+          <div class="stat-card amber"><span class="accent"></span>
+            <div class="label">Pending Confirmation</div>
+            <div class="value">8</div>
+            <div class="delta" style="color: var(--pending);">Action required</div>
+          </div>
+          <div class="stat-card blue"><span class="accent"></span>
+            <div class="label">Completed Today</div>
+            <div class="value">23</div>
+            <div class="delta">54.7% completion rate</div>
+          </div>
+          <div class="stat-card red"><span class="accent"></span>
+            <div class="label">Cancelled / No-Show</div>
+            <div class="value">3</div>
+            <div class="delta" style="color: var(--text-muted);">Last 24 hours</div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+          <div class="field">
+            <label>Search</label>
+            <input type="text" id="searchInput" placeholder="Patient, WSN, UHID, mobile, Appointment ID…" style="min-width: 260px;">
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select id="filterStatus">
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Doctor</label>
+            <select id="filterDoctor">
+              <option value="all">All Doctors</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Speciality</label>
+            <select id="filterSpec">
+              <option value="all">All</option>
+              <option>Cardiology</option>
+              <option>Orthopaedics</option>
+              <option>Gynaecology</option>
+              <option>Pediatrics</option>
+              <option>Dermatology</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="filterDate">
+          </div>
+          <div class="actions">
+            <button class="btn btn-secondary btn-sm" id="btnReset">Reset</button>
+            <button class="btn btn-secondary btn-sm">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export
+            </button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Appointments</h3>
+            <span style="color: var(--text-muted); font-size: 13px;" id="resultCount">Showing 0 of 0</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Appointment ID</th>
+                  <th>WSN</th>
+                  <th>UHID</th>
+                  <th>Patient</th>
+                  <th>Doctor &amp; Speciality</th>
+                  <th>Date &amp; Time</th>
+                  <th>Source</th>
+                  <th>Token</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="apptTable"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span id="pageInfo">Page 1 of 1</span>
+            <div class="page-controls">
+              <button class="page-btn" disabled>‹</button>
+              <button class="page-btn active">1</button>
+              <button class="page-btn">2</button>
+              <button class="page-btn">3</button>
+              <button class="page-btn">›</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================== DOCTORS & AVAILABILITY =================== -->
+      <div id="page-doctors" style="display:none;">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Doctors &amp; Availability</div>
+            <div class="page-subtitle">Manage doctor profiles, schedules and availability</div>
+          </div>
+          <button class="btn btn-primary" id="btnAddDoctor">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Doctor
+          </button>
+        </div>
+
+        <div class="filters">
+          <div class="field">
+            <label>Search</label>
+            <input type="text" id="doctorSearch" placeholder="Search by name or speciality…" style="min-width: 260px;">
+          </div>
+          <div class="field">
+            <label>Speciality</label>
+            <select id="doctorSpecFilter">
+              <option value="all">All</option>
+              <option>Cardiology</option>
+              <option>Orthopaedics</option>
+              <option>Gynaecology</option>
+              <option>Pediatrics</option>
+              <option>Dermatology</option>
+              <option>General Medicine</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select id="doctorStatusFilter">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="doctors-grid" id="doctorsGrid"></div>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<!-- ============ DRAWER: Appointment Details ============ -->
+<div class="drawer-backdrop" id="apptBackdrop"></div>
+<aside class="drawer" id="apptDrawer">
+  <div class="drawer-header">
+    <div>
+      <h2 id="apptDrawerTitle">Appointment Details</h2>
+      <div style="color: var(--text-muted); font-size: 12px; margin-top: 2px;" id="apptDrawerId"></div>
+    </div>
+    <button class="icon-btn" onclick="closeApptDrawer()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="apptDrawerBody"></div>
+  <div class="drawer-footer" id="apptDrawerFooter"></div>
+</aside>
+
+<!-- ============ DRAWER: Add / Edit Doctor ============ -->
+<div class="drawer-backdrop" id="doctorBackdrop"></div>
+<aside class="drawer" id="doctorDrawer">
+  <div class="drawer-header">
+    <div>
+      <h2 id="doctorDrawerTitle">Add Doctor</h2>
+      <div style="color: var(--text-muted); font-size: 12px; margin-top: 2px;">Profile &amp; weekly schedule</div>
+    </div>
+    <button class="icon-btn" onclick="closeDoctorDrawer()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-tabs">
+      <button class="drawer-tab active" data-dtab="profile">Profile</button>
+      <button class="drawer-tab" data-dtab="schedule">Schedule</button>
+    </div>
+
+    <!-- Profile -->
+    <div class="dtab-pane" data-pane="profile">
+      <div class="form-section-title">Personal Details</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full Name <span class="req">*</span></label>
+          <input type="text" class="form-input" id="docName" placeholder="Dr. Anjali Mehta">
+        </div>
+        <div class="form-group">
+          <label>Designation <span class="req">*</span></label>
+          <input type="text" class="form-input" id="docDesignation" placeholder="MBBS, MD (Cardiology)">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Speciality <span class="req">*</span></label>
+          <select class="form-select" id="docSpec">
+            <option>Cardiology</option>
+            <option>Orthopaedics</option>
+            <option>Gynaecology</option>
+            <option>Pediatrics</option>
+            <option>Dermatology</option>
+            <option>General Medicine</option>
+            <option>ENT</option>
+            <option>Neurology</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Years of Experience <span class="req">*</span></label>
+          <input type="number" class="form-input" id="docExp" placeholder="10">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Mobile</label>
+          <input type="tel" class="form-input" id="docMobile" placeholder="9876543210">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" class="form-input" id="docEmail" placeholder="doctor@hospital.com">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Short Bio</label>
+        <textarea class="form-textarea" id="docBio" placeholder="Senior consultant with focus on…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Registration Number</label>
+          <input type="text" class="form-input" id="docReg" placeholder="MCI/12345/2014">
+        </div>
+        <div class="form-group">
+          <label>Profile Status</label>
+          <select class="form-select" id="docStatus">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Schedule -->
+    <div class="dtab-pane" data-pane="schedule" style="display:none;">
+      <div class="form-section-title">Weekly Availability</div>
+      <p style="color: var(--text-muted); margin-bottom: 14px; font-size: 13px;">
+        Set the days and consultation hours. Slots will be automatically generated based on the
+        consultation duration below.
+      </p>
+      <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div class="form-group">
+          <label>Slot Duration</label>
+          <select class="form-select" id="slotDuration">
+            <option value="15">15 minutes</option>
+            <option value="20">20 minutes</option>
+            <option value="30" selected>30 minutes</option>
+            <option value="45">45 minutes</option>
+            <option value="60">60 minutes</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Booking Window</label>
+          <select class="form-select">
+            <option>Up to 7 days ahead</option>
+            <option selected>Up to 30 days ahead</option>
+            <option>Up to 60 days ahead</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Buffer Between Slots</label>
+          <select class="form-select">
+            <option>0 min</option>
+            <option selected>5 min</option>
+            <option>10 min</option>
+          </select>
+        </div>
+      </div>
+      <div id="dayRows" style="margin-top: 8px;"></div>
+
+      <div class="form-section-title">Block Out Dates (Leaves)</div>
+      <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 13px;">
+        Add dates the doctor will be unavailable — bookings will not be allowed on these days.
+      </p>
+      <div style="display:flex; gap: 10px; align-items: end;">
+        <div class="form-group" style="flex:1; margin: 0;">
+          <label>From</label>
+          <input type="date" class="form-input" id="leaveFrom">
+        </div>
+        <div class="form-group" style="flex:1; margin: 0;">
+          <label>To</label>
+          <input type="date" class="form-input" id="leaveTo">
+        </div>
+        <button class="btn btn-secondary btn-sm" style="height: 38px;" onclick="addLeave()">Add</button>
+      </div>
+      <div id="leavesList" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;"></div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-secondary" onclick="closeDoctorDrawer()">Cancel</button>
+    <button class="btn btn-primary" id="saveDoctor">Save Doctor</button>
+  </div>
+</aside>
+
+<!-- ============ DRAWER: New Manual Appointment ============ -->
+<div class="drawer-backdrop" id="newApptBackdrop"></div>
+<aside class="drawer" id="newApptDrawer">
+  <div class="drawer-header">
+    <div>
+      <h2>Book Appointment Manually</h2>
+      <div style="color: var(--text-muted); font-size: 12px; margin-top: 2px;">For walk-in or phone bookings</div>
+    </div>
+    <button class="icon-btn" onclick="closeNewApptDrawer()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <div class="form-section-title">Doctor &amp; Slot</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Speciality <span class="req">*</span></label>
+        <select class="form-select" id="newSpec"><option>Cardiology</option><option>Orthopaedics</option><option>Gynaecology</option><option>Pediatrics</option></select>
+      </div>
+      <div class="form-group">
+        <label>Doctor <span class="req">*</span></label>
+        <select class="form-select" id="newDoctor"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Date <span class="req">*</span></label>
+        <input type="date" class="form-input" id="newDate">
+      </div>
+      <div class="form-group">
+        <label>Time Slot <span class="req">*</span></label>
+        <select class="form-select" id="newSlot">
+          <option>09:00 AM</option><option>09:30 AM</option><option>10:00 AM</option><option>10:30 AM</option>
+          <option>11:00 AM</option><option>11:30 AM</option><option>05:00 PM</option><option>05:30 PM</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section-title">Patient Details</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>UHID <span class="req">*</span></label>
+        <input type="text" class="form-input" id="newUhid" placeholder="e.g. BIL-2026-001234">
+      </div>
+      <div class="form-group">
+        <label>Mobile <span class="req">*</span></label>
+        <input type="tel" class="form-input" id="newMobile" placeholder="10-digit number">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Patient Name <span class="req">*</span></label>
+        <input type="text" class="form-input" id="newName" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label>Gender <span class="req">*</span></label>
+        <select class="form-select" id="newGender"><option>Male</option><option>Female</option><option>Other</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Age <span class="req">*</span></label>
+      <input type="number" class="form-input" id="newAge" style="max-width: 200px;">
+    </div>
+    <div class="form-group">
+      <label>Remarks (optional)</label>
+      <textarea class="form-textarea" id="newRemarks" placeholder="Any specific note from the patient"></textarea>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-secondary" onclick="closeNewApptDrawer()">Cancel</button>
+    <button class="btn btn-primary" id="confirmNewAppt">Confirm Booking</button>
+  </div>
+</aside>
+
+<!-- Confirm modal -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <div class="modal-body">
+      <h3 id="confirmTitle">Confirm action</h3>
+      <p id="confirmMsg">Are you sure?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-primary" id="confirmAction">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ===== MOCK DATA ===== */
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  let doctors = [
+    { id:'D1142245', name:'Dr. Vidya Ramachandra Babu', spec:'Gynaecology', designation:'MBBS, MS (OBG)', exp: 18, mobile:'9845001122', email:'vidya@billroth.com', status:'active', bio:'Senior gynaecologist specializing in high-risk pregnancies.', reg:'KMC/2006/0234', avail: { Mon:[true,'09:00','13:00'], Tue:[true,'09:00','13:00'], Wed:[true,'09:00','13:00'], Thu:[true,'09:00','13:00'], Fri:[true,'09:00','13:00'], Sat:[true,'10:00','12:00'], Sun:[false,'',''] }, leaves:[] },
+    { id:'D1178914', name:'Dr. Arjun Krishnan', spec:'Orthopaedics', designation:'MBBS, MS (Ortho), Fellow Joint Replacement', exp: 14, mobile:'9845003344', email:'arjun.k@billroth.com', status:'active', bio:'Orthopaedic surgeon focusing on joint replacement and sports injuries.', reg:'KMC/2010/9981', avail: { Mon:[true,'10:00','14:00'], Tue:[false,'',''], Wed:[true,'10:00','14:00'], Thu:[false,'',''], Fri:[true,'10:00','14:00'], Sat:[true,'17:00','19:00'], Sun:[false,'',''] }, leaves:[] },
+    { id:'D1198801', name:'Dr. Priya Subramanian', spec:'Pediatrics', designation:'MBBS, DCH, DNB Paediatrics', exp: 11, mobile:'9845005566', email:'priya.s@billroth.com', status:'active', bio:'Paediatric consultant — newborn and adolescent care.', reg:'KMC/2013/4422', avail: { Mon:[true,'09:30','12:30'], Tue:[true,'09:30','12:30'], Wed:[true,'09:30','12:30'], Thu:[true,'09:30','12:30'], Fri:[true,'09:30','12:30'], Sat:[false,'',''], Sun:[false,'',''] }, leaves:[] },
+    { id:'D1207766', name:'Dr. Rahul Saxena', spec:'Cardiology', designation:'MBBS, MD, DM (Cardiology)', exp: 22, mobile:'9845007788', email:'rahul.s@billroth.com', status:'active', bio:'Senior interventional cardiologist with 22 years of experience.', reg:'KMC/2002/8812', avail: { Mon:[true,'17:00','20:00'], Tue:[true,'17:00','20:00'], Wed:[false,'',''], Thu:[true,'17:00','20:00'], Fri:[true,'17:00','20:00'], Sat:[true,'10:00','13:00'], Sun:[false,'',''] }, leaves:[] },
+    { id:'D1234567', name:'Dr. Meera Nair', spec:'Dermatology', designation:'MBBS, MD (Derm), Fellow Cosmetology', exp: 9, mobile:'9845009900', email:'meera.n@billroth.com', status:'inactive', bio:'Dermatologist focusing on clinical and aesthetic dermatology.', reg:'KMC/2015/3344', avail: { Mon:[false,'',''], Tue:[true,'11:00','15:00'], Wed:[true,'11:00','15:00'], Thu:[true,'11:00','15:00'], Fri:[true,'11:00','15:00'], Sat:[false,'',''], Sun:[false,'',''] }, leaves:[] }
+  ];
+
+  let appointments = [
+    { id:'APB1777832635915', uhid:'BIL-2026-004412', wsn:'D1178914', patient:'Veetali Ghosh', mobile:'9538888795', age:17, gender:'Female', doctorId:'D1178914', date:'2026-05-04', time:'07:00 PM', source:'app', token:null, status:'pending', remarks:'Knee pain after fall', initiatedAt:'03 May 2026, 11:53 PM' },
+    { id:'APB1777731215863', uhid:'BIL-2026-003981', wsn:'D1142245', patient:'Vidhya Ramachandra Babu', mobile:'7092442185', age:40, gender:'Female', doctorId:'D1142245', date:'2026-05-09', time:'05:00 PM', source:'web', token:'T-0143', status:'confirmed', remarks:'', initiatedAt:'02 May 2026, 07:43 PM' },
+    { id:'APB1777729502971', uhid:'BIL-2026-003981', wsn:'D1142245', patient:'Anita Kumar', mobile:'7092442185', age:32, gender:'Female', doctorId:'D1142245', date:'2026-05-09', time:'05:30 PM', source:'web', token:'T-0144', status:'confirmed', remarks:'Routine checkup', initiatedAt:'02 May 2026, 07:15 PM' },
+    { id:'APB1777712009212', uhid:'BIL-2026-005102', wsn:'D1190233', patient:'Rohan Mehta', mobile:'9876543210', age:5, gender:'Male', doctorId:'D1198801', date:'2026-05-06', time:'10:00 AM', source:'app', token:'T-0145', status:'confirmed', remarks:'Fever for 2 days', initiatedAt:'01 May 2026, 09:12 AM' },
+    { id:'APB1777698432115', uhid:'BIL-2024-001877', wsn:null, patient:'Suresh Iyer', mobile:'9876512340', age:58, gender:'Male', doctorId:'D1207766', date:'2026-05-05', time:'05:30 PM', source:'web', token:'T-0146', status:'confirmed', remarks:'Chest discomfort follow-up', initiatedAt:'30 Apr 2026, 06:45 PM' },
+    { id:'APB1777654321999', uhid:'BIL-2025-002340', wsn:'D1156677', patient:'Kavya Reddy', mobile:'9123456789', age:28, gender:'Female', doctorId:'D1234567', date:'2026-05-03', time:'12:00 PM', source:'walk-in', token:'T-0140', status:'completed', remarks:'Acne consultation', initiatedAt:'29 Apr 2026, 11:30 AM' },
+    { id:'APB1777612348800', uhid:'BIL-2026-005566', wsn:'D1199001', patient:'Vikram Singh', mobile:'9911223344', age:45, gender:'Male', doctorId:'D1178914', date:'2026-05-02', time:'10:30 AM', source:'app', token:null, status:'cancelled', remarks:'Patient cancelled', initiatedAt:'28 Apr 2026, 02:18 PM' },
+    { id:'APB1777598742113', uhid:'BIL-2023-000812', wsn:null, patient:'Lakshmi Pillai', mobile:'9876009988', age:62, gender:'Female', doctorId:'D1207766', date:'2026-05-04', time:'05:00 PM', source:'web', token:'T-0141', status:'completed', remarks:'BP review', initiatedAt:'27 Apr 2026, 10:05 AM' },
+    { id:'APB1777587991002', uhid:'BIL-2026-006001', wsn:null, patient:'Ananya Sharma', mobile:'9988776655', age:8, gender:'Female', doctorId:'D1198801', date:'2026-05-05', time:'11:00 AM', source:'web', token:null, status:'pending', remarks:'Cough and cold', initiatedAt:'26 Apr 2026, 04:22 PM' }
+  ];
+
+  /* ===== STATE ===== */
+  let currentRoute = 'appointments';
+  let editingDoctorId = null;
+
+  /* ===== UTIL ===== */
+  function $(id) { return document.getElementById(id); }
+  function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+  function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function getDoctor(id) { return doctors.find(d => d.id === id) || { name:'—', spec:'—' }; }
+  function fmtDate(d) { if(!d) return '—'; const dt = new Date(d); return dt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric'}); }
+  function toast(msg, type='success') {
+    const t = $('toast'); t.textContent = msg; t.className = `toast show ${type}`;
+    setTimeout(() => t.classList.remove('show'), 2400);
+  }
+  function statusPill(status) {
+    const map = { pending:'Pending', confirmed:'Confirmed', completed:'Completed', cancelled:'Cancelled' };
+    return `<span class="status-pill status-${status}">${map[status]}</span>`;
+  }
+  function sourcePill(s) {
+    const map = { app:'📱 App', web:'🌐 Website', 'walk-in':'🏥 Walk-in' };
+    return `<span style="font-size: 12px; color: var(--text-muted);">${map[s] || s}</span>`;
+  }
+
+  /* ===== ROUTING ===== */
+  function setRoute(route) {
+    if (route === 'appointments-parent') {
+      const c = $('apptChildren'); c.classList.toggle('open');
+      $('apptParent').classList.toggle('expanded');
+      return;
+    }
+    currentRoute = route;
+    // Sidebar children active
+    document.querySelectorAll('.nav-child').forEach(n => n.classList.toggle('active', n.dataset.route === route));
+    // Subtabs
+    document.querySelectorAll('.subtab').forEach(s => s.classList.toggle('active', s.dataset.route === route));
+    // Pages
+    $('page-appointments').style.display = route === 'appointments' ? '' : 'none';
+    $('page-doctors').style.display = route === 'doctors' ? '' : 'none';
+
+    if (route === 'doctors') renderDoctors();
+    if (route === 'appointments') renderAppointments();
+  }
+
+  /* ===== RENDER: APPOINTMENTS TABLE ===== */
+  function renderAppointments() {
+    const search = ($('searchInput').value || '').toLowerCase();
+    const status = $('filterStatus').value;
+    const docF = $('filterDoctor').value;
+    const specF = $('filterSpec').value;
+    const dateF = $('filterDate').value;
+
+    const filtered = appointments.filter(a => {
+      const d = getDoctor(a.doctorId);
+      if (search && !(`${a.patient} ${a.mobile} ${a.id} ${a.uhid || ''} ${a.wsn || ''}`.toLowerCase().includes(search))) return false;
+      if (status !== 'all' && a.status !== status) return false;
+      if (docF !== 'all' && a.doctorId !== docF) return false;
+      if (specF !== 'all' && d.spec !== specF) return false;
+      if (dateF && a.date !== dateF) return false;
+      return true;
+    });
+
+    const tbody = $('apptTable');
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="icon">📭</div>No appointments match your filters</div></td></tr>`;
+    } else {
+      filtered.forEach(a => {
+        const d = getDoctor(a.doctorId);
+        const tr = el(`
+          <tr>
+            <td><span class="id-cell">${a.id}</span></td>
+            <td><span class="id-cell">${a.wsn || '<span style="color: var(--text-light);">—</span>'}</span></td>
+            <td><span class="id-cell">${a.uhid || '—'}</span></td>
+            <td>
+              <div class="patient-cell">${escapeHtml(a.patient)}<div class="meta">${a.age} yrs · ${a.gender} · ${a.mobile}</div></div>
+            </td>
+            <td>
+              <div class="doctor-cell">${escapeHtml(d.name)}<div class="speciality">${d.spec}</div></div>
+            </td>
+            <td>
+              <div>${fmtDate(a.date)}</div>
+              <div style="color: var(--text-muted); font-size: 12px;">${a.time}</div>
+            </td>
+            <td>${sourcePill(a.source)}</td>
+            <td><span class="id-cell">${a.token ? a.token : '<span style="color: var(--text-light);">—</span>'}</span></td>
+            <td>${statusPill(a.status)}</td>
+            <td>
+              <div class="actions-cell">
+                <button class="icon-btn" title="View" data-action="view" data-id="${a.id}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="icon-btn" title="Confirm" data-action="confirm" data-id="${a.id}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
+                <button class="icon-btn danger" title="Cancel" data-action="cancel" data-id="${a.id}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `);
+        tbody.appendChild(tr);
+      });
+    }
+    $('resultCount').textContent = `Showing ${filtered.length} of ${appointments.length}`;
+  }
+
+  /* ===== APPT ACTIONS ===== */
+  $('apptTable').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    const appt = appointments.find(a => a.id === id);
+    if (!appt) return;
+    if (action === 'view') openApptDrawer(appt);
+    if (action === 'confirm') {
+      if (appt.status === 'confirmed') return toast('Already confirmed');
+      askConfirm('Confirm appointment?', `Mark ${appt.patient}'s appointment as confirmed, generate Token ID, and notify them via SMS.`, () => {
+        appt.status = 'confirmed';
+        if (!appt.token) appt.token = 'T-0' + (200 + Math.floor(Math.random()*99));
+        renderAppointments(); toast(`Confirmed — Token ${appt.token} sent to patient`, 'success');
+      });
+    }
+    if (action === 'cancel') {
+      if (appt.status === 'cancelled') return toast('Already cancelled');
+      askConfirm('Cancel appointment?', `This will release the slot and notify ${appt.patient} via SMS.`, () => {
+        appt.status = 'cancelled'; renderAppointments();
+        toast('Appointment cancelled', 'success');
+      });
+    }
+  });
+
+  /* ===== APPT DRAWER ===== */
+  function openApptDrawer(a) {
+    const d = getDoctor(a.doctorId);
+    $('apptDrawerTitle').textContent = a.patient;
+    $('apptDrawerId').textContent = `Appointment ID: ${a.id}  ·  Token: ${a.token || 'Generated on confirmation'}`;
+    $('apptDrawerBody').innerHTML = `
+      <div class="form-section-title">Status</div>
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 4px;">
+        ${statusPill(a.status)}
+        <span style="font-size: 12px; color: var(--text-muted);">Initiated ${a.initiatedAt}</span>
+      </div>
+
+      <div class="form-section-title">Patient</div>
+      <div class="info-row"><span class="lbl">UHID</span><span class="val"><span class="id-cell">${a.uhid || '—'}</span></span></div>
+      <div class="info-row"><span class="lbl">WSN</span><span class="val">${a.wsn ? '<span class="id-cell">'+a.wsn+'</span>' : '<span style="color: var(--text-light)">No Affordplan wallet</span>'}</span></div>
+      <div class="info-row"><span class="lbl">Name</span><span class="val">${escapeHtml(a.patient)}</span></div>
+      <div class="info-row"><span class="lbl">Age / Gender</span><span class="val">${a.age} yrs · ${a.gender}</span></div>
+      <div class="info-row"><span class="lbl">Mobile</span><span class="val">${a.mobile}</span></div>
+      <div class="info-row"><span class="lbl">Source</span><span class="val">${a.source.charAt(0).toUpperCase()+a.source.slice(1)}</span></div>
+
+      <div class="form-section-title">Appointment</div>
+      <div class="info-row"><span class="lbl">Doctor</span><span class="val">${escapeHtml(d.name)}</span></div>
+      <div class="info-row"><span class="lbl">Speciality</span><span class="val">${d.spec}</span></div>
+      <div class="info-row"><span class="lbl">Date &amp; Time</span><span class="val">${fmtDate(a.date)} at ${a.time}</span></div>
+      <div class="info-row"><span class="lbl">Token ID</span><span class="val">${a.token ? '<span class="id-cell">'+a.token+'</span>' : '<span style="color: var(--text-light)">Will be generated on confirmation</span>'}</span></div>
+      <div class="info-row"><span class="lbl">Remarks</span><span class="val">${escapeHtml(a.remarks) || '<span style="color: var(--text-light)">No remarks</span>'}</span></div>
+
+      <div class="form-section-title">Update Status</div>
+      ${a.status === 'pending' ? '<div style="background: var(--pending-bg); color: #B45309; padding: 10px 12px; border-radius: 6px; font-size: 12.5px; margin-bottom: 10px;">⚡ Confirming this appointment will generate a Token ID and send it to the patient via SMS.</div>' : ''}
+      <select class="form-select" id="updStatus">
+        <option value="pending" ${a.status==='pending'?'selected':''}>Pending</option>
+        <option value="confirmed" ${a.status==='confirmed'?'selected':''}>Confirmed</option>
+        <option value="completed" ${a.status==='completed'?'selected':''}>Completed</option>
+        <option value="cancelled" ${a.status==='cancelled'?'selected':''}>Cancelled</option>
+      </select>
+      <div class="form-group" style="margin-top: 12px;">
+        <label>Remarks (internal)</label>
+        <textarea class="form-textarea" id="updRemarks" placeholder="Add note for the team…">${escapeHtml(a.remarks)}</textarea>
+      </div>
+    `;
+    $('apptDrawerFooter').innerHTML = `
+      <button class="btn btn-secondary" onclick="closeApptDrawer()">Close</button>
+      <button class="btn btn-primary" id="saveApptUpdate">Save Changes</button>
+    `;
+    $('saveApptUpdate').onclick = () => {
+      const newStatus = $('updStatus').value;
+      const wasUnconfirmed = a.status !== 'confirmed' && a.status !== 'completed';
+      a.status = newStatus;
+      a.remarks = $('updRemarks').value;
+      // Token generated on transition INTO confirmed (or completed without prior confirm)
+      let tokenGenerated = false;
+      if ((newStatus === 'confirmed' || newStatus === 'completed') && !a.token && wasUnconfirmed) {
+        a.token = 'T-0' + (200 + Math.floor(Math.random()*99));
+        tokenGenerated = true;
+      }
+      closeApptDrawer(); renderAppointments();
+      toast(tokenGenerated ? `Updated — Token ${a.token} generated` : 'Appointment updated', 'success');
+    };
+    $('apptDrawer').classList.add('open');
+    $('apptBackdrop').classList.add('open');
+  }
+  function closeApptDrawer() {
+    $('apptDrawer').classList.remove('open');
+    $('apptBackdrop').classList.remove('open');
+  }
+  $('apptBackdrop').onclick = closeApptDrawer;
+
+  /* ===== RENDER: DOCTORS ===== */
+  function renderDoctors() {
+    const search = ($('doctorSearch').value || '').toLowerCase();
+    const spec = $('doctorSpecFilter').value;
+    const status = $('doctorStatusFilter').value;
+    const grid = $('doctorsGrid');
+    grid.innerHTML = '';
+    const filtered = doctors.filter(d => {
+      if (search && !(`${d.name} ${d.spec} ${d.designation}`.toLowerCase().includes(search))) return false;
+      if (spec !== 'all' && d.spec !== spec) return false;
+      if (status !== 'all' && d.status !== status) return false;
+      return true;
+    });
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="empty" style="grid-column: 1 / -1;"><div class="icon">👨‍⚕️</div>No doctors found</div>`;
+      return;
+    }
+    filtered.forEach(d => {
+      const initials = d.name.replace(/^Dr\.\s*/,'').split(/\s+/).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+      const availDays = DAYS.filter(day => d.avail[day][0]).length;
+      const apptCount = appointments.filter(a => a.doctorId === d.id && a.status !== 'cancelled').length;
+      const card = el(`
+        <div class="doctor-card">
+          <div class="doctor-header">
+            <div class="doctor-avatar">${initials}</div>
+            <div class="doctor-info">
+              <div class="doctor-name">${escapeHtml(d.name)}</div>
+              <div class="doctor-spec">${d.spec} · ${d.exp} yrs experience</div>
+              <div style="color: var(--text-light); font-size: 12px; margin-top: 4px;">${escapeHtml(d.designation)}</div>
+            </div>
+          </div>
+          <div class="doctor-meta">
+            <div class="meta-item"><div class="label">Available Days</div><div class="value">${availDays}/7</div></div>
+            <div class="meta-item"><div class="label">Booked Appointments</div><div class="value">${apptCount}</div></div>
+          </div>
+          <div class="doctor-card-footer">
+            <span class="availability-dot ${d.status === 'active' ? 'available' : 'unavailable'}">
+              ${d.status === 'active' ? 'Accepting bookings' : 'Not accepting'}
+            </span>
+            <button class="btn btn-secondary btn-sm" data-edit="${d.id}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+          </div>
+        </div>
+      `);
+      card.querySelector('[data-edit]').onclick = () => openDoctorDrawer(d.id);
+      grid.appendChild(card);
+    });
+  }
+
+  /* ===== DOCTOR DRAWER ===== */
+  function openDoctorDrawer(id) {
+    editingDoctorId = id;
+    const d = id ? doctors.find(x => x.id === id) : null;
+    $('doctorDrawerTitle').textContent = d ? `Edit · ${d.name}` : 'Add Doctor';
+    $('docName').value = d ? d.name : '';
+    $('docDesignation').value = d ? d.designation : '';
+    $('docSpec').value = d ? d.spec : 'Cardiology';
+    $('docExp').value = d ? d.exp : '';
+    $('docMobile').value = d ? d.mobile : '';
+    $('docEmail').value = d ? d.email : '';
+    $('docBio').value = d ? d.bio : '';
+    $('docReg').value = d ? d.reg : '';
+    $('docStatus').value = d ? d.status : 'active';
+
+    // Build day rows
+    const rows = $('dayRows');
+    rows.innerHTML = '';
+    DAYS.forEach(day => {
+      const av = d ? d.avail[day] : [false,'',''];
+      const r = el(`
+        <div class="day-row">
+          <span class="day-name">${day}</span>
+          <div class="toggle ${av[0]?'on':''}" data-day="${day}"></div>
+          <input type="time" class="time-input" data-day-from="${day}" value="${av[1]}" ${av[0]?'':'disabled'}>
+          <input type="time" class="time-input" data-day-to="${day}" value="${av[2]}" ${av[0]?'':'disabled'}>
+        </div>
+      `);
+      rows.appendChild(r);
+    });
+    rows.querySelectorAll('.toggle').forEach(t => {
+      t.onclick = () => {
+        t.classList.toggle('on');
+        const day = t.dataset.day;
+        const on = t.classList.contains('on');
+        rows.querySelector(`[data-day-from="${day}"]`).disabled = !on;
+        rows.querySelector(`[data-day-to="${day}"]`).disabled = !on;
+        if (on) {
+          if (!rows.querySelector(`[data-day-from="${day}"]`).value) rows.querySelector(`[data-day-from="${day}"]`).value = '09:00';
+          if (!rows.querySelector(`[data-day-to="${day}"]`).value) rows.querySelector(`[data-day-to="${day}"]`).value = '13:00';
+        }
+      };
+    });
+
+    // Reset to first tab
+    document.querySelectorAll('.drawer-tab').forEach(t => t.classList.toggle('active', t.dataset.dtab === 'profile'));
+    document.querySelectorAll('.dtab-pane').forEach(p => p.style.display = p.dataset.pane === 'profile' ? '' : 'none');
+
+    $('doctorDrawer').classList.add('open');
+    $('doctorBackdrop').classList.add('open');
+  }
+  function closeDoctorDrawer() {
+    $('doctorDrawer').classList.remove('open');
+    $('doctorBackdrop').classList.remove('open');
+  }
+  $('doctorBackdrop').onclick = closeDoctorDrawer;
+
+  document.querySelectorAll('.drawer-tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.drawer-tab').forEach(x => x.classList.toggle('active', x === t));
+      document.querySelectorAll('.dtab-pane').forEach(p => p.style.display = p.dataset.pane === t.dataset.dtab ? '' : 'none');
+    };
+  });
+
+  $('saveDoctor').onclick = () => {
+    const name = $('docName').value.trim();
+    if (!name) return toast('Please enter doctor name', 'error');
+    const avail = {};
+    DAYS.forEach(day => {
+      const on = document.querySelector(`.toggle[data-day="${day}"]`).classList.contains('on');
+      const from = document.querySelector(`[data-day-from="${day}"]`).value;
+      const to = document.querySelector(`[data-day-to="${day}"]`).value;
+      avail[day] = [on, from, to];
+    });
+    const data = {
+      id: editingDoctorId || ('D' + Date.now().toString().slice(-7)),
+      name, designation: $('docDesignation').value, spec: $('docSpec').value,
+      exp: parseInt($('docExp').value) || 0,
+      mobile: $('docMobile').value, email: $('docEmail').value,
+      bio: $('docBio').value, reg: $('docReg').value,
+      status: $('docStatus').value,
+      avail, leaves: []
+    };
+    if (editingDoctorId) {
+      const i = doctors.findIndex(x => x.id === editingDoctorId);
+      doctors[i] = { ...doctors[i], ...data };
+      toast('Doctor profile updated', 'success');
+    } else {
+      doctors.push(data); toast('Doctor added — now accepting bookings', 'success');
+    }
+    populateDoctorFilters();
+    closeDoctorDrawer(); renderDoctors();
+  };
+
+  /* ===== Add Doctor button ===== */
+  $('btnAddDoctor').onclick = () => openDoctorDrawer(null);
+
+  /* ===== Manual Appointment ===== */
+  $('btnNewAppointment').onclick = () => {
+    const sel = $('newDoctor');
+    sel.innerHTML = doctors.filter(d=>d.status==='active').map(d => `<option value="${d.id}">${d.name} — ${d.spec}</option>`).join('');
+    $('newApptDrawer').classList.add('open');
+    $('newApptBackdrop').classList.add('open');
+  };
+  function closeNewApptDrawer() {
+    $('newApptDrawer').classList.remove('open');
+    $('newApptBackdrop').classList.remove('open');
+  }
+  $('newApptBackdrop').onclick = closeNewApptDrawer;
+  $('confirmNewAppt').onclick = () => {
+    const name = $('newName').value.trim();
+    const mobile = $('newMobile').value.trim();
+    const uhid = $('newUhid').value.trim();
+    if (!uhid) return toast('UHID is required', 'error');
+    if (!name || !mobile) return toast('Please fill patient name and mobile', 'error');
+    if (!/^\d{10}$/.test(mobile)) return toast('Mobile must be 10 digits', 'error');
+
+    // Simulated WSN lookup by mobile — if patient has an Affordplan wallet, attach it.
+    // In production this would be: GET /wallets?mobile={mobile}
+    const existingWithWallet = appointments.find(x => x.mobile === mobile && x.wsn);
+    const wsn = existingWithWallet ? existingWithWallet.wsn : null;
+
+    const newAppt = {
+      id: 'APB' + Date.now(),
+      uhid, wsn, patient: name, mobile,
+      age: parseInt($('newAge').value) || 0,
+      gender: $('newGender').value,
+      doctorId: $('newDoctor').value,
+      date: $('newDate').value || new Date().toISOString().split('T')[0],
+      time: $('newSlot').value,
+      source: 'walk-in',
+      token: 'T-0' + (300 + Math.floor(Math.random()*99)),
+      status: 'confirmed',
+      remarks: $('newRemarks').value,
+      initiatedAt: new Date().toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+    };
+    appointments.unshift(newAppt);
+    closeNewApptDrawer(); renderAppointments();
+    toast(wsn ? `Booked — wallet ${wsn} linked` : 'Appointment booked successfully', 'success');
+    // reset form
+    ['newName','newMobile','newAge','newRemarks','newUhid'].forEach(id => $(id).value = '');
+  };
+
+  /* ===== Leaves ===== */
+  function addLeave() {
+    const from = $('leaveFrom').value, to = $('leaveTo').value;
+    if (!from) return toast('Pick a from date', 'error');
+    const list = $('leavesList');
+    const tag = el(`<div style="background: var(--cancelled-bg); color: #B91C1C; padding: 4px 10px; border-radius: 999px; font-size: 12px; display: inline-flex; gap: 6px; align-items: center;">
+      ${fmtDate(from)}${to ? ' → ' + fmtDate(to) : ''} <button style="background: none; border: none; cursor: pointer; color: inherit; font-weight: bold;">×</button>
+    </div>`);
+    tag.querySelector('button').onclick = () => tag.remove();
+    list.appendChild(tag);
+    $('leaveFrom').value = ''; $('leaveTo').value = '';
+  }
+  window.addLeave = addLeave;
+
+  /* ===== Confirm modal ===== */
+  let confirmCb = null;
+  function askConfirm(title, msg, cb) {
+    $('confirmTitle').textContent = title;
+    $('confirmMsg').textContent = msg;
+    confirmCb = cb;
+    $('confirmModal').classList.add('open');
+  }
+  function closeConfirm() { $('confirmModal').classList.remove('open'); confirmCb = null; }
+  $('confirmAction').onclick = () => { if (confirmCb) confirmCb(); closeConfirm(); };
+  window.closeConfirm = closeConfirm;
+
+  /* ===== Filter wiring ===== */
+  function populateDoctorFilters() {
+    const f = $('filterDoctor');
+    f.innerHTML = `<option value="all">All Doctors</option>` + doctors.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+  }
+
+  ['searchInput','filterStatus','filterDoctor','filterSpec','filterDate'].forEach(id => {
+    $(id).addEventListener('input', renderAppointments);
+    $(id).addEventListener('change', renderAppointments);
+  });
+  $('btnReset').onclick = () => {
+    ['searchInput','filterDate'].forEach(id => $(id).value = '');
+    ['filterStatus','filterDoctor','filterSpec'].forEach(id => $(id).value = 'all');
+    renderAppointments();
+  };
+  ['doctorSearch','doctorSpecFilter','doctorStatusFilter'].forEach(id => {
+    $(id).addEventListener('input', renderDoctors);
+    $(id).addEventListener('change', renderDoctors);
+  });
+
+  /* ===== Sidebar / subtab clicks ===== */
+  document.querySelectorAll('.nav-child').forEach(n => n.onclick = () => setRoute(n.dataset.route));
+  document.querySelectorAll('.subtab').forEach(s => s.onclick = () => setRoute(s.dataset.route));
+  $('apptParent').onclick = () => setRoute('appointments-parent');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.id === 'apptParent') return;
+    n.onclick = () => {
+      // Just visually indicate selection for other tabs; we don't have content for them in this prototype
+      document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.nav-child').forEach(x => x.classList.remove('active'));
+      n.classList.add('active');
+      // For demo, route to appointments still
+    };
+  });
+
+  /* ===== INIT ===== */
+  populateDoctorFilters();
+  renderAppointments();
+
+  // Expose drawer-close for inline onclicks
+  window.closeApptDrawer = closeApptDrawer;
+  window.closeDoctorDrawer = closeDoctorDrawer;
+  window.closeNewApptDrawer = closeNewApptDrawer;
+</script>
+</body>
+</html>

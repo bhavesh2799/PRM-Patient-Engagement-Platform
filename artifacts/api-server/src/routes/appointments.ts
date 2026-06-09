@@ -17,10 +17,15 @@ async function enrichAppointment(a: typeof appointmentsTable.$inferSelect) {
     ...a,
     leadName: lead ? `${lead.firstName} ${lead.lastName}` : null,
     leadMobile: lead?.mobile ?? null,
+    leadUhid: lead?.uhid ?? null,
     doctorName: doctor?.name ?? null,
     datetime: a.datetime.toISOString(),
     createdAt: a.createdAt.toISOString(),
   };
+}
+
+function generateToken(id: number): string {
+  return `T-${String(id).padStart(4, "0")}`;
 }
 
 router.get("/appointments", async (req, res): Promise<void> => {
@@ -37,20 +42,45 @@ router.get("/appointments", async (req, res): Promise<void> => {
 
 router.post("/appointments", async (req, res): Promise<void> => {
   const schema = z.object({
-    leadId: z.number().int(),
+    leadId: z.number().int().optional(),
+    patientName: z.string().optional(),
+    patientMobile: z.string().optional(),
+    patientUhid: z.string().optional(),
     doctorId: z.number().int(),
     specialization: z.string().min(1),
-    sourceChannel: z.enum(["app_booking", "web_booking"]),
+    sourceChannel: z.enum(["app_booking", "web_booking", "walk_in", "form"]),
     datetime: z.string(),
+    notes: z.string().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  let leadId = parsed.data.leadId;
+
+  if (!leadId) {
+    const nameParts = (parsed.data.patientName ?? "Unknown Patient").trim().split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ") || "—";
+    const [lead] = await db.insert(leadsTable).values({
+      firstName,
+      lastName,
+      mobile: parsed.data.patientMobile ?? "0000000000",
+      uhid: parsed.data.patientUhid ?? null,
+      sourceChannel: "walk_in",
+    }).returning();
+    leadId = lead.id;
+  }
+
   const [appt] = await db.insert(appointmentsTable).values({
-    ...parsed.data,
+    leadId,
+    doctorId: parsed.data.doctorId,
+    specialization: parsed.data.specialization,
+    sourceChannel: parsed.data.sourceChannel,
     datetime: new Date(parsed.data.datetime),
+    notes: parsed.data.notes ?? null,
   }).returning();
   res.status(201).json(await enrichAppointment(appt));
 });
@@ -70,15 +100,37 @@ router.patch("/appointments/:id", async (req, res): Promise<void> => {
   const schema = z.object({
     status: z.enum(["booked", "confirmed", "completed", "cancelled"]).optional(),
     datetime: z.string().optional(),
+    notes: z.string().optional(),
+    token: z.string().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  const [existing] = await db.select().from(appointmentsTable).where(eq(appointmentsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Appointment not found" });
+    return;
+  }
+
   const updateData: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.datetime) updateData.datetime = new Date(parsed.data.datetime);
-  const [appt] = await db.update(appointmentsTable).set(updateData).where(eq(appointmentsTable.id, id)).returning();
+
+  if (
+    (parsed.data.status === "confirmed" || parsed.data.status === "completed") &&
+    !existing.token &&
+    !parsed.data.token
+  ) {
+    updateData.token = generateToken(existing.id);
+  }
+
+  const [appt] = await db
+    .update(appointmentsTable)
+    .set(updateData)
+    .where(eq(appointmentsTable.id, id))
+    .returning();
   if (!appt) {
     res.status(404).json({ error: "Appointment not found" });
     return;

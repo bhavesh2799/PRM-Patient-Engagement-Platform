@@ -13,8 +13,7 @@ const slotSchema = z.object({
 });
 
 router.get("/doctors", async (req, res): Promise<void> => {
-  let query = db.select().from(doctorsTable);
-  const doctors = await query.orderBy(doctorsTable.name);
+  const doctors = await db.select().from(doctorsTable).orderBy(doctorsTable.name);
   let result = doctors;
   if (req.query.specialization) {
     result = result.filter(d => d.specialization === req.query.specialization);
@@ -32,6 +31,10 @@ router.post("/doctors", async (req, res): Promise<void> => {
     specialization: z.string().min(1),
     qualifications: z.string().optional(),
     experience: z.number().int().optional(),
+    email: z.string().optional(),
+    mobile: z.string().optional(),
+    bio: z.string().optional(),
+    registrationNumber: z.string().optional(),
     slots: z.array(slotSchema).optional(),
   });
   const parsed = schema.safeParse(req.body);
@@ -64,6 +67,10 @@ router.patch("/doctors/:id", async (req, res): Promise<void> => {
     qualifications: z.string().optional(),
     experience: z.number().int().optional(),
     active: z.boolean().optional(),
+    email: z.string().optional(),
+    mobile: z.string().optional(),
+    bio: z.string().optional(),
+    registrationNumber: z.string().optional(),
     slots: z.array(slotSchema).optional(),
   });
   const parsed = schema.safeParse(req.body);

@@ -10,6 +10,10 @@ export const doctorsTable = pgTable("doctors", {
   experience: integer("experience"),
   active: boolean("active").notNull().default(true),
   slots: jsonb("slots").notNull().default([]),
+  email: text("email"),
+  mobile: text("mobile"),
+  bio: text("bio"),
+  registrationNumber: text("registration_number"),
 });
 
 export const insertDoctorSchema = createInsertSchema(doctorsTable).omit({ id: true });

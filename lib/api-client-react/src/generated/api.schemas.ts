@@ -134,6 +134,14 @@ export interface Doctor {
   /** @nullable */
   experience?: number | null;
   active: boolean;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  mobile?: string | null;
+  /** @nullable */
+  bio?: string | null;
+  /** @nullable */
+  registrationNumber?: string | null;
   slots?: DoctorSlot[];
 }
 
@@ -142,6 +150,10 @@ export interface DoctorInput {
   specialization: string;
   qualifications?: string;
   experience?: number;
+  email?: string;
+  mobile?: string;
+  bio?: string;
+  registrationNumber?: string;
   slots?: DoctorSlot[];
 }
 
@@ -151,6 +163,10 @@ export interface DoctorUpdate {
   qualifications?: string;
   experience?: number;
   active?: boolean;
+  email?: string;
+  mobile?: string;
+  bio?: string;
+  registrationNumber?: string;
   slots?: DoctorSlot[];
 }
 
@@ -405,6 +421,8 @@ export type AppointmentSourceChannel = typeof AppointmentSourceChannel[keyof typ
 export const AppointmentSourceChannel = {
   app_booking: 'app_booking',
   web_booking: 'web_booking',
+  walk_in: 'walk_in',
+  form: 'form',
 } as const;
 
 export type AppointmentStatus = typeof AppointmentStatus[keyof typeof AppointmentStatus];
@@ -424,12 +442,18 @@ export interface Appointment {
   leadName?: string | null;
   /** @nullable */
   leadMobile?: string | null;
+  /** @nullable */
+  leadUhid?: string | null;
   doctorId: number;
   /** @nullable */
   doctorName?: string | null;
   specialization: string;
   sourceChannel: AppointmentSourceChannel;
   status: AppointmentStatus;
+  /** @nullable */
+  token?: string | null;
+  /** @nullable */
+  notes?: string | null;
   datetime: string;
   createdAt: string;
 }
@@ -440,14 +464,20 @@ export type AppointmentInputSourceChannel = typeof AppointmentInputSourceChannel
 export const AppointmentInputSourceChannel = {
   app_booking: 'app_booking',
   web_booking: 'web_booking',
+  walk_in: 'walk_in',
+  form: 'form',
 } as const;
 
 export interface AppointmentInput {
-  leadId: number;
+  leadId?: number;
+  patientName?: string;
+  patientMobile?: string;
+  patientUhid?: string;
   doctorId: number;
   specialization: string;
   sourceChannel: AppointmentInputSourceChannel;
   datetime: string;
+  notes?: string;
 }
 
 export type AppointmentUpdateStatus = typeof AppointmentUpdateStatus[keyof typeof AppointmentUpdateStatus];
@@ -463,6 +493,8 @@ export const AppointmentUpdateStatus = {
 export interface AppointmentUpdate {
   status?: AppointmentUpdateStatus;
   datetime?: string;
+  notes?: string;
+  token?: string;
 }
 
 export type SegmentSource = typeof SegmentSource[keyof typeof SegmentSource];

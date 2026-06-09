@@ -12,5 +12,9 @@ export interface DoctorInput {
   specialization: string;
   qualifications?: string;
   experience?: number;
+  email?: string;
+  mobile?: string;
+  bio?: string;
+  registrationNumber?: string;
   slots?: DoctorSlot[];
 }

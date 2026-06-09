@@ -10,6 +10,8 @@ export const appointmentsTable = pgTable("appointments", {
   sourceChannel: text("source_channel").notNull(),
   status: text("status").notNull().default("booked"),
   datetime: timestamp("datetime", { withTimezone: true }).notNull(),
+  token: text("token"),
+  notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

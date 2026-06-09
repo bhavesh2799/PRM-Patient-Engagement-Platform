@@ -15,12 +15,18 @@ export interface Appointment {
   leadName?: string | null;
   /** @nullable */
   leadMobile?: string | null;
+  /** @nullable */
+  leadUhid?: string | null;
   doctorId: number;
   /** @nullable */
   doctorName?: string | null;
   specialization: string;
   sourceChannel: AppointmentSourceChannel;
   status: AppointmentStatus;
+  /** @nullable */
+  token?: string | null;
+  /** @nullable */
+  notes?: string | null;
   datetime: string;
   createdAt: string;
 }

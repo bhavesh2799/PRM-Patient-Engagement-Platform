@@ -177,6 +177,10 @@ export const ListDoctorsResponseItem = zod.object({
   "qualifications": zod.string().nullish(),
   "experience": zod.number().nullish(),
   "active": zod.boolean(),
+  "email": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "bio": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish(),
   "slots": zod.array(zod.object({
   "day": zod.string(),
   "startTime": zod.string(),
@@ -194,6 +198,10 @@ export const CreateDoctorBody = zod.object({
   "specialization": zod.string(),
   "qualifications": zod.string().optional(),
   "experience": zod.number().optional(),
+  "email": zod.string().optional(),
+  "mobile": zod.string().optional(),
+  "bio": zod.string().optional(),
+  "registrationNumber": zod.string().optional(),
   "slots": zod.array(zod.object({
   "day": zod.string(),
   "startTime": zod.string(),
@@ -216,6 +224,10 @@ export const GetDoctorResponse = zod.object({
   "qualifications": zod.string().nullish(),
   "experience": zod.number().nullish(),
   "active": zod.boolean(),
+  "email": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "bio": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish(),
   "slots": zod.array(zod.object({
   "day": zod.string(),
   "startTime": zod.string(),
@@ -237,6 +249,10 @@ export const UpdateDoctorBody = zod.object({
   "qualifications": zod.string().optional(),
   "experience": zod.number().optional(),
   "active": zod.boolean().optional(),
+  "email": zod.string().optional(),
+  "mobile": zod.string().optional(),
+  "bio": zod.string().optional(),
+  "registrationNumber": zod.string().optional(),
   "slots": zod.array(zod.object({
   "day": zod.string(),
   "startTime": zod.string(),
@@ -251,6 +267,10 @@ export const UpdateDoctorResponse = zod.object({
   "qualifications": zod.string().nullish(),
   "experience": zod.number().nullish(),
   "active": zod.boolean(),
+  "email": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "bio": zod.string().nullish(),
+  "registrationNumber": zod.string().nullish(),
   "slots": zod.array(zod.object({
   "day": zod.string(),
   "startTime": zod.string(),
@@ -537,11 +557,14 @@ export const ListAppointmentsResponseItem = zod.object({
   "leadId": zod.number(),
   "leadName": zod.string().nullish(),
   "leadMobile": zod.string().nullish(),
+  "leadUhid": zod.string().nullish(),
   "doctorId": zod.number(),
   "doctorName": zod.string().nullish(),
   "specialization": zod.string(),
-  "sourceChannel": zod.enum(['app_booking', 'web_booking']),
+  "sourceChannel": zod.enum(['app_booking', 'web_booking', 'walk_in', 'form']),
   "status": zod.enum(['booked', 'confirmed', 'completed', 'cancelled']),
+  "token": zod.string().nullish(),
+  "notes": zod.string().nullish(),
   "datetime": zod.string(),
   "createdAt": zod.string()
 })
@@ -552,11 +575,15 @@ export const ListAppointmentsResponse = zod.array(ListAppointmentsResponseItem)
  * @summary Create an appointment
  */
 export const CreateAppointmentBody = zod.object({
-  "leadId": zod.number(),
+  "leadId": zod.number().optional(),
+  "patientName": zod.string().optional(),
+  "patientMobile": zod.string().optional(),
+  "patientUhid": zod.string().optional(),
   "doctorId": zod.number(),
   "specialization": zod.string(),
-  "sourceChannel": zod.enum(['app_booking', 'web_booking']),
-  "datetime": zod.string()
+  "sourceChannel": zod.enum(['app_booking', 'web_booking', 'walk_in', 'form']),
+  "datetime": zod.string(),
+  "notes": zod.string().optional()
 })
 
 
@@ -572,11 +599,14 @@ export const GetAppointmentResponse = zod.object({
   "leadId": zod.number(),
   "leadName": zod.string().nullish(),
   "leadMobile": zod.string().nullish(),
+  "leadUhid": zod.string().nullish(),
   "doctorId": zod.number(),
   "doctorName": zod.string().nullish(),
   "specialization": zod.string(),
-  "sourceChannel": zod.enum(['app_booking', 'web_booking']),
+  "sourceChannel": zod.enum(['app_booking', 'web_booking', 'walk_in', 'form']),
   "status": zod.enum(['booked', 'confirmed', 'completed', 'cancelled']),
+  "token": zod.string().nullish(),
+  "notes": zod.string().nullish(),
   "datetime": zod.string(),
   "createdAt": zod.string()
 })
@@ -591,7 +621,9 @@ export const UpdateAppointmentParams = zod.object({
 
 export const UpdateAppointmentBody = zod.object({
   "status": zod.enum(['booked', 'confirmed', 'completed', 'cancelled']).optional(),
-  "datetime": zod.string().optional()
+  "datetime": zod.string().optional(),
+  "notes": zod.string().optional(),
+  "token": zod.string().optional()
 })
 
 export const UpdateAppointmentResponse = zod.object({
@@ -599,11 +631,14 @@ export const UpdateAppointmentResponse = zod.object({
   "leadId": zod.number(),
   "leadName": zod.string().nullish(),
   "leadMobile": zod.string().nullish(),
+  "leadUhid": zod.string().nullish(),
   "doctorId": zod.number(),
   "doctorName": zod.string().nullish(),
   "specialization": zod.string(),
-  "sourceChannel": zod.enum(['app_booking', 'web_booking']),
+  "sourceChannel": zod.enum(['app_booking', 'web_booking', 'walk_in', 'form']),
   "status": zod.enum(['booked', 'confirmed', 'completed', 'cancelled']),
+  "token": zod.string().nullish(),
+  "notes": zod.string().nullish(),
   "datetime": zod.string(),
   "createdAt": zod.string()
 })
@@ -1579,11 +1614,14 @@ export const GetAppointmentsDashboardResponse = zod.object({
   "leadId": zod.number(),
   "leadName": zod.string().nullish(),
   "leadMobile": zod.string().nullish(),
+  "leadUhid": zod.string().nullish(),
   "doctorId": zod.number(),
   "doctorName": zod.string().nullish(),
   "specialization": zod.string(),
-  "sourceChannel": zod.enum(['app_booking', 'web_booking']),
+  "sourceChannel": zod.enum(['app_booking', 'web_booking', 'walk_in', 'form']),
   "status": zod.enum(['booked', 'confirmed', 'completed', 'cancelled']),
+  "token": zod.string().nullish(),
+  "notes": zod.string().nullish(),
   "datetime": zod.string(),
   "createdAt": zod.string()
 }))

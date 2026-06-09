@@ -16,5 +16,13 @@ export interface Doctor {
   /** @nullable */
   experience?: number | null;
   active: boolean;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  mobile?: string | null;
+  /** @nullable */
+  bio?: string | null;
+  /** @nullable */
+  registrationNumber?: string | null;
   slots?: DoctorSlot[];
 }

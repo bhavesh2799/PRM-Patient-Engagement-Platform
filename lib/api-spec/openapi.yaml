@@ -1547,6 +1547,14 @@ components:
           type: ["integer", "null"]
         active:
           type: boolean
+        email:
+          type: ["string", "null"]
+        mobile:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+        registrationNumber:
+          type: ["string", "null"]
         slots:
           type: array
           items:
@@ -1575,6 +1583,14 @@ components:
           type: string
         experience:
           type: integer
+        email:
+          type: string
+        mobile:
+          type: string
+        bio:
+          type: string
+        registrationNumber:
+          type: string
         slots:
           type: array
           items:
@@ -1593,6 +1609,14 @@ components:
           type: integer
         active:
           type: boolean
+        email:
+          type: string
+        mobile:
+          type: string
+        bio:
+          type: string
+        registrationNumber:
+          type: string
         slots:
           type: array
           items:
@@ -1881,6 +1905,8 @@ components:
           type: ["string", "null"]
         leadMobile:
           type: ["string", "null"]
+        leadUhid:
+          type: ["string", "null"]
         doctorId:
           type: integer
         doctorName:
@@ -1889,10 +1915,14 @@ components:
           type: string
         sourceChannel:
           type: string
-          enum: [app_booking, web_booking]
+          enum: [app_booking, web_booking, walk_in, form]
         status:
           type: string
           enum: [booked, confirmed, completed, cancelled]
+        token:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
         datetime:
           type: string
         createdAt:
@@ -1900,18 +1930,26 @@ components:
 
     AppointmentInput:
       type: object
-      required: [leadId, doctorId, specialization, sourceChannel, datetime]
+      required: [doctorId, specialization, sourceChannel, datetime]
       properties:
         leadId:
           type: integer
+        patientName:
+          type: string
+        patientMobile:
+          type: string
+        patientUhid:
+          type: string
         doctorId:
           type: integer
         specialization:
           type: string
         sourceChannel:
           type: string
-          enum: [app_booking, web_booking]
+          enum: [app_booking, web_booking, walk_in, form]
         datetime:
+          type: string
+        notes:
           type: string
 
     AppointmentUpdate:
@@ -1921,6 +1959,10 @@ components:
           type: string
           enum: [booked, confirmed, completed, cancelled]
         datetime:
+          type: string
+        notes:
+          type: string
+        token:
           type: string
 
     # ── Segment ────────────────────────────────────────────────────────────────

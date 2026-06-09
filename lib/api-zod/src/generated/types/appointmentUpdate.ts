@@ -10,4 +10,6 @@ import type { AppointmentUpdateStatus } from './appointmentUpdateStatus';
 export interface AppointmentUpdate {
   status?: AppointmentUpdateStatus;
   datetime?: string;
+  notes?: string;
+  token?: string;
 }

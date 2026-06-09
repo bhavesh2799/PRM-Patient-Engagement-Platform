@@ -13,5 +13,9 @@ export interface DoctorUpdate {
   qualifications?: string;
   experience?: number;
   active?: boolean;
+  email?: string;
+  mobile?: string;
+  bio?: string;
+  registrationNumber?: string;
   slots?: DoctorSlot[];
 }

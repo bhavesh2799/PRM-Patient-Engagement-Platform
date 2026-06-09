@@ -8,9 +8,13 @@
 import type { AppointmentInputSourceChannel } from './appointmentInputSourceChannel';
 
 export interface AppointmentInput {
-  leadId: number;
+  leadId?: number;
+  patientName?: string;
+  patientMobile?: string;
+  patientUhid?: string;
   doctorId: number;
   specialization: string;
   sourceChannel: AppointmentInputSourceChannel;
   datetime: string;
+  notes?: string;
 }

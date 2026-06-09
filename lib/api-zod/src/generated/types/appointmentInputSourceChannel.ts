@@ -12,4 +12,6 @@ export type AppointmentInputSourceChannel = typeof AppointmentInputSourceChannel
 export const AppointmentInputSourceChannel = {
   app_booking: 'app_booking',
   web_booking: 'web_booking',
+  walk_in: 'walk_in',
+  form: 'form',
 } as const;
