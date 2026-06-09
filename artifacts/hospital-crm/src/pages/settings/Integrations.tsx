@@ -1,104 +1,162 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetChannelConfig } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MessageSquare, Smartphone, BellRing } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { MessageCircle, Smartphone, Mail, Phone, BarChart3, Database, Zap } from "lucide-react";
+import { useLocation } from "wouter";
+
+const STATUS_STYLES: Record<string, string> = {
+  live:    "bg-green-100 text-green-700",
+  pending: "bg-blue-100 text-blue-700",
+  error:   "bg-red-100 text-red-700",
+  not_configured: "bg-gray-100 text-gray-500",
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const label = status === "live" ? "Live"
+    : status === "pending" ? "Pending"
+    : status === "error" ? "Error"
+    : "Not configured";
+  return (
+    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[status] ?? STATUS_STYLES.not_configured}`}>
+      {label}
+    </span>
+  );
+}
 
 export default function Integrations() {
   const { data: config, isLoading } = useGetChannelConfig();
+  const [, navigate] = useLocation();
 
-  if (isLoading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full">Loading integrations...</div>
-      </AppLayout>
-    );
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch(status) {
-      case 'live': return <Badge className="bg-green-500">Live</Badge>;
-      case 'pending': return <Badge variant="secondary">Pending Approval</Badge>;
-      case 'error': return <Badge variant="destructive">Error</Badge>;
-      default: return <Badge variant="outline">Not Configured</Badge>;
-    }
-  };
+  const whatsapp = config?.channels?.find(c => c.type === "whatsapp");
+  const sms      = config?.channels?.find(c => c.type === "sms");
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6 max-w-4xl mx-auto">
+
+        {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Integrations</h1>
-          <p className="text-muted-foreground mt-1">Manage your communication channels.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Integrations</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Communication channels and platform connectors.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {config?.channels?.map((channel) => (
-            <Card key={channel.type}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg capitalize flex items-center gap-2">
-                  {channel.type === 'whatsapp' && <MessageSquare className="w-5 h-5" />}
-                  {channel.type === 'sms' && <Smartphone className="w-5 h-5" />}
-                  {channel.type === 'push' && <BellRing className="w-5 h-5" />}
-                  {channel.type}
-                </CardTitle>
-                {getStatusBadge(channel.status)}
-              </CardHeader>
-              <CardContent>
-                <CardDescription>
-                  {channel.type === 'whatsapp' && "WhatsApp Business API Integration"}
-                  {channel.type === 'sms' && "Transactional and Promotional SMS"}
-                  {channel.type === 'push' && "Mobile App Push Notifications"}
-                </CardDescription>
-                
-                {channel.type === 'whatsapp' && channel.wabaNumbers && channel.wabaNumbers.length > 0 && (
-                  <div className="mt-4 pt-4 border-t space-y-2">
-                    <h4 className="text-sm font-semibold">Active Numbers</h4>
-                    {channel.wabaNumbers.map((waba, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm">
-                        <span className="font-mono">{waba.number}</span>
-                        <Badge variant="outline" className="text-[10px] uppercase">{waba.ownership}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {channel.type === 'sms' && channel.smsHeaders && channel.smsHeaders.length > 0 && (
-                  <div className="mt-4 pt-4 border-t space-y-2">
-                    <h4 className="text-sm font-semibold">Approved Headers</h4>
-                    {channel.smsHeaders.map((header, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm">
-                        <span className="font-mono">{header.value}</span>
-                        <Badge variant="outline" className="text-[10px] uppercase">{header.ownership}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
+        {/* ── ACTIVE CHANNELS ─────────────────── */}
+        <div>
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
+            Active Channels
+          </p>
 
-                {channel.type === 'push' && channel.pushWorkspaceId && (
-                  <div className="mt-4 pt-4 border-t space-y-2">
-                    <h4 className="text-sm font-semibold">Workspace</h4>
-                    <div className="text-sm font-mono truncate">{channel.pushWorkspaceId}</div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              {/* WhatsApp WABA */}
+              <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/super-admin/channels")}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5 text-green-600" />
+                    </div>
+                    <StatusBadge status={whatsapp?.status ?? "not_configured"} />
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  <p className="font-semibold text-sm mb-1">WhatsApp (WABA)</p>
+                  <p className="text-xs text-muted-foreground mb-3">WhatsApp Business API for outbound campaigns and patient replies.</p>
+                  {whatsapp?.wabaNumbers?.length ? (
+                    <div className="space-y-1 pt-2 border-t">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Active Numbers</p>
+                      {whatsapp.wabaNumbers.map((w, i) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <span className="font-mono text-xs">{w.number}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase">{w.ownership}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+
+              {/* SMS */}
+              <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/super-admin/channels")}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Smartphone className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <StatusBadge status={sms?.status ?? "not_configured"} />
+                  </div>
+                  <p className="font-semibold text-sm mb-1">SMS</p>
+                  <p className="text-xs text-muted-foreground mb-3">TRAI-compliant DLT-registered transactional and promotional SMS.</p>
+                  {sms?.smsHeaders?.length ? (
+                    <div className="space-y-1 pt-2 border-t">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Approved Headers</p>
+                      {sms.smsHeaders.map((h, i) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <span className="font-mono text-xs">{h.value}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase">{h.ownership}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+
+              {/* Email */}
+              <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/settings/email-config")}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <StatusBadge status="live" />
+                  </div>
+                  <p className="font-semibold text-sm mb-1">Email</p>
+                  <p className="text-xs text-muted-foreground mb-3">SMTP-based email for appointment reminders, reports, and campaigns.</p>
+                  <div className="space-y-1 pt-2 border-t">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Configuration</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Provider</span>
+                      <span className="text-xs font-medium">AWS SES</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">From</span>
+                      <span className="text-xs font-mono truncate max-w-[130px]">noreply@sunrisehospital.in</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
+          )}
         </div>
 
-        {/* Phase 2 Features */}
-        <div className="mt-12 pt-8 border-t">
-          <h3 className="text-xl font-semibold mb-4 text-muted-foreground flex items-center gap-2">
+        {/* ── COMING SOON ─────────────────────── */}
+        <div>
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
             Coming in Phase 2
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 opacity-50 pointer-events-none grayscale-[50%]">
-            <Card><CardHeader><CardTitle className="text-base">Calling / IVR</CardTitle></CardHeader></Card>
-            <Card><CardHeader><CardTitle className="text-base">Google / Meta Ads</CardTitle></CardHeader></Card>
-            <Card><CardHeader><CardTitle className="text-base">HIS Live Integration</CardTitle></CardHeader></Card>
-            <Card><CardHeader><CardTitle className="text-base">Email Channel</CardTitle></CardHeader></Card>
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 opacity-50 pointer-events-none">
+            {[
+              { icon: Phone,    label: "Calling / IVR",        sub: "Outbound IVR campaigns" },
+              { icon: BarChart3, label: "Google / Meta Ads",   sub: "Retargeting & lookalikes" },
+              { icon: Database, label: "HIS Live Integration", sub: "Real-time patient sync" },
+              { icon: Zap,      label: "Push Notifications",   sub: "In-app & browser push" },
+            ].map(({ icon: Icon, label, sub }) => (
+              <Card key={label}>
+                <CardContent className="p-4">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center mb-2">
+                    <Icon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
+
       </div>
     </AppLayout>
   );

@@ -13,8 +13,8 @@ import {
 import { useLocation } from "wouter";
 
 const CHANNEL_LABELS: Record<string, string> = {
-  waba: "WhatsApp", web_chat: "Web chat", form: "Web form",
-  csv: "CSV import", app_booking: "App booking", web_booking: "Web booking", push: "Push",
+  waba: "WhatsApp", web_chat: "WhatsApp Chat", form: "Form",
+  email: "Email", csv: "CSV Import",
 };
 
 const STATUS_COLORS: Record<string, string> = {

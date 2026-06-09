@@ -23,6 +23,7 @@ import Users from "@/pages/settings/Users";
 import Wallet from "@/pages/settings/Wallet";
 import TagsSettings from "@/pages/settings/Tags";
 import QuickRepliesSettings from "@/pages/settings/QuickReplies";
+import EmailConfig from "@/pages/settings/EmailConfig";
 import SuperAdminChannels from "@/pages/super-admin/Channels";
 import SuperAdminTemplates from "@/pages/super-admin/Templates";
 import SuperAdminCampaigns from "@/pages/super-admin/Campaigns";
@@ -63,6 +64,7 @@ function Router() {
       <Route path="/settings/wallet" component={Wallet} />
       <Route path="/settings/tags" component={TagsSettings} />
       <Route path="/settings/quick-replies" component={QuickRepliesSettings} />
+      <Route path="/settings/email-config" component={EmailConfig} />
       
       <Route path="/super-admin/channels" component={SuperAdminChannels} />
       <Route path="/super-admin/templates" component={SuperAdminTemplates} />

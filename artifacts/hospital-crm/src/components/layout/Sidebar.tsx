@@ -16,7 +16,8 @@ import {
   Activity,
   Layers,
   MessageSquare,
-  Tag
+  Tag,
+  Mail,
 } from "lucide-react";
 import { useGetSessionRole } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ const NAV_GROUPS = [
     title: "Settings",
     items: [
       { title: "Integrations", href: "/settings/integrations", icon: Building2 },
+      { title: "Email Config", href: "/settings/email-config", icon: Mail },
       { title: "Send Rules", href: "/settings/send-rules", icon: Clock },
       { title: "Profile", href: "/settings/profile", icon: LayoutDashboard },
       { title: "Variables", href: "/settings/variables", icon: FileText },

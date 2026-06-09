@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Plus, MessageSquare, Smartphone, Bell, X, ChevronRight, AlertTriangle, Eye,
+  Plus, MessageSquare, Smartphone, Mail, X, ChevronRight, AlertTriangle, Eye,
 } from "lucide-react";
 import { useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
@@ -40,16 +40,17 @@ const VARIABLE_CHIPS = [
   { label: "Last Visit Date", token: "last_visit_date", fallback: "" },
 ];
 
-const CHANNEL_LIMITS: Record<string, number> = { sms: 160, whatsapp: 1024, push: 240 };
+const CHANNEL_LIMITS: Record<string, number> = { sms: 160, whatsapp: 1024, email: 100000 };
 
 function ChannelIcon({ channel, size = 14 }: { channel: string; size?: number }) {
   if (channel === "whatsapp") return <MessageSquare size={size} className="text-green-600" />;
   if (channel === "sms") return <Smartphone size={size} className="text-blue-600" />;
-  return <Bell size={size} className="text-orange-500" />;
+  if (channel === "email") return <Mail size={size} className="text-indigo-500" />;
+  return <MessageSquare size={size} className="text-gray-400" />;
 }
 
 function ChannelLabel({ channel }: { channel: string }) {
-  const map: Record<string, string> = { whatsapp: "WhatsApp", sms: "SMS", push: "Push" };
+  const map: Record<string, string> = { whatsapp: "WhatsApp", sms: "SMS", email: "Email" };
   return <span>{map[channel] ?? channel}</span>;
 }
 
@@ -118,21 +119,19 @@ function ChannelPreview({ channel, body, sampleVars = 0 }: { channel: string; bo
     );
   }
 
-  // Push
+  // Email
   return (
-    <div className="bg-gray-800 rounded-2xl p-3 max-w-[300px] font-sans text-sm shadow-xl">
-      <div className="flex items-start gap-2">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">S</div>
-        <div className="flex-1">
-          <div className="text-xs text-gray-300 font-semibold mb-0.5">Sunrise Hospital</div>
-          <div className="text-white text-xs leading-relaxed whitespace-pre-wrap">
-            {rendered || <span className="text-gray-400 italic">Notification text here…</span>}
-          </div>
+    <div className="bg-white border rounded-xl shadow-sm max-w-[300px] font-sans text-sm">
+      <div className="bg-gray-50 border-b px-3 py-2 rounded-t-xl space-y-0.5">
+        <div className="text-[10px] text-gray-500">
+          From: <span className="font-medium text-gray-700">noreply@sunrisehospital.in</span>
+        </div>
+        <div className="text-[10px] text-gray-500">
+          Subject: <span className="font-medium text-gray-700">Message from Sunrise Hospital</span>
         </div>
       </div>
-      <div className="text-xs text-gray-500 mt-1 text-right">
-        {body.length}/{CHANNEL_LIMITS.push} chars
-        {body.length > CHANNEL_LIMITS.push && <span className="text-orange-400 ml-1">Too long!</span>}
+      <div className="px-3 py-3 text-gray-800 leading-relaxed whitespace-pre-wrap text-xs min-h-[60px]">
+        {rendered || <span className="text-gray-400 italic">Email body will appear here…</span>}
       </div>
     </div>
   );
@@ -141,7 +140,7 @@ function ChannelPreview({ channel, body, sampleVars = 0 }: { channel: string; bo
 // Stage tracker for pending requests
 function StageTracker({ channel, stage }: { channel: string; stage: string }) {
   let stages: { key: string; label: string }[] = [];
-  if (channel === "push") {
+  if (channel === "email") {
     stages = [
       { key: "ap_marketing", label: "AP Review" },
       { key: "live", label: "Live" },

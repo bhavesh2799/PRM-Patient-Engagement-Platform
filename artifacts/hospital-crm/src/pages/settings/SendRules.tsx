@@ -49,68 +49,85 @@ export default function SendRules() {
     <AppLayout>
       <div className="space-y-6 max-w-3xl mx-auto">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Send Rules</h1>
-          <p className="text-muted-foreground mt-1">Configure compliance and frequency capping for campaigns.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Send Rules</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Compliance and frequency capping for outbound campaigns.</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5"/> Communication Window</CardTitle>
-            <CardDescription>Restrict promotional messages to specific hours (TRAI Guidelines).</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Start Time (IST)</label>
-                <Input 
-                  type="time" 
-                  value={formData.sendWindowStart} 
-                  onChange={e => setFormData({...formData, sendWindowStart: e.target.value})}
-                  disabled={!isAdmin}
-                />
+        {/* ── SEND WINDOW ───────────────────── */}
+        <div>
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
+            TRAI Send Window
+          </p>
+          <Card>
+            <CardContent className="p-5 space-y-5">
+              <p className="text-sm text-muted-foreground">
+                Promotional messages are blocked outside this window per TRAI Guidelines. Window is enforced in IST (Asia/Kolkata).
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Start Time (IST)</label>
+                  <Input
+                    type="time"
+                    value={formData.sendWindowStart}
+                    onChange={e => setFormData({ ...formData, sendWindowStart: e.target.value })}
+                    disabled={!isAdmin}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">End Time (IST)</label>
+                  <Input
+                    type="time"
+                    value={formData.sendWindowEnd}
+                    onChange={e => setFormData({ ...formData, sendWindowEnd: e.target.value })}
+                    disabled={!isAdmin}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">End Time (IST)</label>
-                <Input 
-                  type="time" 
-                  value={formData.sendWindowEnd} 
-                  onChange={e => setFormData({...formData, sendWindowEnd: e.target.value})}
-                  disabled={!isAdmin}
-                />
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4 flex-shrink-0" />
+                <span>Current window: <strong className="text-foreground">{formData.sendWindowStart} – {formData.sendWindowEnd} IST</strong></span>
               </div>
-            </div>
-            
-            <div className="space-y-2 pt-4 border-t">
-              <label className="text-sm font-medium text-foreground block">Frequency Capping</label>
-              <CardDescription className="mb-2">Maximum number of messages a single patient can receive per 24 hours across all channels.</CardDescription>
-              <div className="flex items-center gap-2 max-w-xs">
-                <Input 
-                  type="number" 
-                  min={1} 
-                  max={10} 
-                  value={formData.frequencyCap} 
-                  onChange={e => setFormData({...formData, frequencyCap: parseInt(e.target.value)})}
-                  disabled={!isAdmin}
-                />
-                <span className="text-sm text-muted-foreground">messages / day</span>
-              </div>
-            </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            {isAdmin && (
-              <div className="pt-4 flex justify-end">
-                <Button onClick={handleSave} disabled={updateRules.isPending}>
-                  {updateRules.isPending ? "Saving..." : "Save Rules"}
-                </Button>
+        {/* ── FREQUENCY CAP ─────────────────── */}
+        <div>
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
+            Frequency Capping
+          </p>
+          <Card>
+            <CardContent className="p-5 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Maximum messages a single patient can receive per 24 hours across all channels combined.
+              </p>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={formData.frequencyCap}
+                  onChange={e => setFormData({ ...formData, frequencyCap: parseInt(e.target.value) })}
+                  disabled={!isAdmin}
+                  className="max-w-[100px]"
+                />
+                <span className="text-sm text-muted-foreground">messages / patient / day</span>
               </div>
-            )}
-            
-            {!isAdmin && (
-              <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground mt-4">
-                You are viewing these rules in read-only mode. Only Affordplan Admins can modify compliance rules.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        {isAdmin ? (
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={updateRules.isPending}>
+              {updateRules.isPending ? "Saving…" : "Save Rules"}
+            </Button>
+          </div>
+        ) : (
+          <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground">
+            Read-only mode — only Affordplan Admins can modify compliance rules.
+          </div>
+        )}
       </div>
     </AppLayout>
   );

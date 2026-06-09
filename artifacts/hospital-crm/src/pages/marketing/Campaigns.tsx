@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Plus, Pause, AlertCircle, CheckCircle2, XCircle, BarChart2, AlertTriangle,
-  MessageSquare, Smartphone, Bell,
+  MessageSquare, Smartphone, Mail,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
@@ -38,7 +38,8 @@ const STATUS_COLORS: Record<string, string> = {
 function ChannelIcon({ channel }: { channel: string }) {
   if (channel === "whatsapp") return <MessageSquare size={12} className="text-green-600" />;
   if (channel === "sms") return <Smartphone size={12} className="text-blue-600" />;
-  return <Bell size={12} className="text-orange-500" />;
+  if (channel === "email") return <Mail size={12} className="text-indigo-500" />;
+  return <MessageSquare size={12} className="text-gray-400" />;
 }
 
 // Channel-styled mini preview
@@ -69,15 +70,13 @@ function MiniPreview({ channel, body }: { channel: string; body: string }) {
       </div>
     );
   }
+  // Email preview (default)
   return (
-    <div className="bg-gray-800 rounded-lg p-2 text-[11px]">
-      <div className="flex items-start gap-1.5">
-        <div className="w-4 h-4 rounded bg-blue-600 flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0">S</div>
-        <div>
-          <div className="text-gray-300 text-[10px]">Sunrise Hospital</div>
-          <div className="text-white line-clamp-2">{sample}</div>
-        </div>
+    <div className="bg-white border rounded-lg p-2 text-[11px] shadow-sm">
+      <div className="border-b pb-1.5 mb-2">
+        <div className="text-gray-400 text-[10px]">From: <span className="font-medium text-gray-700">noreply@sunrisehospital.in</span></div>
       </div>
+      <div className="text-gray-800 line-clamp-3 leading-relaxed">{sample}</div>
     </div>
   );
 }
@@ -133,7 +132,7 @@ export default function Campaigns() {
     if (tplId && ch && templates) {
       const tpl = templates.find(t => t.id === Number(tplId));
       if (tpl) {
-        const chRates: Record<string, number> = { whatsapp: 0.65, sms: 0.18, push: 0.04 };
+        const chRates: Record<string, number> = { whatsapp: 0.65, sms: 0.18, email: 0.02 };
         setFormData(f => ({
           ...f,
           channels: [{ channel: ch, templateId: tpl.id, perMessageCost: tpl.perMessageCost ?? chRates[ch] ?? 0.18, templateName: tpl.name, templateBody: tpl.body }],
@@ -249,6 +248,49 @@ export default function Campaigns() {
         </div>
 
         <LowWalletBanner balance={walletBalance} />
+
+        {/* ── OVERVIEW ─────────────────────── */}
+        {campaigns && campaigns.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">Overview</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground mb-2">Total Campaigns</p>
+                  <p className="text-3xl font-bold">{campaigns.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">All time</p>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:border-green-200 transition-colors">
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground mb-2">Live</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {campaigns.filter(c => c.status === "live").length}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Currently running</p>
+                </CardContent>
+              </Card>
+              <Card className="cursor-pointer hover:border-amber-200 transition-colors">
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground mb-2">Paused</p>
+                  <p className="text-3xl font-bold text-amber-600">
+                    {campaigns.filter(c => c.status === "paused").length}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Awaiting resume</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground mb-2">Completed</p>
+                  <p className="text-3xl font-bold text-muted-foreground">
+                    {campaigns.filter(c => c.status === "completed").length}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Finished sending</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         <Tabs defaultValue="campaigns">
           <TabsList>
@@ -503,7 +545,7 @@ export default function Campaigns() {
                 {[
                   { ch: "whatsapp", label: "WhatsApp", rate: 0.65 },
                   { ch: "sms", label: "SMS", rate: 0.18 },
-                  { ch: "push", label: "In-app Push", rate: 0.04 },
+                  { ch: "email", label: "Email", rate: 0.02 },
                 ].map(({ ch, label, rate }) => {
                   const isSelected = formData.channels.some(c => c.channel === ch);
                   const chanEntry = formData.channels.find(c => c.channel === ch);
@@ -529,7 +571,7 @@ export default function Campaigns() {
                         <label htmlFor={`ch-${ch}`} className="flex items-center gap-2 font-medium text-sm cursor-pointer">
                           {ch === "whatsapp" && <MessageSquare size={14} className="text-green-600" />}
                           {ch === "sms" && <Smartphone size={14} className="text-blue-600" />}
-                          {ch === "push" && <Bell size={14} className="text-orange-500" />}
+                          {ch === "email" && <Mail size={14} className="text-indigo-500" />}
                           {label}
                         </label>
                         <span className="ml-auto text-xs text-muted-foreground">₹{rate}/msg</span>

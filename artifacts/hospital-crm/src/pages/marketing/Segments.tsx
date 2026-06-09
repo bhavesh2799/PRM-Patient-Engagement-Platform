@@ -338,6 +338,49 @@ export default function Segments() {
 
         <LowWalletBanner balance={walletBalance} />
 
+        {/* ── OVERVIEW ─────────────────────── */}
+        {segments && segments.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">Overview</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground mb-2">Total Segments</p>
+                  <p className="text-3xl font-bold">{segments.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">All sources</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground mb-2">Affordplan CRM</p>
+                  <p className="text-3xl font-bold text-blue-600">
+                    {segments.filter(s => s.source === "affordplan").length}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Rule-based</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground mb-2">CSV Upload</p>
+                  <p className="text-3xl font-bold text-teal-600">
+                    {segments.filter(s => s.source === "csv").length}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Imported lists</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground mb-2">Total Patients</p>
+                  <p className="text-3xl font-bold">
+                    {segments.reduce((s, seg) => s + (seg.count ?? 0), 0).toLocaleString("en-IN")}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Across all segments</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">All Segments</CardTitle>
