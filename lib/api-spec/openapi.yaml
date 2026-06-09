@@ -3,20 +3,37 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Hospital CRM & Patient Engagement Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: session
+  - name: hospital
+  - name: users
+  - name: specializations
+  - name: doctors
+  - name: contact-variables
+  - name: leads
+  - name: appointments
+  - name: segments
+  - name: templates
+  - name: template-requests
+  - name: campaigns
+  - name: wallet
+  - name: invoices
+  - name: channel-config
+  - name: send-rules
+  - name: notifications
+  - name: dashboard
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +41,2636 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Session / Role switcher ──────────────────────────────────────────────
+  /session/role:
+    get:
+      operationId: getSessionRole
+      tags: [session]
+      summary: Get current active role
+      responses:
+        "200":
+          description: Current role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionRole"
+    put:
+      operationId: setSessionRole
+      tags: [session]
+      summary: Switch active role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionRoleInput"
+      responses:
+        "200":
+          description: Updated role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionRole"
+
+  # ── Hospital ─────────────────────────────────────────────────────────────
+  /hospital:
+    get:
+      operationId: getHospital
+      tags: [hospital]
+      summary: Get hospital profile
+      responses:
+        "200":
+          description: Hospital profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hospital"
+    patch:
+      operationId: updateHospital
+      tags: [hospital]
+      summary: Update hospital profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HospitalUpdate"
+      responses:
+        "200":
+          description: Updated hospital
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hospital"
+
+  /hospital/reset:
+    post:
+      operationId: resetDemoData
+      tags: [hospital]
+      summary: Reset all demo data to seed
+      responses:
+        "200":
+          description: Reset complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── Users ─────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Invite a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user role or active status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Specializations ───────────────────────────────────────────────────────
+  /specializations:
+    get:
+      operationId: listSpecializations
+      tags: [specializations]
+      summary: List all specializations
+      responses:
+        "200":
+          description: List of specializations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Specialization"
+    post:
+      operationId: createSpecialization
+      tags: [specializations]
+      summary: Create a specialization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpecializationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Specialization"
+
+  /specializations/{id}:
+    delete:
+      operationId: deleteSpecialization
+      tags: [specializations]
+      summary: Delete a specialization
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Doctors ───────────────────────────────────────────────────────────────
+  /doctors:
+    get:
+      operationId: listDoctors
+      tags: [doctors]
+      summary: List all doctors
+      parameters:
+        - name: specialization
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of doctors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Doctor"
+    post:
+      operationId: createDoctor
+      tags: [doctors]
+      summary: Create a doctor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DoctorInput"
+      responses:
+        "201":
+          description: Created doctor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+
+  /doctors/{id}:
+    get:
+      operationId: getDoctor
+      tags: [doctors]
+      summary: Get a doctor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Doctor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+    patch:
+      operationId: updateDoctor
+      tags: [doctors]
+      summary: Update a doctor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DoctorUpdate"
+      responses:
+        "200":
+          description: Updated doctor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+    delete:
+      operationId: deleteDoctor
+      tags: [doctors]
+      summary: Delete a doctor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Contact Variables ──────────────────────────────────────────────────────
+  /contact-variables:
+    get:
+      operationId: listContactVariables
+      tags: [contact-variables]
+      summary: List contact variables
+      responses:
+        "200":
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContactVariable"
+    post:
+      operationId: createContactVariable
+      tags: [contact-variables]
+      summary: Create a contact variable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactVariableInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactVariable"
+
+  /contact-variables/{id}:
+    patch:
+      operationId: updateContactVariable
+      tags: [contact-variables]
+      summary: Update a contact variable
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactVariableUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactVariable"
+    delete:
+      operationId: deleteContactVariable
+      tags: [contact-variables]
+      summary: Delete a contact variable
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Leads ─────────────────────────────────────────────────────────────────
+  /leads:
+    get:
+      operationId: listLeads
+      tags: [leads]
+      summary: List leads with optional filters
+      parameters:
+        - name: channel
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: ownerId
+          in: query
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: optedIn
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of leads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lead"
+    post:
+      operationId: createLead
+      tags: [leads]
+      summary: Create a lead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadInput"
+      responses:
+        "201":
+          description: Created lead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/{id}:
+    get:
+      operationId: getLead
+      tags: [leads]
+      summary: Get a lead with activity log
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lead with activity log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+    patch:
+      operationId: updateLead
+      tags: [leads]
+      summary: Update lead status, owner, etc.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadUpdate"
+      responses:
+        "200":
+          description: Updated lead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+    delete:
+      operationId: deleteLead
+      tags: [leads]
+      summary: Delete a lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /leads/{id}/messages:
+    get:
+      operationId: getLeadMessages
+      tags: [leads]
+      summary: Get messages for a lead conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendLeadMessage
+      tags: [leads]
+      summary: Send a message to a lead (outreach)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Sent message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /leads/simulate-inbound:
+    post:
+      operationId: simulateInboundMessage
+      tags: [leads]
+      summary: Simulate an inbound WhatsApp/chat message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateInboundInput"
+      responses:
+        "201":
+          description: Simulated lead/message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/csv-upload:
+    post:
+      operationId: uploadLeadsCsv
+      tags: [leads]
+      summary: Upload leads via CSV with column mapping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsvUploadInput"
+      responses:
+        "200":
+          description: Upload result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsvUploadResult"
+
+  /leads/group-segment:
+    post:
+      operationId: groupLeadsIntoSegment
+      tags: [leads]
+      summary: Group selected leads into a new segment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupSegmentInput"
+      responses:
+        "201":
+          description: Created segment from leads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Segment"
+
+  # ── Appointments ──────────────────────────────────────────────────────────
+  /appointments:
+    get:
+      operationId: listAppointments
+      tags: [appointments]
+      summary: List appointments
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: channel
+          in: query
+          schema:
+            type: string
+        - name: doctorId
+          in: query
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appointment"
+    post:
+      operationId: createAppointment
+      tags: [appointments]
+      summary: Create an appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentInput"
+      responses:
+        "201":
+          description: Created appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+  /appointments/{id}:
+    get:
+      operationId: getAppointment
+      tags: [appointments]
+      summary: Get an appointment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+    patch:
+      operationId: updateAppointment
+      tags: [appointments]
+      summary: Update appointment status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpdate"
+      responses:
+        "200":
+          description: Updated appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+    delete:
+      operationId: deleteAppointment
+      tags: [appointments]
+      summary: Delete an appointment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── Segments ──────────────────────────────────────────────────────────────
+  /segments:
+    get:
+      operationId: listSegments
+      tags: [segments]
+      summary: List all segments
+      responses:
+        "200":
+          description: List of segments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Segment"
+    post:
+      operationId: createSegment
+      tags: [segments]
+      summary: Create a segment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SegmentInput"
+      responses:
+        "201":
+          description: Created segment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Segment"
+
+  /segments/{id}:
+    get:
+      operationId: getSegment
+      tags: [segments]
+      summary: Get a segment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Segment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Segment"
+    delete:
+      operationId: deleteSegment
+      tags: [segments]
+      summary: Delete a segment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /segments/{id}/refresh:
+    post:
+      operationId: refreshSegment
+      tags: [segments]
+      summary: Recompute segment count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Refreshed segment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Segment"
+
+  /segments/{id}/export:
+    post:
+      operationId: exportSegment
+      tags: [segments]
+      summary: Export segment as CSV (simulated)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Export initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── Templates ─────────────────────────────────────────────────────────────
+  /templates:
+    get:
+      operationId: listTemplates
+      tags: [templates]
+      summary: List templates
+      parameters:
+        - name: channel
+          in: query
+          schema:
+            type: string
+        - name: goal
+          in: query
+          schema:
+            type: string
+        - name: language
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Template"
+
+  /templates/{id}:
+    get:
+      operationId: getTemplate
+      tags: [templates]
+      summary: Get a template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+    patch:
+      operationId: updateTemplate
+      tags: [templates]
+      summary: Update a template (AP Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateUpdate"
+      responses:
+        "200":
+          description: Updated template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+
+  # ── Template Requests ─────────────────────────────────────────────────────
+  /template-requests:
+    get:
+      operationId: listTemplateRequests
+      tags: [template-requests]
+      summary: List template requests
+      responses:
+        "200":
+          description: List of template requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TemplateRequest"
+    post:
+      operationId: createTemplateRequest
+      tags: [template-requests]
+      summary: Request a new template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateRequestInput"
+      responses:
+        "201":
+          description: Created template request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateRequest"
+
+  /template-requests/{id}:
+    patch:
+      operationId: updateTemplateRequest
+      tags: [template-requests]
+      summary: Update template request (AP Admin approve/reject)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TemplateRequestUpdate"
+      responses:
+        "200":
+          description: Updated template request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateRequest"
+
+  # ── Campaigns ─────────────────────────────────────────────────────────────
+  /campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [campaigns]
+      summary: List campaigns
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Campaign"
+    post:
+      operationId: createCampaign
+      tags: [campaigns]
+      summary: Create a campaign draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignInput"
+      responses:
+        "201":
+          description: Created campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /campaigns/{id}:
+    get:
+      operationId: getCampaign
+      tags: [campaigns]
+      summary: Get a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+    patch:
+      operationId: updateCampaign
+      tags: [campaigns]
+      summary: Update a campaign draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignUpdate"
+      responses:
+        "200":
+          description: Updated campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /campaigns/{id}/submit:
+    post:
+      operationId: submitCampaign
+      tags: [campaigns]
+      summary: Submit campaign for manager approval
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Submitted campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /campaigns/{id}/approve:
+    post:
+      operationId: approveCampaign
+      tags: [campaigns]
+      summary: Approve campaign — runs compliance gate, debits wallet, goes live
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approval result with compliance checks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignApprovalResult"
+
+  /campaigns/{id}/pause:
+    post:
+      operationId: pauseCampaign
+      tags: [campaigns]
+      summary: Pause a live campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paused campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /campaigns/{id}/metrics:
+    get:
+      operationId: getCampaignMetrics
+      tags: [campaigns]
+      summary: Get campaign metrics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignMetrics"
+
+  # ── Wallet ─────────────────────────────────────────────────────────────────
+  /wallet:
+    get:
+      operationId: getWallet
+      tags: [wallet]
+      summary: Get wallet balance and transactions
+      responses:
+        "200":
+          description: Wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+
+  /wallet/topup:
+    post:
+      operationId: topupWallet
+      tags: [wallet]
+      summary: Add money to wallet (simulated PayU/Easebuzz)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletTopupInput"
+      responses:
+        "200":
+          description: Updated wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+
+  # ── Invoices ──────────────────────────────────────────────────────────────
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List invoices
+      responses:
+        "200":
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+
+  # ── Channel Config ────────────────────────────────────────────────────────
+  /channel-config:
+    get:
+      operationId: getChannelConfig
+      tags: [channel-config]
+      summary: Get channel configuration
+      responses:
+        "200":
+          description: Channel config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelConfig"
+    patch:
+      operationId: updateChannelConfig
+      tags: [channel-config]
+      summary: Update channel config (AP Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelConfigUpdate"
+      responses:
+        "200":
+          description: Updated channel config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelConfig"
+
+  # ── Send Rules ────────────────────────────────────────────────────────────
+  /send-rules:
+    get:
+      operationId: getSendRules
+      tags: [send-rules]
+      summary: Get send rules
+      responses:
+        "200":
+          description: Send rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendRules"
+    patch:
+      operationId: updateSendRules
+      tags: [send-rules]
+      summary: Update send rules (AP Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendRulesUpdate"
+      responses:
+        "200":
+          description: Updated send rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendRules"
+
+  # ── Notifications ─────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  # ── Dashboard ─────────────────────────────────────────────────────────────
+  /dashboard/home:
+    get:
+      operationId: getHomeDashboard
+      tags: [dashboard]
+      summary: Collective home dashboard data
+      parameters:
+        - name: channel
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: ownerId
+          in: query
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Home dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeDashboard"
+
+  /dashboard/crm:
+    get:
+      operationId: getCrmDashboard
+      tags: [dashboard]
+      summary: CRM dashboard data
+      parameters:
+        - name: channel
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CRM dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrmDashboard"
+
+  /dashboard/engagement:
+    get:
+      operationId: getEngagementDashboard
+      tags: [dashboard]
+      summary: Engagement/marketing dashboard data
+      responses:
+        "200":
+          description: Engagement dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EngagementDashboard"
+
+  /dashboard/appointments:
+    get:
+      operationId: getAppointmentsDashboard
+      tags: [dashboard]
+      summary: Appointments dashboard data
+      parameters:
+        - name: channel
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Appointments dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentsDashboard"
+
+  /dashboard/super-admin:
+    get:
+      operationId: getSuperAdminDashboard
+      tags: [dashboard]
+      summary: Super admin overview
+      responses:
+        "200":
+          description: Super admin dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuperAdminDashboard"
+
+  # ── Public Form ───────────────────────────────────────────────────────────
+  /public/form/submit:
+    post:
+      operationId: submitPublicForm
+      tags: [leads]
+      summary: Submit public enquiry/booking form
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicFormInput"
+      responses:
+        "201":
+          description: Lead created from form
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    # ── Session ─────────────────────────────────────────────────────────────
+    SessionRole:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [exec, manager, ap_admin]
+        userId:
+          type: ["integer", "null"]
+
+    SessionRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [exec, manager, ap_admin]
+
+    # ── Hospital ────────────────────────────────────────────────────────────
+    Hospital:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        logo:
+          type: ["string", "null"]
+        primaryColor:
+          type: string
+        contact:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        simplifiedMode:
+          type: boolean
+
+    HospitalUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        logo:
+          type: string
+        primaryColor:
+          type: string
+        contact:
+          type: string
+        address:
+          type: string
+        simplifiedMode:
+          type: boolean
+
+    # ── User ────────────────────────────────────────────────────────────────
+    User:
+      type: object
+      required: [id, name, email, role, active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [exec, manager, ap_admin]
+        active:
+          type: boolean
+
+    UserInput:
+      type: object
+      required: [name, email, role]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [exec, manager, ap_admin]
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          enum: [exec, manager, ap_admin]
+        active:
+          type: boolean
+
+    # ── Specialization ───────────────────────────────────────────────────────
+    Specialization:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    SpecializationInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    # ── Doctor ────────────────────────────────────────────────────────────────
+    Doctor:
+      type: object
+      required: [id, name, specialization, active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        specialization:
+          type: string
+        qualifications:
+          type: ["string", "null"]
+        experience:
+          type: ["integer", "null"]
+        active:
+          type: boolean
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/DoctorSlot"
+
+    DoctorSlot:
+      type: object
+      required: [day, startTime, endTime]
+      properties:
+        day:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+
+    DoctorInput:
+      type: object
+      required: [name, specialization]
+      properties:
+        name:
+          type: string
+        specialization:
+          type: string
+        qualifications:
+          type: string
+        experience:
+          type: integer
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/DoctorSlot"
+
+    DoctorUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        specialization:
+          type: string
+        qualifications:
+          type: string
+        experience:
+          type: integer
+        active:
+          type: boolean
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/DoctorSlot"
+
+    # ── Contact Variable ──────────────────────────────────────────────────────
+    ContactVariable:
+      type: object
+      required: [id, name, description, mandatory, system]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        mandatory:
+          type: boolean
+        system:
+          type: boolean
+
+    ContactVariableInput:
+      type: object
+      required: [name, description]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        mandatory:
+          type: boolean
+
+    ContactVariableUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        mandatory:
+          type: boolean
+
+    # ── Lead ─────────────────────────────────────────────────────────────────
+    Lead:
+      type: object
+      required: [id, firstName, lastName, mobile, sourceChannel, status, optedIn, dndListed, createdAt, lastActionAt]
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        mobile:
+          type: string
+        uhid:
+          type: ["string", "null"]
+        specialization:
+          type: ["string", "null"]
+        sourceChannel:
+          type: string
+          enum: [waba, web_chat, form, csv, app_booking, web_booking, push]
+        status:
+          type: string
+          enum: [new, contacted, in_progress, fulfilled, closed]
+        ownerUserId:
+          type: ["integer", "null"]
+        ownerName:
+          type: ["string", "null"]
+        sourceListTag:
+          type: ["string", "null"]
+        optedIn:
+          type: boolean
+        dndListed:
+          type: boolean
+        createdAt:
+          type: string
+        lastActionAt:
+          type: string
+        hasActiveSession:
+          type: boolean
+
+    LeadDetail:
+      type: object
+      required: [id, firstName, lastName, mobile, sourceChannel, status, optedIn, dndListed, createdAt, lastActionAt, activityLog]
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        mobile:
+          type: string
+        uhid:
+          type: ["string", "null"]
+        specialization:
+          type: ["string", "null"]
+        sourceChannel:
+          type: string
+          enum: [waba, web_chat, form, csv, app_booking, web_booking, push]
+        status:
+          type: string
+          enum: [new, contacted, in_progress, fulfilled, closed]
+        ownerUserId:
+          type: ["integer", "null"]
+        ownerName:
+          type: ["string", "null"]
+        sourceListTag:
+          type: ["string", "null"]
+        optedIn:
+          type: boolean
+        dndListed:
+          type: boolean
+        createdAt:
+          type: string
+        lastActionAt:
+          type: string
+        hasActiveSession:
+          type: boolean
+        activityLog:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityLogEntry"
+
+    ActivityLogEntry:
+      type: object
+      required: [id, type, description, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+        userId:
+          type: ["integer", "null"]
+        userName:
+          type: ["string", "null"]
+
+    LeadInput:
+      type: object
+      required: [firstName, lastName, mobile, sourceChannel]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        mobile:
+          type: string
+        uhid:
+          type: string
+        specialization:
+          type: string
+        sourceChannel:
+          type: string
+          enum: [waba, web_chat, form, csv, app_booking, web_booking, push]
+        optedIn:
+          type: boolean
+        sourceListTag:
+          type: string
+
+    LeadUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [new, contacted, in_progress, fulfilled, closed]
+        ownerUserId:
+          type: ["integer", "null"]
+        specialization:
+          type: string
+        optedIn:
+          type: boolean
+        dndListed:
+          type: boolean
+
+    Message:
+      type: object
+      required: [id, leadId, direction, body, channel, timestamp]
+      properties:
+        id:
+          type: integer
+        leadId:
+          type: integer
+        direction:
+          type: string
+          enum: [in, out]
+        body:
+          type: string
+        channel:
+          type: string
+        templateId:
+          type: ["integer", "null"]
+        timestamp:
+          type: string
+        status:
+          type: string
+
+    MessageInput:
+      type: object
+      required: [templateId, channel]
+      properties:
+        templateId:
+          type: integer
+        channel:
+          type: string
+        body:
+          type: ["string", "null"]
+
+    SimulateInboundInput:
+      type: object
+      required: [channel]
+      properties:
+        channel:
+          type: string
+          enum: [waba, web_chat]
+        mobile:
+          type: ["string", "null"]
+        body:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+
+    CsvUploadInput:
+      type: object
+      required: [rows, columnMapping, sourceListTag]
+      properties:
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: string
+        columnMapping:
+          type: object
+          additionalProperties:
+            type: string
+        sourceListTag:
+          type: string
+        saveAsSegment:
+          type: boolean
+        segmentName:
+          type: ["string", "null"]
+
+    CsvUploadResult:
+      type: object
+      required: [imported, duplicates, errors, segmentId]
+      properties:
+        imported:
+          type: integer
+        duplicates:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+        segmentId:
+          type: ["integer", "null"]
+
+    GroupSegmentInput:
+      type: object
+      required: [leadIds, name]
+      properties:
+        leadIds:
+          type: array
+          items:
+            type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+
+    # ── Appointment ───────────────────────────────────────────────────────────
+    Appointment:
+      type: object
+      required: [id, leadId, doctorId, specialization, sourceChannel, status, datetime, createdAt]
+      properties:
+        id:
+          type: integer
+        leadId:
+          type: integer
+        leadName:
+          type: ["string", "null"]
+        leadMobile:
+          type: ["string", "null"]
+        doctorId:
+          type: integer
+        doctorName:
+          type: ["string", "null"]
+        specialization:
+          type: string
+        sourceChannel:
+          type: string
+          enum: [app_booking, web_booking]
+        status:
+          type: string
+          enum: [booked, confirmed, completed, cancelled]
+        datetime:
+          type: string
+        createdAt:
+          type: string
+
+    AppointmentInput:
+      type: object
+      required: [leadId, doctorId, specialization, sourceChannel, datetime]
+      properties:
+        leadId:
+          type: integer
+        doctorId:
+          type: integer
+        specialization:
+          type: string
+        sourceChannel:
+          type: string
+          enum: [app_booking, web_booking]
+        datetime:
+          type: string
+
+    AppointmentUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [booked, confirmed, completed, cancelled]
+        datetime:
+          type: string
+
+    # ── Segment ────────────────────────────────────────────────────────────────
+    Segment:
+      type: object
+      required: [id, name, source, count, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        source:
+          type: string
+          enum: [affordplan, his, csv, manual]
+        conditionTree:
+          type: ["string", "null"]
+        count:
+          type: integer
+        lastRefreshAt:
+          type: string
+        createdAt:
+          type: string
+
+    SegmentInput:
+      type: object
+      required: [name, source]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        source:
+          type: string
+          enum: [affordplan, his, csv, manual]
+        conditionTree:
+          type: string
+        memberLeadIds:
+          type: array
+          items:
+            type: integer
+
+    # ── Template ───────────────────────────────────────────────────────────────
+    Template:
+      type: object
+      required: [id, name, channel, goal, language, body, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        channel:
+          type: string
+          enum: [sms, whatsapp, push]
+        goal:
+          type: string
+        language:
+          type: string
+        body:
+          type: string
+        media:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [approved, pending, rejected]
+        scope:
+          type: string
+          enum: [global, hospital]
+        dltRegisteredBody:
+          type: ["string", "null"]
+        metaStatus:
+          type: ["string", "null"]
+        qualityRating:
+          type: ["string", "null"]
+        senderId:
+          type: ["string", "null"]
+        wabaContact:
+          type: ["string", "null"]
+        perMessageCost:
+          type: number
+
+    TemplateUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [approved, pending, rejected]
+        dltRegisteredBody:
+          type: string
+        metaStatus:
+          type: string
+        qualityRating:
+          type: string
+        senderId:
+          type: string
+        wabaContact:
+          type: string
+        scope:
+          type: string
+          enum: [global, hospital]
+
+    # ── Template Request ──────────────────────────────────────────────────────
+    TemplateRequest:
+      type: object
+      required: [id, name, channel, message, goal, approvalStage, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        channel:
+          type: string
+          enum: [sms, whatsapp, push]
+        message:
+          type: string
+        media:
+          type: ["string", "null"]
+        goal:
+          type: string
+        variables:
+          type: ["string", "null"]
+        approvalStage:
+          type: string
+          enum: [ap_marketing, channel_compliance, live, rejected]
+        createdBy:
+          type: integer
+        createdByName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        rejectionReason:
+          type: ["string", "null"]
+
+    TemplateRequestInput:
+      type: object
+      required: [name, channel, message, goal]
+      properties:
+        name:
+          type: string
+        channel:
+          type: string
+          enum: [sms, whatsapp, push]
+        message:
+          type: string
+        media:
+          type: string
+        goal:
+          type: string
+        variables:
+          type: string
+
+    TemplateRequestUpdate:
+      type: object
+      properties:
+        approvalStage:
+          type: string
+          enum: [ap_marketing, channel_compliance, live, rejected]
+        rejectionReason:
+          type: string
+
+    # ── Campaign ──────────────────────────────────────────────────────────────
+    CampaignChannel:
+      type: object
+      required: [channel, templateId, perMessageCost]
+      properties:
+        channel:
+          type: string
+          enum: [sms, whatsapp, push]
+        templateId:
+          type: integer
+        templateName:
+          type: ["string", "null"]
+        perMessageCost:
+          type: number
+        senderId:
+          type: ["string", "null"]
+        wabaContact:
+          type: ["string", "null"]
+
+    CostBreakdown:
+      type: object
+      required: [channelCost, fee, gst, total]
+      properties:
+        channelCost:
+          type: number
+        fee:
+          type: number
+        gst:
+          type: number
+        total:
+          type: number
+
+    ComplianceCheck:
+      type: object
+      required: [name, passed, message]
+      properties:
+        name:
+          type: string
+        passed:
+          type: boolean
+        message:
+          type: string
+        droppedCount:
+          type: ["integer", "null"]
+
+    Campaign:
+      type: object
+      required: [id, name, goal, audienceSegmentId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        goal:
+          type: string
+        audienceSegmentId:
+          type: integer
+        audienceSegmentName:
+          type: ["string", "null"]
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampaignChannel"
+        estimatedRecipients:
+          type: ["integer", "null"]
+        costBreakdown:
+          type: ["object", "null"]
+          properties:
+            channelCost:
+              type: number
+            fee:
+              type: number
+            gst:
+              type: number
+            total:
+              type: number
+        status:
+          type: string
+          enum: [draft, submitted, approved, live, paused, completed, failed]
+        complianceResult:
+          type: ["object", "null"]
+          properties:
+            checks:
+              type: array
+              items:
+                $ref: "#/components/schemas/ComplianceCheck"
+            passed:
+              type: boolean
+        createdBy:
+          type: integer
+        createdByName:
+          type: ["string", "null"]
+        approvedBy:
+          type: ["integer", "null"]
+        approvedByName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        launchedAt:
+          type: ["string", "null"]
+
+    CampaignInput:
+      type: object
+      required: [name, goal, audienceSegmentId]
+      properties:
+        name:
+          type: string
+        goal:
+          type: string
+        audienceSegmentId:
+          type: integer
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampaignChannel"
+
+    CampaignUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        goal:
+          type: string
+        audienceSegmentId:
+          type: integer
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampaignChannel"
+
+    CampaignApprovalResult:
+      type: object
+      required: [campaign, complianceChecks, passed]
+      properties:
+        campaign:
+          $ref: "#/components/schemas/Campaign"
+        complianceChecks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComplianceCheck"
+        passed:
+          type: boolean
+        invoice:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            number:
+              type: string
+            amount:
+              type: number
+            gst:
+              type: number
+
+    CampaignMetrics:
+      type: object
+      required: [campaignId]
+      properties:
+        campaignId:
+          type: integer
+        sent:
+          type: integer
+        delivered:
+          type: integer
+        opened:
+          type: integer
+        clicked:
+          type: integer
+        converted:
+          type: integer
+        spend:
+          type: number
+        revenueAttributed:
+          type: number
+        roi:
+          type: number
+        channelBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelMetrics"
+        updatedAt:
+          type: string
+
+    ChannelMetrics:
+      type: object
+      required: [channel, sent, delivered, opened, clicked, converted]
+      properties:
+        channel:
+          type: string
+        sent:
+          type: integer
+        delivered:
+          type: integer
+        opened:
+          type: integer
+        clicked:
+          type: integer
+        converted:
+          type: integer
+        spend:
+          type: number
+        revenueAttributed:
+          type: number
+
+    # ── Wallet ────────────────────────────────────────────────────────────────
+    WalletTransaction:
+      type: object
+      required: [id, type, amount, description, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [topup, debit]
+        amount:
+          type: number
+        description:
+          type: string
+        reference:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    Wallet:
+      type: object
+      required: [balance, transactions]
+      properties:
+        balance:
+          type: number
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletTransaction"
+
+    WalletTopupInput:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+
+    # ── Invoice ───────────────────────────────────────────────────────────────
+    Invoice:
+      type: object
+      required: [id, number, amount, gst, createdAt]
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: ["integer", "null"]
+        campaignName:
+          type: ["string", "null"]
+        number:
+          type: string
+        amount:
+          type: number
+        gst:
+          type: number
+        pdfUrl:
+          type: string
+        createdAt:
+          type: string
+
+    # ── Channel Config ─────────────────────────────────────────────────────────
+    SmsHeader:
+      type: object
+      required: [value, ownership, isDefault]
+      properties:
+        value:
+          type: string
+        ownership:
+          type: string
+          enum: [affordplan, hospital]
+        isDefault:
+          type: boolean
+
+    WabaNumber:
+      type: object
+      required: [number, ownership, isDefault]
+      properties:
+        number:
+          type: string
+        profilePic:
+          type: ["string", "null"]
+        ownership:
+          type: string
+          enum: [affordplan, hospital]
+        isDefault:
+          type: boolean
+
+    ChannelConfigEntry:
+      type: object
+      required: [type, status]
+      properties:
+        type:
+          type: string
+          enum: [sms, whatsapp, push]
+        status:
+          type: string
+          enum: [live, not_configured, pending, error]
+        smsHeaders:
+          type: array
+          items:
+            $ref: "#/components/schemas/SmsHeader"
+        wabaNumbers:
+          type: array
+          items:
+            $ref: "#/components/schemas/WabaNumber"
+        pushWorkspaceId:
+          type: ["string", "null"]
+
+    ChannelConfig:
+      type: object
+      required: [channels]
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelConfigEntry"
+
+    ChannelConfigUpdate:
+      type: object
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelConfigEntry"
+
+    # ── Send Rules ────────────────────────────────────────────────────────────
+    SendRules:
+      type: object
+      required: [sendWindowStart, sendWindowEnd, frequencyCap]
+      properties:
+        sendWindowStart:
+          type: string
+        sendWindowEnd:
+          type: string
+        frequencyCap:
+          type: integer
+
+    SendRulesUpdate:
+      type: object
+      properties:
+        sendWindowStart:
+          type: string
+        sendWindowEnd:
+          type: string
+        frequencyCap:
+          type: integer
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+    Notification:
+      type: object
+      required: [id, title, body, read, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        type:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+
+    # ── Dashboard ──────────────────────────────────────────────────────────────
+    LeadsByChannel:
+      type: object
+      required: [channel, count]
+      properties:
+        channel:
+          type: string
+        count:
+          type: integer
+
+    LeadsByStatus:
+      type: object
+      required: [status, count]
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+
+    HomeDashboard:
+      type: object
+      required: [totalLeads, activeLeads, fulfilledLeads, leadsByChannel, leadsByStatus, conversionByChannel, recentLeads]
+      properties:
+        totalLeads:
+          type: integer
+        activeLeads:
+          type: integer
+        fulfilledLeads:
+          type: integer
+        leadsByChannel:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadsByChannel"
+        leadsByStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadsByStatus"
+        conversionByChannel:
+          type: array
+          items:
+            type: object
+            required: [channel, total, converted, rate]
+            properties:
+              channel:
+                type: string
+              total:
+                type: integer
+              converted:
+                type: integer
+              rate:
+                type: number
+        revenueAttributed:
+          type: number
+        recentLeads:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+        appointmentSummary:
+          type: object
+          properties:
+            total:
+              type: integer
+            today:
+              type: integer
+            upcoming:
+              type: integer
+
+    CrmDashboard:
+      type: object
+      required: [totalLeads, leadsByChannel, volumeTrend, slaBreaches]
+      properties:
+        totalLeads:
+          type: integer
+        leadsByChannel:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadsByChannel"
+        volumeTrend:
+          type: array
+          items:
+            type: object
+            required: [date, count]
+            properties:
+              date:
+                type: string
+              count:
+                type: integer
+        conversionTrend:
+          type: array
+          items:
+            type: object
+            required: [date, converted]
+            properties:
+              date:
+                type: string
+              converted:
+                type: integer
+        slaBreaches:
+          type: integer
+        agedLeads:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+
+    EngagementDashboard:
+      type: object
+      required: [patientsReachedMtd, deliveryRate, conversions, activeCampaigns, recentCampaigns]
+      properties:
+        patientsReachedMtd:
+          type: integer
+        deliveryRate:
+          type: number
+        conversions:
+          type: integer
+        activeCampaigns:
+          type: integer
+        walletBalance:
+          type: number
+        recentCampaigns:
+          type: array
+          items:
+            $ref: "#/components/schemas/Campaign"
+        spendTrend:
+          type: array
+          items:
+            type: object
+            required: [date, spend]
+            properties:
+              date:
+                type: string
+              spend:
+                type: number
+
+    AppointmentsDashboard:
+      type: object
+      required: [total, byChannel, byStatus, bySpecialization, recentAppointments]
+      properties:
+        total:
+          type: integer
+        today:
+          type: integer
+        byChannel:
+          type: array
+          items:
+            type: object
+            required: [channel, count]
+            properties:
+              channel:
+                type: string
+              count:
+                type: integer
+        byStatus:
+          type: array
+          items:
+            type: object
+            required: [status, count]
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+        bySpecialization:
+          type: array
+          items:
+            type: object
+            required: [specialization, count]
+            properties:
+              specialization:
+                type: string
+              count:
+                type: integer
+        trendByDay:
+          type: array
+          items:
+            type: object
+            required: [date, count]
+            properties:
+              date:
+                type: string
+              count:
+                type: integer
+        recentAppointments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+
+    SuperAdminDashboard:
+      type: object
+      required: [totalCampaigns, pendingTemplateRequests, pendingCampaigns, channelStatus]
+      properties:
+        totalCampaigns:
+          type: integer
+        pendingTemplateRequests:
+          type: integer
+        pendingCampaigns:
+          type: integer
+        channelStatus:
+          type: array
+          items:
+            type: object
+            required: [channel, status]
+            properties:
+              channel:
+                type: string
+              status:
+                type: string
+
+    # ── Public Form ───────────────────────────────────────────────────────────
+    PublicFormInput:
+      type: object
+      required: [firstName, lastName, mobile]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        mobile:
+          type: string
+        specialization:
+          type: string
+        message:
+          type: string
+        preferredDate:
+          type: string

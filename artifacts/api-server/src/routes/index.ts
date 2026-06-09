@@ -1,8 +1,42 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import sessionRouter from "./session";
+import hospitalRouter from "./hospital";
+import usersRouter from "./users";
+import specializationsRouter from "./specializations";
+import doctorsRouter from "./doctors";
+import contactVariablesRouter from "./contactVariables";
+import leadsRouter from "./leads";
+import appointmentsRouter from "./appointments";
+import segmentsRouter from "./segments";
+import templatesRouter from "./templates";
+import campaignsRouter from "./campaigns";
+import walletRouter from "./wallet";
+import channelConfigRouter from "./channelConfig";
+import sendRulesRouter from "./sendRules";
+import notificationsRouter from "./notifications";
+import dashboardRouter from "./dashboard";
+import publicFormRouter from "./publicForm";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(sessionRouter);
+router.use(hospitalRouter);
+router.use(usersRouter);
+router.use(specializationsRouter);
+router.use(doctorsRouter);
+router.use(contactVariablesRouter);
+router.use(leadsRouter);
+router.use(appointmentsRouter);
+router.use(segmentsRouter);
+router.use(templatesRouter);
+router.use(campaignsRouter);
+router.use(walletRouter);
+router.use(channelConfigRouter);
+router.use(sendRulesRouter);
+router.use(notificationsRouter);
+router.use(dashboardRouter);
+router.use(publicFormRouter);
 
 export default router;

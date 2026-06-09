@@ -1,0 +1,270 @@
+# Build Brief for Replit Agent — Hospital CRM & Patient Engagement Platform (Phase 1 prototype)
+
+Paste this whole brief into Replit Agent. It describes a **functional, clickable prototype** — not a production system. Every external vendor (NotifyVisitors, Karix, PayU/Easebuzz, Meta, DLT) must be **simulated in code**. No real API keys, no real messages, no real payments.
+
+---
+
+## 1. What we're building (one paragraph)
+
+A single web platform for hospitals that (a) captures patient **leads** from every channel into one inbox with correct source attribution, and (b) lets non-marketer staff run **compliant, template-only marketing campaigns** over SMS / WhatsApp / Push. A lead is captured → attributed to a channel → worked through a lifecycle → grouped into a **segment** → engaged via a **campaign**, with the outcome attributed back to the originating lead and channel. It ships as three commercial units sharing one services layer (segments, channels, compliance gate, wallet, integrations): **Lead Capture (CRM)**, **Engagement (self-serve marketing)**, and the **Full Platform** (both, connected end to end). Build the Full Platform; make the two halves visibly separable in the nav.
+
+Brand owner is **Affordplan**. Currency is **INR (₹)**. Timezone is **IST**. The product is for the Indian hospital market and is governed by **TRAI DLT** (SMS) and **Meta HSM** (WhatsApp) rules.
+
+---
+
+## 2. Prototype scope & constraints (read before building)
+
+- **Single hospital tenant** seeded with demo data — no real multi-tenant auth needed.
+- **No real login.** Add a persistent **role switcher** in the top bar so a demo viewer can instantly become any role (see §5). Permissions/visibility must actually change with the role.
+- **Mock all integrations** (§12). Outbound "sends" produce simulated delivery/open/click events on a timer. Inbound WhatsApp chats are simulated. Wallet top-ups are simulated.
+- **Persist data** across page reloads (a simple server-side store or SQLite is fine). Seed it on first boot; add a **"Reset demo data"** button in Settings.
+- Keep the **Phase 2 list (§14) out of scope.** Where a Phase 2 channel/feature would appear, show it **greyed out / "Coming in Phase 2"** rather than building it.
+- This is a **single-step send** product in Phase 1. The campaign builder is a **3-screen wizard**, but it sends **one message per channel, once** — no multi-step journeys, no time gaps, no AI copy, no free-text message bodies anywhere.
+
+---
+
+## 3. Recommended tech stack
+
+- **Frontend:** React + Vite + TypeScript, Tailwind CSS, a clean component set (shadcn/ui-style). `recharts` for charts. `lucide-react` for icons.
+- **Backend:** Node + Express (TypeScript). In-memory seeded store is acceptable; SQLite (better-sqlite3 or Drizzle) preferred for persistence.
+- **State:** React Query (or simple fetch hooks) against the Express API.
+- Single repo, `npm run dev` starts both. If you prefer Next.js full-stack, that's fine — keep the same structure and behaviors.
+
+Aim for a polished, modern SaaS look. UI inspirations per screen are listed inline (HubSpot, Intercom inbox, CleverTap/MoEngage, Practo, Mixpanel funnels, Stripe billing).
+
+---
+
+## 4. Global layout
+
+- **Left sidebar nav**, grouped exactly as the modules below:
+  1. **Home** (Collective Dashboard)
+  2. **Appointment Booking** (Dashboard · Bookings · Doctor Management)
+  3. **Incoming Engagements (CRM)** (Dashboard · Unified Inbox · CSV Upload)
+  4. **Outgoing Engagements (Marketing)** (Dashboard · Campaigns · Templates · Segments · Metrics)
+  5. **Settings** (Integrations Hub · Schedule & Send Rules · Hospital Profile · Contact Variables · Users · Wallet & Billing)
+  6. **Super-Admin (Affordplan)** — a visually distinct area, only visible when the role is *Affordplan Ops/Admin*.
+- **Top bar:** hospital name + logo, **wallet balance chip** (turns into a warning when < ₹5,000), a **role switcher** dropdown, and a **notifications** bell (in-app notifications for campaign approvals/completions).
+- Make CRM (#3) and Engagement (#4) feel like the two sellable modules over one shared services layer.
+
+---
+
+## 5. Roles & permission gates (demo role switcher)
+
+Build these four roles. Permissions must actually gate UI actions, not just labels.
+
+| Role | Can do | Cannot do |
+|---|---|---|
+| **Front-office / Lead-desk Exec** (primary) | View dashboards & inbox; pick up / be assigned leads; update lead status; upload leads; trigger outreach; reply in unified inbox; **create** campaigns, segments, and template *requests*; view metrics & integrations hub | **Approve** campaigns; add money to wallet; edit message bodies; change frequency cap |
+| **Marketing Manager** (reviewer) | Everything the Exec can, **plus** approve campaigns & outreach; **pause** live campaigns; request templates out-of-flow; **add money to wallet**; **view & modify** Integrations Hub | **Edit a message body** (approve/pause only); change frequency cap |
+| **Affordplan Ops / Admin** (internal) | Everything, **plus** the entire Super-Admin portal: whitelist/approve templates, approve campaigns at backend, configure channels per hospital, **override frequency cap**, **unlock advanced builder**, pre-load templates & onboarding | — |
+
+The **"hospital main user"** who approves campaigns = **Marketing Manager**. The Exec submits; the Manager approves. Affordplan Ops handles backend execution.
+
+---
+
+## 6. Data model (entities & key fields)
+
+Create these tables/collections and relationships. Seed per §11.
+
+- **Hospital** — id, name, branding (logo, primary color), contact, address, simplifiedMode (bool, default true).
+- **User** — id, name, email, role (`exec` | `manager` | `ap_admin`), active.
+- **ContactVariable** — id, name, description, mandatory (bool), system (bool). Pre-seed: First name, Last name, UHID, Specialization, Last Visit Date, Mobile.
+- **Lead** — id, firstName, lastName, mobile, uhid, specialization, **sourceChannel** (`waba` | `web_chat` | `form` | `csv` | `app_booking` | `web_booking` | `push`… ), status (`new` | `contacted` | `in_progress` | `fulfilled` | `closed`), ownerUserId (nullable), sourceListTag (nullable), optedIn (bool), dndListed (bool), createdAt, lastActionAt. **activityLog[]** (timestamped entries: status changes, messages, assignment).
+- **Conversation / Message** — for WABA + web-chat leads: messages[] (direction in/out, body, channel, timestamp), session open/closed (WhatsApp 24h rule).
+- **Doctor** — id, name, specialization, schedule/availability (simple slots), active.
+- **Specialization** — id, name (used as a lead field & doctor mapping).
+- **Appointment** — id, leadId, doctorId, specialization, sourceChannel (`app_booking` | `web_booking`), status (`booked` | `confirmed` | `completed` | `cancelled`), datetime.
+- **Segment** — id, name, description, source (`affordplan` | `his` | `csv`), conditionTree (for affordplan/his AND/OR groups), memberLeadIds[] / computed count, lastRefreshAt.
+- **Template** — id, name, channel (`sms` | `whatsapp` | `push`), goal, language, body (with `{variable}` tokens), media (nullable), status (`approved` | `pending` | `rejected`), scope (`global` | `hospital`, hidden from hospital UI), dltRegisteredBody (SMS), metaStatus (`APPROVED`|`PENDING`|`REJECTED`) + qualityRating (`Green`|`Yellow`|`Red`) for WhatsApp, senderId (SMS) / wabaContact (WA).
+- **TemplateRequest** — id, name, channel, message, media, goal, variables+fallbacks, approvalStage (`ap_marketing` | `channel_compliance` | `live` | `rejected`), createdBy, createdAt.
+- **Campaign** — id, name, goal, audienceSegmentId, channels[] (each with templateId, perMessageCost, senderId/wabaContact), estimatedRecipients, costBreakdown (channelCost, fee5pct, gst18pct, total), status (`draft` | `submitted` | `approved` | `live` | `paused` | `completed` | `failed`), complianceResult (per-check pass/fail + dropped count), createdBy, approvedBy, createdAt.
+- **CampaignMetrics** — campaignId, counts: sent, delivered, opened, clicked, converted (track both unique UHIDs and mobiles), spend, revenueAttributed, per-channel breakdown.
+- **Invoice** — id, campaignId, number, amount, gst, pdfUrl (fake), createdAt.
+- **Wallet** — hospitalId, balance, transactions[] (top-up, debit, with timestamp + reference).
+- **ChannelConfig** — per channel: type (`sms` | `whatsapp` | `push`), status (`live` | `not_configured` | `pending` | `error`), SMS headers[] (value, ownership `affordplan`|`hospital`, isDefault) up to 5, WABA numbers[] (number, profilePic, ownership, isDefault) up to 5, Push workspaceId (Swasth white-label). Editable in Super-Admin; **mirrored read/limited-edit** in the hospital Integrations Hub.
+- **SendRules** — sendWindowStart `09:00`, sendWindowEnd `21:00` IST, frequencyCap (default **3 / patient / 24h**), overridable only by AP Admin.
+
+---
+
+## 7. Screen-by-screen specification
+
+> For each screen: build the listed widgets, wire filters so they actually filter seeded data, and make the noted actions work.
+
+### 7.1 Home — Collective Dashboard `[Critical]` *(inspo: HubSpot, Mixpanel, Looker)*
+- Cards/sections: **Incoming leads by channel** with source attribution (no channel is a silo); **outgoing lists** (uploaded DBs, callbacks, win-back/re-engagement).
+- Per-lead table: source/channel, status, owner, last action, created date.
+- **Active vs fulfilled** patients; **lead-to-outcome conversion by channel**.
+- **Engagement & revenue attribution** tied back to campaign outcomes.
+- **Appointment-booking overview** rolled up here.
+- Filters: channel, status, owner, date range — update all cards/tables. Clicking a lead opens its profile/inbox entry.
+
+### 7.2 Appointment Booking
+- **Dashboard** `[Critical]` *(Practo Ray, Cliniko, NexHealth)*: total bookings with channel attribution; trends by channel / specialization / doctor; booking-status breakdown that also feeds the lead inbox.
+- **Bookings (Channel: AP App + Website)** `[Critical]`: bookings listing with filters; **status update**; each booking appears as an attributed lead in the unified inbox; source attribution distinguishes **app vs website**.
+- **Doctor Management** `[Must]` *(NexHealth, Calendly)*: add/update doctor profiles; manage schedule, availability, slots; map doctor → specialization(s) (usable as a lead field).
+
+### 7.3 Incoming Engagements (CRM)
+- **Dashboard** `[Critical]` *(HubSpot, Mixpanel)*: incoming leads by channel with attributes & attribution; volume & conversion trends by channel; **lead ageing / SLA** visibility.
+- **Unified Lead Inbox** `[Critical]` *(HubSpot, Freshsales, Intercom inbox)* — the centerpiece:
+  - **All inbound channels resolve into ONE list** with source attribution: WABA, Website Chat Widget, Form, CSV, App/Web booking, Push. (Email = optional/greyed "to confirm". Socials = Phase 2 greyed.)
+  - Columns: source/channel, name, contact, doctor/specialization, status, owner, last action, created date.
+  - **Filter / search / sort** across all fields. **Pick up** an unassigned lead or be **assigned** one (exactly one owner, visible).
+  - Lead lifecycle: **New → Contacted → In-progress → Fulfilled/Closed**; prevent invalid transitions; **timestamp & log every change/action**.
+  - **Lead profile drawer**: full historic communication + activity log.
+  - **Two-way WhatsApp/web-chat panel** for `waba`/`web_chat` leads: agent can reply; respect the **24h session rule** (outside session → only approved templates; marketing templates only to opted-in). Inbound messages simulated (§12).
+  - **Trigger outreach** (template message) from a lead → routes through the **shared compliance gate + wallet** (no separate sending stack). A "call" action is **Phase 2 — greyed**.
+- **Channel: Form (web/mobile)** `[Must]` *(Typeform, HubSpot Forms)*: a working demo booking/enquiry/contact form (public route) → field→variable mapping → creates a lead attributed to **`form`**; mandatory fields validated; invalid submissions rejected with field-level errors.
+- **Channel: CSV / Lead Upload** `[Must]` *(HubSpot/Mailchimp import)*:
+  - Upload CSV → **show column → contact-variable mapping before import**.
+  - Validate mandatory fields; a **missing mandatory column produces a clear error naming the column** (fixable without support).
+  - **De-dupe by UHID / mobile** (link/merge, never create a duplicate row); tag with source list.
+  - Option to **save the uploaded list as a reusable segment**.
+- **Handoff to Engagement** `[Critical]`: select qualified leads in the inbox → **group into a named segment** → segment becomes selectable as a campaign audience → **outcomes attribute back** to the originating lead & channel on the CRM dashboard.
+
+### 7.4 Outgoing Engagements (Marketing)
+- **Dashboard** `[Critical]` *(MoEngage/WebEngage, HubSpot)*: KPI cards — **Patients reached (MTD), Delivery rate, Conversions, Wallet balance, Active campaigns**. Recent campaigns table (name, goal, channel(s), audience size, cost, date, status, metrics, 3-dot actions). **Only Pause** is offered (no edit / resend / clone-into-edit). **Low-wallet banner appears when balance < ₹5,000.**
+- **Campaign Builder — 3-step wizard** `[Critical]` *(MoEngage, CleverTap, Braze)*:
+  - **Step 1 — Goal & Audience:** pick goal from a **fixed list** (Appointment Reminder, Win-back, Promotional, Chronic Care, Feedback); campaign name; pick **audience segment** (Affordplan / HIS / CSV); **"Show count"** returns audience size.
+  - **Step 2 — Channel & Template:** **multi-select** WhatsApp / SMS / Push; **one template per channel**; **per-message cost** shown; **live preview** with variables auto-bound from the audience; selectable **SMS header** and **WABA contact**. **No free-text body, no AI copy/rewrite/tone, no token editing — anywhere.**
+  - **Step 3 — Estimate & Submit:** tabular **all-in cost** = channel cost + **5% platform fee** + **18% GST**; show **post-send wallet balance**; **Submit** → goes to **Campaign Requests** (visible to the Marketing Manager only).
+  - Guardrails to enforce: a Meta-approved template ships **only** on WhatsApp; a DLT-registered template **only** on SMS.
+- **Approve & Launch** `[Critical]` (Manager): open Campaign Requests → review → **Approve** → **compliance gate runs all 6 checks (§9)** → on pass, **wallet debited** and campaign goes **Live** + **invoice raised**; on fail, show the **specific failure** and return to the relevant step. Then **simulate delivery events** (§12) and stream metrics. Fire an in-app + (mock) email **completion notification**.
+- **Pause** `[Critical]`: one-click Pause stops further sends; status → Paused; no edit/resend offered.
+- **Templates — Library & Requests** `[Critical]` *(Meta WhatsApp Manager, Twilio Content Builder)*:
+  - Grid of **pre-approved** templates for Push/SMS/WhatsApp; **filter by goal, channel, language**.
+  - **No "Create template" button.** A **"Request a new template"** CTA opens a form (name, channel, message, media, goal; **channel-wise live preview**; pre-defined variables + fallbacks) → creates an **AP Ops ticket** (a TemplateRequest). **No body editing happens in the platform.**
+  - Templates are **use-as-is**: cannot edit / clone-then-edit / duplicate.
+  - A **separate tab tracks not-yet-approved** requests with their stage: *AP marketing → channel/compliance → live*.
+  - (Behind the scenes: global vs hospital-level template scope — **hidden** from the hospital UI.)
+- **Segments (shared service)** `[Critical]` *(CleverTap/MoEngage builders, Mixpanel)*:
+  - **3 sources:** (a) **Affordplan data** with an **AND/OR condition builder** (conditions on e.g. touchpoint OPD/Lab/Pharmacy, specialization, spend, last visit recency, appointment, IPD), (b) **HIS condition groups**, (c) **CSV upload**.
+  - **"Show count"** computes audience size; **UHID captured as an attribute**; a note prompts valid UHIDs for accurate attribution.
+  - **Segments table:** name, description, current count, last refresh, source; 3-dot **export / delete**.
+  - **No link** from a segment to a goal/template; **counts re-evaluate at launch**.
+- **Campaign Metrics** `[Critical]` *(Mixpanel/Amplitude funnels)*:
+  - KPIs: **Total Spend, Revenue Attributed, ROI, Cost/conversion, Patients reached, Delivery/Open/Click rates**.
+  - **Conversion funnel:** sent → delivered → opened → clicked → converted, with a **toggle for unique UHIDs vs mobile numbers**.
+  - A **channel-wise revenue-attribution funnel**.
+
+### 7.5 Settings & Configuration
+- **Integrations Hub** `[Must]` *(Segment Sources, Zapier connections)* (Manager view/modify): unified **status** view across Push / SMS / WABA — **Live / Not configured / Pending / Error** — mirrored from Super-Admin in real time; per channel show SMS header(s) + ownership + default, WABA contact(s) + ownership + default, Push partner/workspace.
+- **Schedule & Send Rules (enforced, read-only for hospital)** `[Critical]`: show the **09:00–21:00 IST** window for SMS-promo / WhatsApp / Push (out-of-window times disabled in pickers); **SMS transactional 24×7 only for DLT-Transactional** templates; WhatsApp marketing only to opted-in (non-opted silently dropped before debit); **frequency cap default 3/patient/24h** — read-only for hospital, only AP Admin edits.
+- **Hospital Profile** `[Must]`: name, branding, contact, address; saved defaults propagate across screens.
+- **Contact & Account Variables** `[Must]` *(CleverTap/HubSpot properties)*: list pre-defined variables; **"Create variable"** (name, description, mandatory y/n); edit/delete; used for CSV mapping & token binding.
+- **User Management** `[Must]` *(Slack/Notion admin)*: invite users; assign roles; **role gates** enforce create-vs-approve.
+- **Wallet Balance & Billing** `[Must]` *(Razorpay/Stripe billing)*: wallet balance card; **Add money** (simulated PayU/Easebuzz); commission **5% + 18% GST** debited from wallet on execution; **invoices raised on campaign approval**, auto-listed (invoice #, amount, GST, fake **PDF link**); **no launch without sufficient balance**. Also house the **"Reset demo data"** button here.
+
+### 7.6 Super-Admin Portal (Affordplan) — visible only to AP Admin
+*(inspo: an internal Retool/admin console)*
+- **Channel Configuration** `[Critical]`: per-hospital config — Push (Swasth workspace ID for white-label), SMS (**up to 5 headers**: Affordplan-registered/shareable or Hospital-registered post-DLT), WhatsApp (**up to 5 WABA numbers** via FB Business Manager: number + profile pic). **Status changes here must reflect in real time on the hospital Integrations Hub.**
+- **Templates Approval** `[Critical]`: queue of hospital TemplateRequests with **approve / reject / channel approval / preview**. Channel paths: **Push** → AP marketing approves directly; **SMS** → fix to DLT standard + whitelist + update template id; **WhatsApp** → AP review → "Meta whitelisting" → **backend polling auto-updates** status. Show **SLA targets: 48h internal; 24–72h Meta** (use accelerated timers in the demo, e.g. seconds).
+- **Campaigns Approval** `[Critical]`: review submitted campaigns; **pre-launch validation** across templates & DLT/Meta approval status **before wallet debit**; visibility into the campaign-requests pipeline.
+- **Frequency-Cap Override / Power-user Unlock** `[Must]` *(LaunchDarkly-style flags)*: per-hospital **override the frequency cap**; **unlock the advanced filter/segment builder**; **Simplified Mode** flag per hospital (default **ON**).
+- **Onboarding & Template Pre-load** `[Must]`: pre-load hospital templates (sender ID, BSP, DLT IDs) before go-live; set **global vs hospital-level** template scope (hidden from the hospital); curate the global library to cover the **top ~80% of use cases**.
+
+---
+
+## 8. The two hero flows (make these flawless for the demo)
+
+### Flow A — Lead → Engagement loop
+1. A lead arrives from a channel (simulated inbound WhatsApp, a submitted web form, a CSV upload, or an app/website booking) **or** is uploaded.
+2. It **lands in the unified inbox** with source attribution and appears on the collective dashboard. De-dupe by UHID/mobile.
+3. It's **assigned / picked up**; status set.
+4. The Exec acts: **replies in the unified inbox** (call = Phase 2 greyed).
+5. Every send passes the **shared compliance gate**; **wallet debited** on valid launch.
+6. Status updated; activity logged; qualified leads **grouped into a segment**.
+7. Segment **handed to Engagement** → a campaign runs → **outcomes attribute back** to the lead & channel on the CRM dashboard.
+
+### Flow B — Simplified campaign launch
+1. Exec logs in (via role switcher), lands on Engagement Dashboard, clicks **New Campaign**.
+2. **Step 1:** goal (fixed) + name + segment → **Show count**.
+3. **Step 2:** channel(s) + one template each → live preview + per-message cost; set SMS header / WABA contact.
+4. **Step 3:** all-in cost + post-send balance → **Submit for review**.
+5. **Manager approves** → compliance gate (6 checks) → wallet debited → **Live**, *or* a specific failure is shown.
+6. Live metrics stream to the campaign detail view; completion notification sent.
+- **Acceptance:** a trained user finishes login→launch in **under 5 minutes**; **no free-text/AI/token editing** anywhere; launch is **blocked unless all 6 checks pass and the wallet covers cost + 5% fee + 18% GST**.
+
+---
+
+## 9. Compliance & validation gate — simulate deterministically
+
+Run these **6 checks before wallet debit & launch**. Surface them as inline validation states (a checklist that turns green/red on approval). Make pass/fail **deterministic from seed data** so the demo is repeatable, and include at least one seeded campaign that **fails** each major check on purpose.
+
+| Check | Rule | On fail |
+|---|---|---|
+| **DLT Template Match (SMS)** | Selected SMS template body == its DLT-registered body, byte-for-byte | **Hard-block** |
+| **Meta Approval (WhatsApp)** | Template `metaStatus == APPROVED` **and** `qualityRating != Red` | **Hard-block** |
+| **Suppression Scrub** | Drop recipients on opt-out + TRAI **DND** list | **Auto-drop** (remove recipients, continue) |
+| **Frequency Cap** | recipient's 24h count + this send ≤ cap (default 3) | **Auto-drop** |
+| **Wallet Balance** | balance ≥ channel cost + 5% fee + 18% GST | **Hard-block** |
+| **Send Window (SMS promo)** | scheduled time within **09:00–21:00 IST** | **Hard-block** |
+
+Channel constraints to encode: **SMS** needs a DLT-registered 6-char sender ID + exact-match body, promo 09:00–21:00 IST only, DND scrubbing mandatory. **WhatsApp** marketing = Meta-approved HSM only; quality rating Red → sending **auto-paused**; 24h session rule. **Push** = Swasth/Affordplan app only, token pre-issued.
+
+Hard-block → show the specific reason and **do not debit**. Auto-drop → silently remove ineligible recipients (show "N recipients dropped"), then proceed.
+
+---
+
+## 10. Wallet & billing math
+
+- All-in cost = `Σ(perMessageCost × recipients per channel)` = **channelCost**; then `fee = 5% × channelCost`; `gst = 18% × (channelCost + fee)`; `total = channelCost + fee + gst`. Show this as a table in Step 3 and on the invoice.
+- **Low-wallet banner** appears whenever balance **< ₹5,000**.
+- **Block approval/launch** if balance < total (this is the Wallet Balance hard-block).
+- On approval: **debit wallet**, create a wallet transaction, and **raise an invoice** (number, amount, GST, fake PDF link) auto-listed in Billing.
+- **Add money** simulates PayU/Easebuzz: a modal → "processing" → balance updates + a top-up transaction.
+
+---
+
+## 11. Seed data (make the prototype feel real on first load)
+
+- **1 hospital** (e.g. "Sunrise Multispecialty Hospital"), with logo + primary color, Simplified Mode ON.
+- **3 users:** one each `exec`, `manager`, `ap_admin`.
+- **8–10 specializations** (Cardiology, Orthopaedics, Pediatrics, Gynaecology, Dermatology, ENT, General Medicine, Dental…) and **6–8 doctors** mapped to them with sample slots.
+- **~40 leads** spread across channels (`waba`, `web_chat`, `form`, `csv`, `app_booking`, `web_booking`), across all lifecycle statuses, varied owners, varied created dates (some aged to show SLA). Mix of opted-in/opted-out and a few DND-listed. A handful with full chat history.
+- **~8 templates** across the 3 channels and goals/languages, including: at least one SMS with a **mismatched DLT body** (will hard-block), one WhatsApp with **qualityRating = Red** (will hard-block), and the rest valid. Plus **2 pending TemplateRequests** at different stages.
+- **~4 segments** (one per source type + one saved from a CSV upload) with computed counts.
+- **~5 campaigns** in mixed states: `live` (with streaming-ish metrics), `completed` (full funnel + revenue), `paused`, `submitted` (awaiting approval), and one `failed` due to a compliance hard-block. Include realistic funnel numbers and channel-wise revenue.
+- **Wallet** starting balance around **₹12,000** with a few past transactions; a couple of past **invoices**.
+- **ChannelConfig:** SMS = Live (1–2 headers), WhatsApp = Live (1 WABA number), Push = Pending — so the Integrations Hub shows mixed statuses.
+- **~10 appointments** across app/website with mixed statuses, feeding the inbox + appointment dashboards.
+
+---
+
+## 12. Mock integration behavior
+
+- **NotifyVisitors** (Push/SMS/WABA outbound + analytics) and **Karix** (SMS gateway + inbound web-chat) → a single internal **`mockMessagingService`**. On a valid launch it marks messages `sent`, then on short timers emits `delivered → opened → clicked → converted` for a realistic fraction of recipients, updating CampaignMetrics live.
+- **Inbound WhatsApp / web chat** → a **"Simulate inbound message"** dev button (or auto-generate a couple on load) that creates/updates a lead in the unified inbox with an open 24h session.
+- **PayU / Easebuzz** → simulated top-up modal (no real payment).
+- **Meta / DLT approvals** → Super-Admin actions flip statuses on accelerated timers (the WhatsApp "polling" auto-updates a PENDING template to APPROVED after a few seconds).
+- **Super-Admin ↔ Integrations Hub sync** → editing channel config in Super-Admin updates the hospital Integrations Hub status immediately (shared store).
+
+Do **not** attempt real outbound API calls. Keep all of this in code.
+
+---
+
+## 13. Build order (so the spine works first)
+
+1. Scaffold app, layout, sidebar, top bar, **role switcher**, seeded store + **Reset demo data**.
+2. **Unified Inbox** + Lead model + lifecycle + lead profile/activity log (the heart of CRM).
+3. **CSV upload** (mapping + validation + de-dupe + save-as-segment) and the **public web form** channel.
+4. **Segments** + **Templates library/requests**.
+5. **Campaign Builder (3 steps)** → **Campaign Requests** → **Approve + Compliance Gate + Wallet debit + Invoice** → **Live** → **mock delivery events** → **Metrics**.
+6. **Dashboards** (Home, CRM, Engagement, Appointment) wired to live data + filters.
+7. **Appointment Booking** (bookings list, status, doctor management).
+8. **Settings** (Integrations Hub, Send Rules, Profile, Variables, Users, Wallet/Billing).
+9. **Super-Admin** portal + real-time sync to Integrations Hub + approval timers.
+10. Polish, empty/error states, greyed Phase-2 markers.
+
+---
+
+## 14. Explicitly OUT of scope (Phase 2 — show as greyed "Coming in Phase 2", do not build)
+
+Multi-step journey builder (time gaps, per-step channel→template, 15–30 day window); WhatsApp Business **booking** chatbot + agent handover; Calling / IVR / missed-call capture + click-to-call; Manual entry / walk-in quick-create; **Google & Meta Ads** lead capture; **HIS** lead/patient pull (live integration — keep HIS only as a *segment source option* in the builder UI); QR/offline capture; Referral capture; Offline camps request; Socials (FB/IG) and **Email/ESP** integrations as live channels (Email may appear greyed as "to confirm").
+
+---
+
+### Notes / assumptions I baked in (flag if you disagree)
+- **"3-step builder" = a 3-screen wizard that sends once**, per the PRD's Phase-1 single-step boundary (the workbook's "journey/time-gaps" language is Phase 2 and is deferred here).
+- **"Hospital main user" who approves = Marketing Manager.**
+- **Push uses NotifyVisitors / the Swasth white-label app** (per the PRD; the workbook's older "MoEngage" mention is superseded).
+- Everything vendor-side is **simulated**; this is a demo prototype, not production.
