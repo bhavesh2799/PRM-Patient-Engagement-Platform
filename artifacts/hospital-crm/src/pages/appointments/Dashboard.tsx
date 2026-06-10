@@ -7,7 +7,7 @@ import {
   LineChart, Line, Legend,
 } from "recharts";
 import { useLocation } from "wouter";
-import { CalendarCheck, TrendingUp, TrendingDown, Users, Filter, X } from "lucide-react";
+import { CalendarCheck, TrendingUp, TrendingDown, SlidersHorizontal, X } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   booked: "bg-blue-100 text-blue-800",
@@ -26,10 +26,21 @@ const STATUS_BAR_COLOR: Record<string, string> = {
 export default function AppointmentsDashboard() {
   const [, navigate] = useLocation();
   const { data: dashboard, isLoading } = useGetAppointmentsDashboard();
+
+  const [filterChannel, setFilterChannel] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [filterSpec, setFilterSpec] = useState("");
   const [filterDoctor, setFilterDoctor] = useState("");
-  const [filterSource, setFilterSource] = useState("");
+
   const d = dashboard as any;
+
+  const filtersActive = !!(filterChannel || filterStatus || dateFrom || dateTo);
+
+  const dateLabel = (dateFrom || dateTo)
+    ? [dateFrom, dateTo].filter(Boolean).join(" – ")
+    : "";
 
   if (isLoading) {
     return (
@@ -48,7 +59,6 @@ export default function AppointmentsDashboard() {
 
   const allSpecs = [...new Set(byDoctor.map((d: any) => d.specialization).filter(Boolean))] as string[];
   const allDoctors = byDoctor.filter((d: any) => !filterSpec || d.specialization === filterSpec);
-  const allSources = [...new Set(byChannel.map((c: any) => c.channel).filter(Boolean))] as string[];
 
   const filteredByDoctor = byDoctor.filter((doc: any) => {
     if (filterSpec && doc.specialization !== filterSpec) return false;
@@ -56,13 +66,16 @@ export default function AppointmentsDashboard() {
     return true;
   });
 
+  const filteredByStatus = filterStatus
+    ? byStatus.filter((s: any) => s.status === filterStatus)
+    : byStatus;
 
   const total: number = d.total ?? 0;
   const completionRate: number = d.completionRate ?? 0;
   const cancellationRate: number = d.cancellationRate ?? 0;
   const todayCount: number = byStatus.reduce((s: number, x: any) => s + (x.status === "booked" || x.status === "confirmed" ? x.count : 0), 0);
 
-  const maxStatusCount = Math.max(...byStatus.map((s: any) => s.count), 1);
+  const maxStatusCount = Math.max(...filteredByStatus.map((s: any) => s.count), 1);
 
   const SOURCE_LABELS: Record<string, string> = {
     web: "Website", app: "Mobile App", app_booking: "App Booking", in_person: "In-person", web_booking: "Web Booking",
@@ -72,10 +85,70 @@ export default function AppointmentsDashboard() {
     <AppLayout>
       <div className="space-y-6 max-w-7xl mx-auto">
 
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Appointments Dashboard</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Booking trends, doctor utilisation, and source attribution.</p>
+        {/* ── Filter bar ─────────────────────────────── */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mr-1">
+            <SlidersHorizontal className="w-4 h-4" />
+            <span className="font-medium">Filters</span>
+          </div>
+          <select
+            value={filterChannel}
+            onChange={e => setFilterChannel(e.target.value)}
+            className="text-sm border rounded-full px-3 py-1.5 bg-background cursor-pointer focus:outline-none hover:border-foreground/40 transition-colors"
+          >
+            <option value="">All channels</option>
+            <option value="web">Website</option>
+            <option value="app">Mobile App</option>
+            <option value="web_booking">Web Booking</option>
+            <option value="app_booking">App Booking</option>
+            <option value="in_person">In-person</option>
+          </select>
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="text-sm border rounded-full px-3 py-1.5 bg-background cursor-pointer focus:outline-none hover:border-foreground/40 transition-colors"
+          >
+            <option value="">All statuses</option>
+            <option value="booked">Booked</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          {dateLabel ? (
+            <div className="flex items-center gap-1 border rounded-full px-3 py-1.5 bg-background text-sm">
+              <span>{dateLabel}</span>
+              <button
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                className="ml-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 border rounded-full px-3 py-1.5 bg-background text-sm hover:border-foreground/40 transition-colors">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="bg-transparent text-xs w-24 focus:outline-none cursor-pointer"
+              />
+              <span className="text-muted-foreground">–</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="bg-transparent text-xs w-24 focus:outline-none cursor-pointer"
+              />
+            </div>
+          )}
+          {filtersActive && (
+            <button
+              onClick={() => { setFilterChannel(""); setFilterStatus(""); setDateFrom(""); setDateTo(""); }}
+              className="text-xs text-muted-foreground hover:text-foreground underline ml-1"
+            >
+              Clear all
+            </button>
+          )}
         </div>
 
         {/* ── BOOKING SUMMARY ──────────────────────── */}
@@ -153,7 +226,7 @@ export default function AppointmentsDashboard() {
               </CardHeader>
               <CardContent className="px-5 pb-5">
                 <div className="space-y-2.5 mt-1">
-                  {byStatus.map((s: any) => (
+                  {filteredByStatus.map((s: any) => (
                     <div
                       key={s.status}
                       className="flex items-center gap-3 text-sm cursor-pointer hover:bg-muted/40 rounded px-1 -mx-1 py-0.5 group"
@@ -237,21 +310,7 @@ export default function AppointmentsDashboard() {
               <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
                 Doctor Utilisation
               </p>
-              {/* Filters */}
               <div className="flex items-center gap-2">
-                {allSources.length > 0 && (
-                  <div className="flex items-center gap-1">
-                    <Filter className="w-3 h-3 text-muted-foreground" />
-                    <select
-                      value={filterSource}
-                      onChange={e => setFilterSource(e.target.value)}
-                      className="text-xs border rounded px-2 py-1 bg-background h-7"
-                    >
-                      <option value="">All Channels</option>
-                      {allSources.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                )}
                 <select
                   value={filterSpec}
                   onChange={e => { setFilterSpec(e.target.value); setFilterDoctor(""); }}
@@ -268,9 +327,9 @@ export default function AppointmentsDashboard() {
                   <option value="">All Doctors</option>
                   {allDoctors.map((d: any) => <option key={d.doctorId} value={d.name}>{d.name}</option>)}
                 </select>
-                {(filterSpec || filterDoctor || filterSource) && (
+                {(filterSpec || filterDoctor) && (
                   <button
-                    onClick={() => { setFilterSpec(""); setFilterDoctor(""); setFilterSource(""); }}
+                    onClick={() => { setFilterSpec(""); setFilterDoctor(""); }}
                     className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"
                   >
                     <X className="w-3 h-3" /> Reset
