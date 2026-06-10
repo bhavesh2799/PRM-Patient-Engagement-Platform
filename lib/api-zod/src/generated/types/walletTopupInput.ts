@@ -5,7 +5,9 @@
  * Hospital CRM & Patient Engagement Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { WalletTopupInputPaymentMethod } from './walletTopupInputPaymentMethod';
 
 export interface WalletTopupInput {
   amount: number;
+  paymentMethod?: WalletTopupInputPaymentMethod;
 }

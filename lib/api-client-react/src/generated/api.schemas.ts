@@ -200,7 +200,11 @@ export const LeadSourceChannel = {
   csv: 'csv',
   app_booking: 'app_booking',
   web_booking: 'web_booking',
-  push: 'push',
+  email: 'email',
+  medicine_order: 'medicine_order',
+  lab_test: 'lab_test',
+  web_appointment: 'web_appointment',
+  app_appointment: 'app_appointment',
 } as const;
 
 export type LeadStatus = typeof LeadStatus[keyof typeof LeadStatus];
@@ -214,17 +218,28 @@ export const LeadStatus = {
   closed: 'closed',
 } as const;
 
+/**
+ * @nullable
+ */
+export type LeadTransactionContext = { [key: string]: unknown } | null;
+
 export interface Lead {
   id: number;
   firstName: string;
   lastName: string;
   mobile: string;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   uhid?: string | null;
   /** @nullable */
   specialization?: string | null;
   sourceChannel: LeadSourceChannel;
   status: LeadStatus;
+  /** @nullable */
+  moduleStage?: string | null;
+  /** @nullable */
+  transactionContext?: LeadTransactionContext;
   /** @nullable */
   ownerUserId?: number | null;
   /** @nullable */
@@ -248,7 +263,11 @@ export const LeadDetailSourceChannel = {
   csv: 'csv',
   app_booking: 'app_booking',
   web_booking: 'web_booking',
-  push: 'push',
+  email: 'email',
+  medicine_order: 'medicine_order',
+  lab_test: 'lab_test',
+  web_appointment: 'web_appointment',
+  app_appointment: 'app_appointment',
 } as const;
 
 export type LeadDetailStatus = typeof LeadDetailStatus[keyof typeof LeadDetailStatus];
@@ -261,6 +280,11 @@ export const LeadDetailStatus = {
   fulfilled: 'fulfilled',
   closed: 'closed',
 } as const;
+
+/**
+ * @nullable
+ */
+export type LeadDetailTransactionContext = { [key: string]: unknown } | null;
 
 export interface ActivityLogEntry {
   id: number;
@@ -279,11 +303,17 @@ export interface LeadDetail {
   lastName: string;
   mobile: string;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   uhid?: string | null;
   /** @nullable */
   specialization?: string | null;
   sourceChannel: LeadDetailSourceChannel;
   status: LeadDetailStatus;
+  /** @nullable */
+  moduleStage?: string | null;
+  /** @nullable */
+  transactionContext?: LeadDetailTransactionContext;
   /** @nullable */
   ownerUserId?: number | null;
   /** @nullable */
@@ -308,16 +338,22 @@ export const LeadInputSourceChannel = {
   csv: 'csv',
   app_booking: 'app_booking',
   web_booking: 'web_booking',
-  push: 'push',
+  email: 'email',
+  medicine_order: 'medicine_order',
+  lab_test: 'lab_test',
+  web_appointment: 'web_appointment',
+  app_appointment: 'app_appointment',
 } as const;
 
 export interface LeadInput {
   firstName: string;
   lastName: string;
   mobile: string;
+  email?: string;
   uhid?: string;
   specialization?: string;
   sourceChannel: LeadInputSourceChannel;
+  moduleStage?: string;
   optedIn?: boolean;
   sourceListTag?: string;
 }
@@ -355,6 +391,8 @@ export interface Message {
   leadId: number;
   direction: MessageDirection;
   body: string;
+  /** @nullable */
+  subject?: string | null;
   channel: string;
   /** @nullable */
   templateId?: number | null;
@@ -385,6 +423,44 @@ export interface SimulateInboundInput {
   body?: string | null;
   /** @nullable */
   firstName?: string | null;
+}
+
+export interface SimulateEmailInput {
+  email: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  /** @nullable */
+  mobile?: string | null;
+  subject: string;
+  body: string;
+}
+
+export interface LeadStageInput {
+  stage: string;
+  /** @nullable */
+  userId?: number | null;
+}
+
+export type CallLogInputOutcome = typeof CallLogInputOutcome[keyof typeof CallLogInputOutcome];
+
+
+export const CallLogInputOutcome = {
+  connected: 'connected',
+  no_answer: 'no_answer',
+  wrong_number: 'wrong_number',
+  voicemail: 'voicemail',
+} as const;
+
+export interface CallLogInput {
+  outcome: CallLogInputOutcome;
+  /** @nullable */
+  durationSeconds?: number | null;
+  /** @nullable */
+  note?: string | null;
+  /** @nullable */
+  userId?: number | null;
 }
 
 export type CsvUploadInputRowsItem = {[key: string]: string};
@@ -860,8 +936,17 @@ export interface Wallet {
   transactions: WalletTransaction[];
 }
 
+export type WalletTopupInputPaymentMethod = typeof WalletTopupInputPaymentMethod[keyof typeof WalletTopupInputPaymentMethod];
+
+
+export const WalletTopupInputPaymentMethod = {
+  PayU: 'PayU',
+  Easebuzz: 'Easebuzz',
+} as const;
+
 export interface WalletTopupInput {
   amount: number;
+  paymentMethod?: WalletTopupInputPaymentMethod;
 }
 
 export interface Invoice {

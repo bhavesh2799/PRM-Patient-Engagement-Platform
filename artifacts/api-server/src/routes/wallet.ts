@@ -21,21 +21,26 @@ router.get("/wallet", async (_req, res): Promise<void> => {
 });
 
 router.post("/wallet/topup", async (req, res): Promise<void> => {
-  const schema = z.object({ amount: z.number().positive() });
+  const schema = z.object({
+    amount: z.number().positive().min(500).max(500000),
+    paymentMethod: z.enum(["PayU", "Easebuzz"]).optional().default("PayU"),
+  });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const { amount, paymentMethod } = parsed.data;
   const [wallet] = await db.select().from(walletTable);
   const currentBalance = parseFloat(wallet?.balance ?? "0");
-  const newBalance = currentBalance + parsed.data.amount;
+  const newBalance = currentBalance + amount;
   await db.update(walletTable).set({ balance: String(newBalance) }).where(eq(walletTable.id, wallet.id));
+  const pgRef = `${paymentMethod.toUpperCase()}-${Date.now().toString().slice(-10)}`;
   await db.insert(walletTransactionsTable).values({
     type: "topup",
-    amount: String(parsed.data.amount),
-    description: "Wallet top-up via PayU/Easebuzz",
-    reference: `TOPUP-${Date.now()}`,
+    amount: String(amount),
+    description: `Wallet top-up via ${paymentMethod}`,
+    reference: pgRef,
   });
   const transactions = await db.select().from(walletTransactionsTable)
     .orderBy(walletTransactionsTable.createdAt);

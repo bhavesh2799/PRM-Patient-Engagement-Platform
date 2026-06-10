@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetAppointmentsDashboard } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import {
   LineChart, Line, Legend,
 } from "recharts";
 import { useLocation } from "wouter";
-import { CalendarCheck, TrendingUp, TrendingDown, Users } from "lucide-react";
+import { CalendarCheck, TrendingUp, TrendingDown, Users, Filter, X } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   booked: "bg-blue-100 text-blue-800",
@@ -25,6 +26,9 @@ const STATUS_BAR_COLOR: Record<string, string> = {
 export default function AppointmentsDashboard() {
   const [, navigate] = useLocation();
   const { data: dashboard, isLoading } = useGetAppointmentsDashboard();
+  const [filterSpec, setFilterSpec] = useState("");
+  const [filterDoctor, setFilterDoctor] = useState("");
+  const [filterSource, setFilterSource] = useState("");
   const d = dashboard as any;
 
   if (isLoading) {
@@ -41,6 +45,17 @@ export default function AppointmentsDashboard() {
   const trend: any[] = d.trend ?? [];
   const byDoctor: any[] = d.byDoctor ?? [];
   const byChannel: any[] = d.byChannel ?? [];
+
+  const allSpecs = [...new Set(byDoctor.map((d: any) => d.specialization).filter(Boolean))] as string[];
+  const allDoctors = byDoctor.filter((d: any) => !filterSpec || d.specialization === filterSpec);
+  const allSources = [...new Set(byChannel.map((c: any) => c.channel).filter(Boolean))] as string[];
+
+  const filteredByDoctor = byDoctor.filter((doc: any) => {
+    if (filterSpec && doc.specialization !== filterSpec) return false;
+    if (filterDoctor && doc.name !== filterDoctor) return false;
+    return true;
+  });
+
 
   const total: number = d.total ?? 0;
   const completionRate: number = d.completionRate ?? 0;
@@ -218,9 +233,51 @@ export default function AppointmentsDashboard() {
         {/* ── DOCTOR UTILISATION ───────────────────── */}
         {byDoctor.length > 0 && (
           <div>
-            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
-              Doctor Utilisation
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+                Doctor Utilisation
+              </p>
+              {/* Filters */}
+              <div className="flex items-center gap-2">
+                {allSources.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Filter className="w-3 h-3 text-muted-foreground" />
+                    <select
+                      value={filterSource}
+                      onChange={e => setFilterSource(e.target.value)}
+                      className="text-xs border rounded px-2 py-1 bg-background h-7"
+                    >
+                      <option value="">All Channels</option>
+                      {allSources.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
+                <select
+                  value={filterSpec}
+                  onChange={e => { setFilterSpec(e.target.value); setFilterDoctor(""); }}
+                  className="text-xs border rounded px-2 py-1 bg-background h-7"
+                >
+                  <option value="">All Specialisations</option>
+                  {allSpecs.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select
+                  value={filterDoctor}
+                  onChange={e => setFilterDoctor(e.target.value)}
+                  className="text-xs border rounded px-2 py-1 bg-background h-7"
+                >
+                  <option value="">All Doctors</option>
+                  {allDoctors.map((d: any) => <option key={d.doctorId} value={d.name}>{d.name}</option>)}
+                </select>
+                {(filterSpec || filterDoctor || filterSource) && (
+                  <button
+                    onClick={() => { setFilterSpec(""); setFilterDoctor(""); setFilterSource(""); }}
+                    className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"
+                  >
+                    <X className="w-3 h-3" /> Reset
+                  </button>
+                )}
+              </div>
+            </div>
             <Card>
               <CardContent className="p-0">
                 <table className="w-full text-sm">
@@ -234,7 +291,9 @@ export default function AppointmentsDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {byDoctor.map((doc: any) => {
+                    {filteredByDoctor.length === 0 ? (
+                      <tr><td colSpan={5} className="text-center text-xs text-muted-foreground py-8">No doctors match filters</td></tr>
+                    ) : filteredByDoctor.map((doc: any) => {
                       const rate = doc.count > 0 ? Math.round((doc.completed / doc.count) * 100) : 0;
                       return (
                         <tr key={doc.doctorId} className="border-b last:border-0 hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => navigate("/appointments/doctors")}>

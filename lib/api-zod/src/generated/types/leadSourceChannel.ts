@@ -16,5 +16,9 @@ export const LeadSourceChannel = {
   csv: 'csv',
   app_booking: 'app_booking',
   web_booking: 'web_booking',
-  push: 'push',
+  email: 'email',
+  medicine_order: 'medicine_order',
+  lab_test: 'lab_test',
+  web_appointment: 'web_appointment',
+  app_appointment: 'app_appointment',
 } as const;

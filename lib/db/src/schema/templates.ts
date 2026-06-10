@@ -8,6 +8,7 @@ export const templatesTable = pgTable("templates", {
   channel: text("channel").notNull(),
   goal: text("goal").notNull(),
   language: text("language").notNull().default("English"),
+  subject: text("subject"),
   body: text("body").notNull(),
   media: text("media"),
   status: text("status").notNull().default("approved"),

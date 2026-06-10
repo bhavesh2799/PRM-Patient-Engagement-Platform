@@ -8,6 +8,7 @@
 import type { ActivityLogEntry } from './activityLogEntry';
 import type { LeadDetailSourceChannel } from './leadDetailSourceChannel';
 import type { LeadDetailStatus } from './leadDetailStatus';
+import type { LeadDetailTransactionContext } from './leadDetailTransactionContext';
 
 export interface LeadDetail {
   id: number;
@@ -15,11 +16,17 @@ export interface LeadDetail {
   lastName: string;
   mobile: string;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   uhid?: string | null;
   /** @nullable */
   specialization?: string | null;
   sourceChannel: LeadDetailSourceChannel;
   status: LeadDetailStatus;
+  /** @nullable */
+  moduleStage?: string | null;
+  /** @nullable */
+  transactionContext?: LeadDetailTransactionContext;
   /** @nullable */
   ownerUserId?: number | null;
   /** @nullable */

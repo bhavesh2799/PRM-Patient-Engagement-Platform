@@ -40,7 +40,7 @@ router.get("/dashboard/home", async (req, res): Promise<void> => {
   if (dateFrom) leads = leads.filter(l => new Date(l.createdAt) >= new Date(dateFrom));
   if (dateTo) leads = leads.filter(l => new Date(l.createdAt) <= new Date(dateTo));
 
-  const CHANNELS = ["waba", "web_chat", "form", "csv", "app_booking", "web_booking", "push"];
+  const CHANNELS = ["waba", "web_chat", "form", "csv", "app_booking", "web_booking", "email", "medicine_order", "lab_test", "web_appointment", "app_appointment"];
 
   const leadsByChannel = CHANNELS.map(ch => {
     const chLeads = leads.filter(l => l.sourceChannel === ch);
@@ -95,13 +95,19 @@ router.get("/dashboard/home", async (req, res): Promise<void> => {
       const m = campaignMetrics.find(m => m.campaignId === c.id);
       const sent = m?.sent ?? 0;
       const delivered = m?.delivered ?? 0;
-      const chs = (c.channels as string[]) ?? [];
+      const conversions = m?.converted ?? 0;
+      const chs = (c.channels as Array<{ channel: string }> | null) ?? [];
+      const firstChannel = Array.isArray(chs) && chs.length > 0
+        ? (typeof chs[0] === "string" ? chs[0] : (chs[0] as { channel: string }).channel)
+        : "sms";
       return {
         id: c.id,
         name: c.name,
-        channel: chs[0] ?? "sms",
+        goal: c.goal ?? "",
+        channel: firstChannel,
         reached: sent,
         deliveryRate: sent > 0 ? Math.round((delivered / sent) * 100) : 0,
+        conversions,
         status: c.status,
       };
     });

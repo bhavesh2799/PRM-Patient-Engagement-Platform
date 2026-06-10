@@ -7,6 +7,7 @@
  */
 import type { LeadSourceChannel } from './leadSourceChannel';
 import type { LeadStatus } from './leadStatus';
+import type { LeadTransactionContext } from './leadTransactionContext';
 
 export interface Lead {
   id: number;
@@ -14,11 +15,17 @@ export interface Lead {
   lastName: string;
   mobile: string;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   uhid?: string | null;
   /** @nullable */
   specialization?: string | null;
   sourceChannel: LeadSourceChannel;
   status: LeadStatus;
+  /** @nullable */
+  moduleStage?: string | null;
+  /** @nullable */
+  transactionContext?: LeadTransactionContext;
   /** @nullable */
   ownerUserId?: number | null;
   /** @nullable */

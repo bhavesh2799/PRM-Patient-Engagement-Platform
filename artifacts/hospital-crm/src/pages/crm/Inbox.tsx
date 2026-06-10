@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useGetSessionRole } from "@workspace/api-client-react";
+import { useGetSessionRole, useListUsers } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow, differenceInHours } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,9 @@ import { cn } from "@/lib/utils";
 import {
   Search, Send, MessageSquare, Phone, Clock, AlertCircle, CheckCheck, Check,
   Zap, UserPlus, Users, FileText, RefreshCw, X, StickyNote, Download, Copy,
-  Tag, Plus, ChevronDown
+  Tag, Plus, ChevronDown, Mail, PhoneCall, PhoneOff, PhoneMissed, Voicemail,
+  Package, FlaskConical, CalendarClock, Smartphone, ChevronRight, CircleDot,
+  ArrowRight, TimerIcon
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,12 +26,15 @@ interface Lead {
   firstName: string;
   lastName: string;
   mobile: string;
+  email: string | null;
   uhid: string | null;
   specialization: string | null;
   sourceChannel: string;
   sourceListTag: string | null;
   lastVisitDate: string | null;
   status: string;
+  moduleStage: string | null;
+  transactionContext: Record<string, unknown> | null;
   ownerUserId: number | null;
   ownerName: string | null;
   hasActiveSession: boolean;
@@ -47,6 +52,7 @@ interface Message {
   leadId: number;
   direction: "in" | "out";
   body: string;
+  subject: string | null;
   channel: string;
   templateId: number | null;
   status: string;
@@ -126,13 +132,45 @@ const api = {
     });
     return r.json();
   },
+  logCall: async (leadId: number, data: object) => {
+    const r = await fetch(`/api/leads/${leadId}/calls`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+    });
+    if (!r.ok) throw await r.json();
+    return r.json();
+  },
+  advanceStage: async (leadId: number, stage: string, userId: number | null) => {
+    const r = await fetch(`/api/leads/${leadId}/stage`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage, userId }),
+    });
+    if (!r.ok) throw await r.json();
+    return r.json();
+  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────
 
 const CHANNEL_LABELS: Record<string, string> = {
-  waba: "WhatsApp", web_chat: "Web Chat", form: "Form", csv: "CSV",
-  app_booking: "App Booking", web_booking: "Web Booking", push: "Push",
+  waba: "WhatsApp", web_chat: "Web Chat", form: "Web Form", csv: "CSV",
+  app_booking: "App Booking", web_booking: "Web Booking",
+  email: "Email", medicine_order: "Medicine Order", lab_test: "Lab Test",
+  web_appointment: "Web Appt", app_appointment: "App Appt",
+};
+
+const MODULE_CHANNELS = ["medicine_order", "lab_test", "web_appointment", "app_appointment"];
+
+const MODULE_STAGES: Record<string, string[]> = {
+  medicine_order: ["order_placed", "processing", "dispatched", "delivered"],
+  lab_test: ["sample_collected", "processing", "result_ready", "reviewed"],
+  web_appointment: ["scheduled", "confirmed", "visited", "follow_up"],
+  app_appointment: ["scheduled", "confirmed", "visited", "follow_up"],
+};
+
+const MODULE_STAGE_LABELS: Record<string, string> = {
+  order_placed: "Order Placed", processing: "Processing", dispatched: "Dispatched", delivered: "Delivered",
+  sample_collected: "Sample Collected", result_ready: "Result Ready", reviewed: "Reviewed",
+  scheduled: "Scheduled", confirmed: "Confirmed", visited: "Visited", follow_up: "Follow-up",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -167,14 +205,25 @@ function DeliveryTick({ status }: { status: string }) {
 function MessageBubble({ msg, localStatus }: { msg: Message; localStatus?: string }) {
   const isOut = msg.direction === "out";
   const status = localStatus ?? msg.status;
+  const isEmail = msg.channel === "email";
   return (
     <div className={cn("flex mb-3", isOut ? "justify-end" : "justify-start")}>
       <div className={cn(
-        "max-w-[72%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-        isOut ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm"
+        "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+        isOut ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground rounded-bl-sm",
+        isEmail && "rounded-xl"
       )}>
+        {isEmail && msg.subject && (
+          <div className={cn("flex items-center gap-1.5 mb-1.5 pb-1.5 border-b", isOut ? "border-primary-foreground/20" : "border-border")}>
+            <Mail className="w-3 h-3 opacity-60 flex-shrink-0" />
+            <span className="text-xs font-semibold">{msg.subject}</span>
+          </div>
+        )}
         <p className="whitespace-pre-wrap">{msg.body}</p>
         <div className={cn("flex items-center gap-1 mt-1", isOut ? "justify-end" : "justify-start")}>
+          {isEmail && (
+            <span className={cn("text-[9px] uppercase tracking-wide opacity-50 mr-1")}>email</span>
+          )}
           <span className="text-[10px] opacity-60">{format(new Date(msg.timestamp), "h:mm a")}</span>
           {isOut && <DeliveryTick status={status} />}
         </div>
@@ -204,11 +253,20 @@ function ChannelBadge({ channel }: { channel: string }) {
     waba: "bg-green-100 text-green-800", web_chat: "bg-blue-100 text-blue-800",
     form: "bg-orange-100 text-orange-800", csv: "bg-slate-100 text-slate-700",
     app_booking: "bg-purple-100 text-purple-800", web_booking: "bg-indigo-100 text-indigo-800",
-    push: "bg-pink-100 text-pink-800",
+    email: "bg-violet-100 text-violet-800",
+    medicine_order: "bg-rose-100 text-rose-800",
+    lab_test: "bg-cyan-100 text-cyan-800",
+    web_appointment: "bg-amber-100 text-amber-800",
+    app_appointment: "bg-teal-100 text-teal-800",
   };
+  const icon = channel === "email" ? <Mail className="w-2.5 h-2.5" /> :
+    channel === "medicine_order" ? <Package className="w-2.5 h-2.5" /> :
+    channel === "lab_test" ? <FlaskConical className="w-2.5 h-2.5" /> :
+    channel === "web_appointment" ? <CalendarClock className="w-2.5 h-2.5" /> :
+    channel === "app_appointment" ? <Smartphone className="w-2.5 h-2.5" /> : null;
   return (
-    <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded uppercase", colors[channel] || "bg-secondary text-secondary-foreground")}>
-      {CHANNEL_LABELS[channel] || channel}
+    <span className={cn("inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded uppercase", colors[channel] || "bg-secondary text-secondary-foreground")}>
+      {icon}{CHANNEL_LABELS[channel] || channel}
     </span>
   );
 }
@@ -234,6 +292,8 @@ function TagPill({ name, color, onRemove }: { name: string; color?: string; onRe
 export default function Inbox() {
   const queryClient = useQueryClient();
   const { data: session } = useGetSessionRole() as { data?: { role: string; userId: number | null; userName: string | null } };
+  const { data: teamUsers = [] } = useListUsers() as { data?: Array<{ id: number; name: string; role: string; active: boolean }> };
+  const isManager = session?.role === "manager" || session?.role === "ap_admin";
 
   // Filters
   const [search, setSearch] = useState("");
@@ -253,6 +313,7 @@ export default function Inbox() {
   // Composer
   const [composerText, setComposerText] = useState("");
   const [composerMode, setComposerMode] = useState<"reply" | "note">("reply");
+  const [emailSubject, setEmailSubject] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
 
@@ -263,8 +324,20 @@ export default function Inbox() {
   const [showAddTag, setShowAddTag] = useState(false);
   const [segmentName, setSegmentName] = useState("");
 
+  // Call modal
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [callStep, setCallStep] = useState<"ringing" | "outcome" | "connected" | "done">("ringing");
+  const [callConnectedSecs, setCallConnectedSecs] = useState(0);
+  const [callOutcome, setCallOutcome] = useState<string | null>(null);
+  const [callNote, setCallNote] = useState("");
+  const callTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Stage advance dialog
+  const [showStageDialog, setShowStageDialog] = useState(false);
+  const [pendingStage, setPendingStage] = useState<string | null>(null);
+
   // Activity filter
-  const [activityFilter, setActivityFilter] = useState<"all" | "message" | "status_change" | "assignment" | "note">("all");
+  const [activityFilter, setActivityFilter] = useState<"all" | "message" | "status_change" | "assignment" | "note" | "call" | "stage_change">("all");
 
   // Local delivery
   const [localStatuses, setLocalStatuses] = useState<Record<number, string>>({});
@@ -349,9 +422,11 @@ export default function Inbox() {
 
   const canFreeText = isSessionChannel && isSessionOpen && !isBlocked && composerMode === "reply";
 
-  const filteredActivity = (selectedLead?.activityLog ?? []).filter(a =>
-    activityFilter === "all" || a.type === activityFilter
-  );
+  const filteredActivity = (selectedLead?.activityLog ?? []).filter(a => {
+    if (activityFilter === "all") return true;
+    if (activityFilter === "message") return a.type.startsWith("message") || a.type === "template_sent";
+    return a.type === activityFilter;
+  });
 
   const tagColorMap = Object.fromEntries(availableTags.filter(t => !t.archived).map(t => [t.name, t.color]));
   const currentTags = selectedLead?.tags ?? [];
@@ -381,13 +456,16 @@ export default function Inbox() {
     setIsSending(true);
     setSendError(null);
     try {
+      const isEmail = selectedLead.sourceChannel === "email";
       const msg = await api.sendMessage(selectedLeadId, {
         messageType: "free_text",
         body: composerText.trim(),
+        ...(isEmail && emailSubject.trim() ? { subject: emailSubject.trim() } : {}),
         channel: selectedLead.sourceChannel,
         userId: session?.userId ?? null,
       });
       setComposerText("");
+      if (isEmail) setEmailSubject("");
       setLocalStatuses(prev => ({ ...prev, [msg.id]: "sent" }));
       setTimeout(() => setLocalStatuses(prev => ({ ...prev, [msg.id]: "delivered" })), 1800);
       setTimeout(() => setLocalStatuses(prev => ({ ...prev, [msg.id]: "read" })), 5000);
@@ -398,6 +476,64 @@ export default function Inbox() {
       setSendError(err?.error || "Failed to send message");
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleOpenCall = () => {
+    setCallStep("ringing");
+    setCallConnectedSecs(0);
+    setCallOutcome(null);
+    setCallNote("");
+    setShowCallModal(true);
+    // Simulate ringing → show outcome after 2s
+    setTimeout(() => setCallStep("outcome"), 2000);
+  };
+
+  const handleCallConnect = () => {
+    setCallStep("connected");
+    setCallConnectedSecs(0);
+    callTimerRef.current = setInterval(() => setCallConnectedSecs(s => s + 1), 1000);
+  };
+
+  const handleCallEnd = () => {
+    if (callTimerRef.current) { clearInterval(callTimerRef.current); callTimerRef.current = null; }
+    setCallStep("done");
+    setCallOutcome("connected");
+  };
+
+  const handleCallOutcomeSelect = (outcome: string) => {
+    if (callTimerRef.current) { clearInterval(callTimerRef.current); callTimerRef.current = null; }
+    setCallOutcome(outcome);
+    setCallStep("done");
+  };
+
+  const handleCallSave = async () => {
+    if (!selectedLeadId || !callOutcome) return;
+    try {
+      await api.logCall(selectedLeadId, {
+        outcome: callOutcome,
+        durationSeconds: callOutcome === "connected" ? callConnectedSecs : null,
+        note: callNote.trim() || null,
+        userId: session?.userId ?? null,
+      });
+      setShowCallModal(false);
+      refetchLead(); refetchLeads();
+      toast.success(`Call logged: ${callOutcome.replace(/_/g, " ")}`);
+    } catch {
+      toast.error("Failed to log call");
+    }
+  };
+
+  const handleAdvanceStage = async (stage: string) => {
+    if (!selectedLeadId) return;
+    try {
+      await api.advanceStage(selectedLeadId, stage, session?.userId ?? null);
+      setShowStageDialog(false);
+      setPendingStage(null);
+      refetchLead(); refetchLeads();
+      toast.success(`Stage advanced to: ${MODULE_STAGE_LABELS[stage] || stage}`);
+    } catch {
+      toast.error("Failed to advance stage");
     }
   };
 
@@ -455,6 +591,14 @@ export default function Inbox() {
     setBulkSelected(new Set());
     queryClient.invalidateQueries({ queryKey: ["segments"] });
     toast.success(`Segment "${segmentName}" created`);
+  };
+
+  const handleBulkAssignTo = async (ownerId: number, ownerName: string) => {
+    if (bulkSelected.size === 0) return;
+    await api.bulkAction({ leadIds: Array.from(bulkSelected), ownerUserId: ownerId, userId: session?.userId ?? null });
+    setBulkSelected(new Set());
+    refetchLeads();
+    toast.success(`${bulkSelected.size} leads assigned to ${ownerName}`);
   };
 
   const handleBulkAssign = async () => {
@@ -519,6 +663,7 @@ export default function Inbox() {
     setSelectedLeadId(id);
     setSendError(null);
     setComposerText("");
+    setEmailSubject("");
     setComposerMode("reply");
     setShowAddTag(false);
   };
@@ -538,9 +683,26 @@ export default function Inbox() {
           <div className="flex items-center gap-2">
             {bulkSelected.size > 0 && (
               <>
-                <Button size="sm" variant="outline" onClick={handleBulkAssign} className="gap-1.5 text-xs">
-                  <UserPlus className="w-3 h-3" /> Assign to me
-                </Button>
+                {isManager ? (
+                  <select
+                    className="text-xs border rounded px-2 py-1 bg-background h-8 gap-1"
+                    defaultValue=""
+                    onChange={e => {
+                      const [id, name] = e.target.value.split("|");
+                      if (id && name) handleBulkAssignTo(Number(id), name);
+                      e.target.value = "";
+                    }}
+                  >
+                    <option value="" disabled>Assign to…</option>
+                    {teamUsers.filter(u => u.active).map(u => (
+                      <option key={u.id} value={`${u.id}|${u.name}`}>{u.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={handleBulkAssign} className="gap-1.5 text-xs">
+                    <UserPlus className="w-3 h-3" /> Assign to me
+                  </Button>
+                )}
                 <div className="relative">
                   <select
                     className="text-xs border rounded px-2 py-1 bg-background h-8"
@@ -691,6 +853,11 @@ export default function Inbox() {
                               )}>
                                 {STATUS_LABELS[lead.status] || lead.status}
                               </span>
+                              {MODULE_CHANNELS.includes(lead.sourceChannel) && lead.moduleStage && (
+                                <span className="text-[9px] bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded font-medium">
+                                  {MODULE_STAGE_LABELS[lead.moduleStage] || lead.moduleStage}
+                                </span>
+                              )}
                               {slaBreach && <AlertCircle className="w-3 h-3 text-orange-500" />}
                               {!lead.optedIn && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded">Opt-out</span>}
                               {lead.dndListed && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded">DND</span>}
@@ -746,10 +913,19 @@ export default function Inbox() {
                     <div className="font-semibold text-sm">{selectedLead.firstName} {selectedLead.lastName}</div>
                     <div className="text-xs text-muted-foreground flex items-center gap-2">
                       <Phone className="w-3 h-3" /> {selectedLead.mobile}
+                      {selectedLead.email && <><Mail className="w-3 h-3 ml-1" /> {selectedLead.email}</>}
                       {selectedLead.uhid && <span>· UHID: {selectedLead.uhid}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      size="sm" variant="outline"
+                      onClick={handleOpenCall}
+                      className="h-7 px-2 gap-1 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                      title="Log a call"
+                    >
+                      <PhoneCall className="w-3 h-3" />
+                    </Button>
                     {!selectedLead.ownerUserId ? (
                       <Button size="sm" onClick={handlePickUp} className="h-7 text-xs gap-1">
                         <UserPlus className="w-3 h-3" /> Pick Up
@@ -788,8 +964,88 @@ export default function Inbox() {
 
                 {/* Composer */}
                 <div className="border-t border-border flex-shrink-0">
-                  {/* Status banners */}
-                  {isBlocked ? (
+                  {/* Email composer (for email leads) */}
+                  {selectedLead.sourceChannel === "email" && composerMode === "reply" ? (
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setComposerMode("reply")}
+                          className={cn("flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-colors",
+                            "bg-primary text-primary-foreground border-primary")}
+                        >
+                          <Mail className="w-3 h-3" /> Reply
+                        </button>
+                        <button
+                          onClick={() => setComposerMode("note")}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:border-amber-300 transition-colors"
+                        >
+                          <StickyNote className="w-3 h-3" /> Note
+                        </button>
+                        <span className="text-xs text-muted-foreground ml-auto truncate">
+                          To: <span className="font-medium">{selectedLead.email || selectedLead.mobile}</span>
+                        </span>
+                      </div>
+                      <Input
+                        placeholder="Subject…"
+                        className="h-7 text-xs"
+                        value={emailSubject}
+                        onChange={e => setEmailSubject(e.target.value)}
+                      />
+                      {sendError && (
+                        <div className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1 flex items-center gap-1.5">
+                          <AlertCircle className="w-3 h-3 flex-shrink-0" /> {sendError}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Textarea
+                          placeholder="Type your email reply…"
+                          className="flex-1 min-h-[64px] max-h-28 text-sm resize-none"
+                          value={composerText}
+                          onChange={e => setComposerText(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); handleSend(); } }}
+                        />
+                        <Button
+                          size="sm" onClick={handleSend}
+                          disabled={isSending || !composerText.trim()}
+                          className="h-auto flex-col gap-1 px-3"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          <span className="text-[10px]">Send</span>
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">Ctrl+Enter to send</p>
+                    </div>
+                  ) : selectedLead.sourceChannel === "email" && composerMode === "note" ? (
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setComposerMode("reply")}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:border-primary transition-colors"
+                        >
+                          <Mail className="w-3 h-3" /> Reply
+                        </button>
+                        <button
+                          onClick={() => setComposerMode("note")}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border bg-amber-100 text-amber-800 border-amber-300 transition-colors"
+                        >
+                          <StickyNote className="w-3 h-3" /> Note
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Textarea
+                          placeholder="Add an internal note…"
+                          className="flex-1 min-h-[60px] max-h-28 text-sm resize-none bg-amber-50/50 border-amber-200"
+                          value={composerText}
+                          onChange={e => setComposerText(e.target.value)}
+                        />
+                        <Button size="sm" onClick={handleSend} disabled={isSending || !composerText.trim()} className="bg-amber-500 hover:bg-amber-600 h-auto px-3">
+                          <StickyNote className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {/* Status banners (non-email channels) */}
+                  {selectedLead.sourceChannel !== "email" && isBlocked ? (
                     <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/20 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
                       <span className="text-xs text-destructive font-medium">
@@ -817,8 +1073,8 @@ export default function Inbox() {
                     </div>
                   ) : null}
 
-                  {/* Mode toggle + composer */}
-                  <div className="p-3">
+                  {/* Mode toggle + composer (non-email channels only) */}
+                  {selectedLead.sourceChannel !== "email" && <div className="p-3">
                     {/* Reply / Note toggle */}
                     <div className="flex items-center gap-1.5 mb-2">
                       <button
@@ -921,7 +1177,7 @@ export default function Inbox() {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </div>}
                 </div>
               </>
             )}
@@ -1010,6 +1266,71 @@ export default function Inbox() {
                     )}
                   </div>
 
+                  {/* Module lifecycle stepper */}
+                  {MODULE_CHANNELS.includes(selectedLead.sourceChannel) && (() => {
+                    const stages = MODULE_STAGES[selectedLead.sourceChannel] ?? [];
+                    const currentIdx = selectedLead.moduleStage ? stages.indexOf(selectedLead.moduleStage) : -1;
+                    const nextStage = currentIdx < stages.length - 1 ? stages[currentIdx + 1] : null;
+                    return (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Lifecycle</p>
+                        <div className="space-y-1.5">
+                          {stages.map((stage, idx) => {
+                            const isDone = currentIdx > idx;
+                            const isCurrent = currentIdx === idx;
+                            return (
+                              <div key={stage} className="flex items-center gap-2">
+                                <div className={cn(
+                                  "w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold border",
+                                  isDone ? "bg-green-500 border-green-500 text-white" :
+                                  isCurrent ? "bg-primary border-primary text-primary-foreground" :
+                                  "bg-background border-border text-muted-foreground"
+                                )}>
+                                  {isDone ? "✓" : idx + 1}
+                                </div>
+                                <span className={cn(
+                                  "text-xs flex-1",
+                                  isCurrent ? "font-semibold text-foreground" :
+                                  isDone ? "text-muted-foreground line-through" :
+                                  "text-muted-foreground"
+                                )}>
+                                  {MODULE_STAGE_LABELS[stage] || stage}
+                                </span>
+                                {isCurrent && (
+                                  <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Now</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {nextStage && selectedLead.status !== "fulfilled" && (
+                          <Button size="sm" variant="outline"
+                            className="mt-3 h-7 text-xs w-full gap-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                            onClick={() => { setPendingStage(nextStage); setShowStageDialog(true); }}
+                          >
+                            <ArrowRight className="w-3 h-3" />
+                            Advance to {MODULE_STAGE_LABELS[nextStage] || nextStage}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Transaction context */}
+                  {selectedLead.transactionContext && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Order Detail</p>
+                      <div className="bg-muted/50 rounded-lg p-2.5 space-y-1.5">
+                        {Object.entries(selectedLead.transactionContext).map(([k, v]) => (
+                          <div key={k} className="flex justify-between text-xs">
+                            <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                            <span className="font-medium">{String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Tags */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -1064,7 +1385,7 @@ export default function Inbox() {
                     </div>
                     {/* Filter chips */}
                     <div className="flex flex-wrap gap-1 mb-3">
-                      {(["all", "message", "status_change", "assignment", "note"] as const).map(f => (
+                      {(["all", "message", "status_change", "assignment", "note", "call", "stage_change"] as const).map(f => (
                         <button
                           key={f}
                           onClick={() => setActivityFilter(f)}
@@ -1073,7 +1394,7 @@ export default function Inbox() {
                             activityFilter === f ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary"
                           )}
                         >
-                          {f === "all" ? "All" : f === "status_change" ? "Status" : f.charAt(0).toUpperCase() + f.slice(1)}
+                          {f === "all" ? "All" : f === "status_change" ? "Status" : f === "stage_change" ? "Stage" : f.charAt(0).toUpperCase() + f.slice(1)}
                         </button>
                       ))}
                     </div>
@@ -1084,14 +1405,22 @@ export default function Inbox() {
                         [...filteredActivity].reverse().map(entry => (
                           <div key={entry.id} className={cn(
                             "relative pl-3 border-l-2 pb-2 last:pb-0",
-                            entry.type === "note" ? "border-amber-300" : "border-primary/20"
+                            entry.type === "note" ? "border-amber-300" :
+                            entry.type === "call" ? "border-green-300" :
+                            entry.type === "stage_change" ? "border-indigo-300" :
+                            "border-primary/20"
                           )}>
                             <div className={cn(
                               "absolute w-1.5 h-1.5 rounded-full -left-1 top-1",
-                              entry.type === "note" ? "bg-amber-400" : "bg-primary/40"
+                              entry.type === "note" ? "bg-amber-400" :
+                              entry.type === "call" ? "bg-green-400" :
+                              entry.type === "stage_change" ? "bg-indigo-400" :
+                              "bg-primary/40"
                             )} />
                             <p className="text-xs font-medium capitalize flex items-center gap-1">
                               {entry.type === "note" && <StickyNote className="w-3 h-3 text-amber-500" />}
+                              {entry.type === "call" && <PhoneCall className="w-3 h-3 text-green-600" />}
+                              {entry.type === "stage_change" && <ArrowRight className="w-3 h-3 text-indigo-500" />}
                               {entry.type.replace(/_/g, " ")}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">{entry.description}</p>
@@ -1140,6 +1469,115 @@ export default function Inbox() {
               </div>
             </ScrollArea>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Call Modal ─────────────────────────────────────── */}
+      <Dialog open={showCallModal} onOpenChange={(o) => {
+        if (!o) {
+          if (callTimerRef.current) { clearInterval(callTimerRef.current); callTimerRef.current = null; }
+          setShowCallModal(false);
+        }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PhoneCall className="w-4 h-4 text-green-600" />
+              {selectedLead ? `${selectedLead.firstName} ${selectedLead.lastName}` : "Call"}
+            </DialogTitle>
+          </DialogHeader>
+          {callStep === "ringing" && (
+            <div className="flex flex-col items-center py-8 gap-3">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center animate-pulse">
+                <Phone className="w-7 h-7 text-green-600" />
+              </div>
+              <p className="text-sm text-muted-foreground">Ringing {selectedLead?.mobile}…</p>
+            </div>
+          )}
+          {callStep === "outcome" && (
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground text-center">What was the outcome?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" className="gap-1.5 text-xs h-10 border-green-300 text-green-700 hover:bg-green-50" onClick={handleCallConnect}>
+                  <PhoneCall className="w-3.5 h-3.5" /> Connected
+                </Button>
+                <Button variant="outline" className="gap-1.5 text-xs h-10" onClick={() => handleCallOutcomeSelect("no_answer")}>
+                  <PhoneMissed className="w-3.5 h-3.5" /> No Answer
+                </Button>
+                <Button variant="outline" className="gap-1.5 text-xs h-10" onClick={() => handleCallOutcomeSelect("wrong_number")}>
+                  <PhoneOff className="w-3.5 h-3.5" /> Wrong No.
+                </Button>
+                <Button variant="outline" className="gap-1.5 text-xs h-10" onClick={() => handleCallOutcomeSelect("voicemail")}>
+                  <Voicemail className="w-3.5 h-3.5" /> Voicemail
+                </Button>
+              </div>
+            </div>
+          )}
+          {callStep === "connected" && (
+            <div className="space-y-4 py-2">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <PhoneCall className="w-5 h-5 text-green-600" />
+                </div>
+                <div className="flex items-center gap-1.5 text-sm font-mono font-semibold text-green-700">
+                  <TimerIcon className="w-4 h-4" />
+                  {String(Math.floor(callConnectedSecs / 60)).padStart(2, "0")}:{String(callConnectedSecs % 60).padStart(2, "0")}
+                </div>
+                <p className="text-xs text-muted-foreground">Call in progress</p>
+              </div>
+              <Button variant="destructive" className="w-full gap-1.5" onClick={handleCallEnd}>
+                <PhoneOff className="w-4 h-4" /> End Call
+              </Button>
+            </div>
+          )}
+          {callStep === "done" && (
+            <div className="space-y-3 py-2">
+              <div className="flex items-center gap-2 p-2.5 bg-muted rounded-lg">
+                {callOutcome === "connected" ? <PhoneCall className="w-4 h-4 text-green-600" /> :
+                  callOutcome === "no_answer" ? <PhoneMissed className="w-4 h-4 text-amber-500" /> :
+                  callOutcome === "voicemail" ? <Voicemail className="w-4 h-4 text-blue-500" /> :
+                  <PhoneOff className="w-4 h-4 text-red-500" />}
+                <div>
+                  <p className="text-xs font-semibold capitalize">{callOutcome?.replace(/_/g, " ")}</p>
+                  {callOutcome === "connected" && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Duration: {String(Math.floor(callConnectedSecs / 60)).padStart(2, "0")}:{String(callConnectedSecs % 60).padStart(2, "0")}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Textarea
+                placeholder="Add a note (optional)…"
+                className="min-h-[64px] text-sm resize-none"
+                value={callNote}
+                onChange={e => setCallNote(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowCallModal(false)}>Discard</Button>
+                <Button size="sm" onClick={handleCallSave}>Save Call</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Stage Advance Dialog ───────────────────────────── */}
+      <Dialog open={showStageDialog} onOpenChange={setShowStageDialog}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRight className="w-4 h-4 text-indigo-600" /> Advance Stage
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <p className="text-sm text-muted-foreground">
+              Move this lead to <strong className="text-foreground">{MODULE_STAGE_LABELS[pendingStage ?? ""] || pendingStage}</strong>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setShowStageDialog(false); setPendingStage(null); }}>Cancel</Button>
+              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => pendingStage && handleAdvanceStage(pendingStage)}>Confirm</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

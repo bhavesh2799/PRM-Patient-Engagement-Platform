@@ -36,7 +36,7 @@ const NAV_GROUPS = [
     ],
   },
   {
-    title: "Incoming Engagements (CRM)",
+    title: "Lead Management",
     items: [
       { title: "Dashboard", href: "/crm/dashboard", icon: BarChart },
       { title: "Inbox", href: "/crm/inbox", icon: Inbox },
@@ -44,7 +44,7 @@ const NAV_GROUPS = [
     ],
   },
   {
-    title: "Outgoing Engagements (Marketing)",
+    title: "Patient Engagement",
     items: [
       { title: "Dashboard", href: "/marketing/dashboard", icon: Megaphone },
       { title: "Campaigns", href: "/marketing/campaigns", icon: Layers },
@@ -73,7 +73,6 @@ const NAV_GROUPS = [
     items: [
       { title: "Channels", href: "/super-admin/channels", icon: ShieldCheck },
       { title: "Templates", href: "/super-admin/templates", icon: FileText },
-      { title: "Campaigns", href: "/super-admin/campaigns", icon: Megaphone },
     ],
   },
 ];

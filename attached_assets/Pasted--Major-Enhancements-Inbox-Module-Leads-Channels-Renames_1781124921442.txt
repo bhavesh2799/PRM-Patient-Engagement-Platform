@@ -1,0 +1,405 @@
+# Major Enhancements — Inbox, Module Leads, Channels, Renames — Replit Prompt
+
+**Paste this into Replit Agent as a follow-up to all prior addenda.**
+
+This is a large, cross-module pass. Read every section before starting. Nothing here is optional. Every acceptance criterion (AC) is a click-through test against the running UI.
+
+---
+
+## Confirmed decisions (binding — do not infer alternatives)
+
+- **Sidebar renames:**
+  - "INCOMING ENGAGEMENTS (CRM)" → **LEAD MANAGEMENT**
+  - "OUTGOING ENGAGEMENTS (MARKETING)" → **PATIENT ENGAGEMENT**
+  - Group labels in the sidebar only. Page titles inside each module stay descriptive; do not prepend "Lead Management:" or "Patient Engagement:" to every title.
+- **Unified Inbox channels — final list:**
+  - WhatsApp (WABA inbound + Website WhatsApp Chat Widget; treated as one channel)
+  - Email
+  - Web Form (reply via email)
+  - Web Appointment Booking *(module-driven)*
+  - App Appointment Booking *(module-driven)*
+  - Medicine Order *(module-driven, NEW)*
+  - Lab Test *(module-driven, NEW)*
+  - CSV Import (uploaded leads — already exists)
+  - **Push is REMOVED from the inbox.** Push remains an outbound channel for campaigns only. Any "Push" inbox leads from prior seeding must be deleted or reclassified.
+- **Channels live in Integrations Hub (5):** WhatsApp · SMS · Push · Calling · Email. Phase-2 reduces to: Google/Meta Ads, HIS Live Integration.
+- **Calling is now a live capability.** A call button is available on every lead with a mobile number; calling is mocked (modal + outcome logging — §4.4).
+- **Super-Admin sidebar shows only Channels and Templates.** Campaign approval moves entirely to the Marketing Manager. The 6-check compliance gate still runs automatically on approval; no AP backend step.
+- **Wallet top-up is free-form amount** with a mock payment-gateway success flow. No fixed "Add ₹10,000" button.
+
+---
+
+## 0. What's changing in this pass
+
+A consolidated diff so nothing is missed:
+
+| Area | Change |
+|---|---|
+| Sidebar | Rename two groups (see above). |
+| Unified Inbox | Remove Push leads; add Email, Form-reply-via-email; add four module-driven lead types. |
+| Lead profile | Module-driven leads carry a **lifecycle stage** in addition to general status; agent can update stages directly. |
+| Composer | Universal: templates + free-text + email + **Call button**. Email composer for Email/Form leads. |
+| Assignment | Marketing Manager can assign leads to any team member (reaffirm). |
+| Engagement Dashboard | Add filters (channel · status · date range). |
+| Appointment Dashboard | Add filters (channel · specialisation · doctor · date range). |
+| Collective Dashboard | Active Campaigns card → full width. |
+| Integrations Hub | 5 live channel cards (add Push + Calling); Phase-2 trimmed. |
+| Wallet | Replace fixed amount with free-form input + mock-PG modal + success state. |
+| Super-Admin | Remove Campaign approval tab; keep Channels + Templates only. |
+
+---
+
+## 1. Module renames (apply everywhere)
+
+**AC 1.1 — Sidebar group labels.**
+- *Given* I view the sidebar, *then* the group previously labelled "INCOMING ENGAGEMENTS (CRM)" reads **"LEAD MANAGEMENT"**, and the group previously labelled "OUTGOING ENGAGEMENTS (MARKETING)" reads **"PATIENT ENGAGEMENT"**.
+
+**AC 1.2 — Page titles untouched.** The inner pages keep their existing titles (e.g. "Unified Inbox", "Campaign Dashboard", "CRM Dashboard"). Do not prepend the new group names.
+
+**AC 1.3 — Any in-product references to the old names** (banners, empty states, breadcrumbs, role descriptions) are updated. Search the codebase and replace where appropriate.
+
+---
+
+## 2. Unified Inbox — channel mix
+
+### 2.1 Remove Push
+
+**AC 2.1** *Given* I open the inbox, *then* **no lead has source channel "Push"**. Any seed data with source `push` must be either deleted or reclassified to its natural inbound source (likely WhatsApp or App Booking, depending on what was intended).
+**AC 2.2** The channel filter dropdown does **not** include Push.
+**AC 2.3** The dashboard's "Leads by channel" chart does not include Push as an inbound source. Push remains visible only on the **Patient Engagement** dashboards as an outbound campaign channel.
+
+### 2.2 Add Email channel
+
+**AC 2.4 — Email leads.** Inbox supports leads with source `email`. Inbound emails create leads tagged **Email** (purple pill, mail icon). For the prototype, simulate inbound emails: a **"Simulate inbound email"** dev button creates a new Email lead with a random subject + body; on load, **seed at least 3 Email leads**, one with a multi-message thread.
+**AC 2.5 — Email lead profile** shows the patient's email address as the primary identifier (the From address). Mobile is optional.
+**AC 2.6 — Replies route via email.** Opening an Email lead opens the **email composer** (§4.3), not the chat composer.
+
+### 2.3 Web Form channel (reply via email)
+
+**AC 2.7 — Form leads reply via email.** *Given* a Form-channel lead has an email field captured in the submission, *when* an agent opens the conversation, *then* the composer is the **email composer**. Free-text + templates allowed.
+**AC 2.8** If a Form lead has no email (e.g. only a mobile was captured), the composer falls back to WhatsApp template messaging + the call button.
+
+### 2.4 WhatsApp consolidation
+
+**AC 2.9** WhatsApp and Website WhatsApp Chat Widget are treated as one channel ("WhatsApp") in the filter dropdown. The lead row may show a sub-label distinguishing source (e.g. "WhatsApp · Web Widget" vs "WhatsApp · Business"), but the filter is one entry.
+
+### 2.5 Channel filter — final list
+
+**AC 2.10** Channel filter dropdown lists exactly (and in this order): All channels · WhatsApp · Email · Web Form · Web Appointment · App Appointment · Medicine Order · Lab Test · CSV Import.
+
+---
+
+## 3. Module-driven leads (the biggest new piece)
+
+A **module-driven lead** is a lead created when a patient initiates a transaction through one of the hospital's service modules. These leads carry a **module-specific lifecycle stage** in addition to the general lead status, and they appear automatically in the unified inbox so the agent can act (call / WhatsApp / update stage).
+
+### 3.1 Four module-driven lead types
+
+**Medicine Order**
+- Lifecycle stages: `order_received` → `acknowledged` → `confirmed` → `bill_raised` → `payment_received` → `packed` → `out_for_delivery` → `delivered`
+- Alternative terminal: `cancelled`
+- Source pill: "Medicine Order" (teal/cyan), pill icon
+
+**Lab Test**
+- Lifecycle stages: `test_booked` → `sample_collection_scheduled` → `sample_collected` → `in_testing` → `report_ready` → `report_delivered`
+- Alternative terminal: `cancelled`
+- Source pill: "Lab Test" (amber), flask icon
+
+**Web Appointment Booking**
+- Lifecycle stages: `booked` → `confirmed` → `reminder_sent` → `arrived` → `consultation_done`
+- Alternative terminals: `cancelled`, `no_show`
+- Source pill: "Web Appointment" (blue), calendar icon
+
+**App Appointment Booking**
+- Same lifecycle as Web Appointment Booking, source pill "App Appointment" (green), calendar icon
+- Source distinguishes for attribution analytics
+
+### 3.2 Auto-creation in the inbox
+
+**AC 3.1 — Module event → inbox lead.** *Given* a transaction event occurs in one of these modules (medicine order placed, lab test booked, appointment booked via web or app), *then* a lead is created or merged (by UHID/mobile) and appears in the unified inbox **automatically, within 5 seconds**.
+
+**AC 3.2 — Source attribution preserved.** The lead's source channel is set to the originating module (`medicine_order`, `lab_test`, `web_appointment`, `app_appointment`). The lead row shows the source pill alongside the general status pill.
+
+**AC 3.3 — Linked transaction record.** Every module-driven lead has a `transactionContext` object capturing module-specific details:
+- **Medicine Order:** order ID, list of items (name, qty, price), total amount, delivery address.
+- **Lab Test:** booking ID, list of tests, requested date/time, collection address (home collection y/n).
+- **Appointment Booking:** appointment ID, doctor, specialisation, appointment date/time, mode (in-person / tele).
+
+**AC 3.4 — Seed data.** On first load, seed **at least 2 leads per module type** (so 2 Medicine Orders, 2 Lab Tests, 2 Web Appointments, 2 App Appointments), spread across different stages so the stepper UI is demoable across stages.
+
+### 3.3 Lifecycle stepper in the lead profile
+
+**AC 3.5 — Vertical stepper renders the module's lifecycle.** *Given* I open a module-driven lead, *then* the right rail (or a dedicated section in the conversation area) shows a **vertical stepper** with every stage in order:
+- Completed stages: solid green dot with checkmark, timestamp, actor.
+- Current stage: pulsing blue dot, label in bold.
+- Future stages: outlined grey dot.
+- Alternative terminals (cancelled / no_show): shown as a side-branch with red styling, only one terminal can be active.
+
+**AC 3.6 — Advance to next stage.** Below the stepper, an **"Advance to next stage"** button moves the lead one step forward. Clicking opens a small dialog: "Move from `acknowledged` to `confirmed`? (Optional note)" → Confirm. The stepper updates instantly.
+
+**AC 3.7 — Jump non-sequentially.** A "..." menu beside the button offers **"Jump to stage…"** opening a stage picker. Jumping non-sequentially shows a stronger confirmation ("This skips 2 intermediate stages. Continue?") and logs the skip with reason.
+
+**AC 3.8 — Terminate (cancel).** A second secondary action **"Mark as cancelled"** (or "Mark as no-show" for appointments) closes the lead with a required reason text input. The general status is set to `closed`.
+
+**AC 3.9 — Auto-fulfilment.** *Given* the lead reaches its terminal forward stage (`delivered` / `report_delivered` / `consultation_done`), *then* the general status auto-advances to `fulfilled` and the activity log records `Auto-fulfilled on reaching terminal stage`.
+
+**AC 3.10 — Activity log captures every stage transition** with actor + timestamp + optional note: `[Priya Sharma] Advanced from acknowledged → confirmed at 14:22 · "Patient confirmed delivery address"`.
+
+### 3.4 Transaction context in the lead profile
+
+**AC 3.11 — Module-specific detail card.** Above (or beside) the stepper, render a **Transaction Context card** showing the relevant fields per module:
+
+- **Medicine Order:** Order ID · Items table (name · qty · ₹) · Total ₹ · Delivery address · Payment status (auto-derived from stage: unpaid until `payment_received`, then paid)
+- **Lab Test:** Booking ID · Tests list · Scheduled date/time · Collection mode (home/centre) · Collection address (if home)
+- **Appointment Booking:** Appointment ID · Doctor · Specialisation · Date/time · Mode
+
+**AC 3.12** These fields are read-only in the agent view (changes happen at the source module). A small "View in [module]" link deep-jumps to the order/test/appointment detail page in the source module.
+
+### 3.5 General status vs. module stage
+
+**AC 3.13 — Two parallel lifecycles.** Module-driven leads have BOTH a general status (`new` → `contacted` → `in_progress` → `fulfilled` / `closed`) AND a module stage. The general status reflects the **agent workflow** (whether the agent has acted); the module stage reflects the **transaction state**. They evolve independently, except:
+- When module stage reaches a terminal forward stage, general status → `fulfilled` (AC 3.9).
+- When module stage is `cancelled` / `no_show`, general status → `closed`.
+
+**AC 3.14 — Display both.** The lead row shows the general status pill on one line and the module stage pill on a second small line (so they don't conflict). The dashboard "Lead Status Breakdown" continues to chart the general status.
+
+---
+
+## 4. Composer — universal across channels
+
+The composer adapts to the lead's channel. All composers support **Template insertion**, **Free-text**, **Internal Note** mode (from prior addendum), and a **Call** button.
+
+### 4.1 WhatsApp composer (existing, reaffirm)
+
+**AC 4.1** Free-text within 24h session; template-only when session expired. The "Use template" button is labelled with icon + text (per prior addendum).
+
+### 4.2 SMS — no inbox conversation
+
+**AC 4.2** SMS is **not** in the inbox channel list. SMS is an outbound-only channel for campaigns. The conversation panel never expects SMS replies. If any seed/test data has SMS-source leads, reclassify them.
+
+### 4.3 Email composer (new)
+
+**AC 4.3 — Email composer appears for Email and Form-with-email leads.** Fields:
+- **To** — pre-filled with the patient's email (locked).
+- **Subject** — required text input. When inserting a template, the subject auto-fills from the template's subject field (templates for the Email channel must include a subject — extend the Template Library schema accordingly).
+- **Body** — plain text (rich text is Phase 2). Free-text allowed.
+- **Insert template** button — opens the template picker filtered to Email templates.
+- **Send** button.
+
+**AC 4.4 — Sent emails appear as outbound bubbles in the thread** with subject and body, channel pill "Email". Mock delivery state ticks (sent → delivered) drive on a short timer.
+
+**AC 4.5 — Email templates in the Library.** Extend the Template Library to support an **Email** channel (in addition to WhatsApp / SMS / Push). Email templates include: name, channel (Email), subject template, body template, goal, language, variables + fallbacks. Seed at least 3 Email templates (Appointment Reminder, Lab Report Ready, Win-back).
+
+**AC 4.6 — Email is now selectable in the Campaign Builder Step 2** as a channel option, with its own per-message rate (seed: ₹0.05) and live preview (mailbox-style preview).
+
+### 4.4 Call button (new, universal)
+
+**AC 4.7 — Call button on every lead with a mobile number.** Visible in the conversation header and on the lead profile. Disabled with tooltip if no mobile is on file.
+
+**AC 4.8 — Mock call modal flow.**
+1. Click **Call** → modal opens: "Calling [Patient name] at +91 9876543210…" with a dialing animation (1–2s).
+2. Three outcome buttons: **Connected** · **No answer** · **Wrong number**.
+3. *Given* "Connected" is clicked, *then* a timer starts (mock "Call duration: 00:12 …"). A **"End call"** button appears.
+4. On end-call (or after picking No answer / Wrong number): a small note input ("Outcome notes — optional") + **Save call log**.
+5. Save → modal closes. Activity log records: `[Priya Sharma] Called +91 9876543210 · outcome: Connected · duration 1m 12s · "Patient agreed to reschedule"`.
+
+**AC 4.9 — Call from a module-driven lead** logs the same way and is associated with the lead's current stage (so "Called during acknowledged" appears as context in the log).
+
+**AC 4.10 — Multiple consecutive call attempts** are each logged individually. A small "Call attempts: 3" counter appears in the lead profile.
+
+### 4.5 Composer summary by channel
+
+| Lead channel | Default composer | Templates | Free-text | Call button |
+|---|---|---|---|---|
+| WhatsApp | WhatsApp chat | ✓ | ✓ (session-gated) | ✓ |
+| Email | Email | ✓ (Email templates) | ✓ | ✓ |
+| Web Form (with email) | Email | ✓ | ✓ | ✓ |
+| Web Form (no email) | WhatsApp template-only | ✓ | template-gated | ✓ |
+| Medicine Order | WhatsApp + Email (toggle) | ✓ | ✓ (session-gated for WA) | ✓ |
+| Lab Test | WhatsApp + Email (toggle) | ✓ | ✓ (session-gated for WA) | ✓ |
+| Appointment (Web/App) | WhatsApp + Email (toggle) | ✓ | ✓ (session-gated for WA) | ✓ |
+| CSV Import | WhatsApp template-only | ✓ | template-gated | ✓ |
+
+**AC 4.11 — Channel toggle for module-driven leads.** *Given* the lead is module-driven (Medicine/Lab/Appointment), *then* the composer shows a small toggle at the top: **WhatsApp · Email** — switching toggles the composer UI. The most recent channel used for that lead is remembered.
+
+---
+
+## 5. Manager assignment workflow (reaffirm + verify)
+
+The bulk-action assignment from the earlier CRM addendum may not be wired. Verify:
+
+**AC 5.1** *Given* the active role is **Marketing Manager**, *when* they select one or more leads in the inbox via checkboxes, *then* the **bulk action bar** appears with **Assign to…** option.
+
+**AC 5.2** Clicking **Assign to…** opens a user picker showing all Front-office Execs + the Manager themselves (not AP Admin). Selecting a user reassigns all selected leads to that user.
+
+**AC 5.3 — Single-lead reassignment.** Inside any lead's profile, a **Reassign** button next to the owner field opens the same picker. Available to Manager and AP Admin only.
+
+**AC 5.4 — Exec assignment scope.** *Given* the role is Exec, *when* they open the bulk action bar, *then* the Assign option only allows **"Assign to me"** (self-assign), not arbitrary users.
+
+**AC 5.5 — Assignment is logged** in each lead's activity log with old owner → new owner + actor.
+
+**AC 5.6 — Notification on reassign.** When a lead is assigned to a user (other than themselves), a notification appears in the bell icon for that user: "Rajeev Menon assigned 3 leads to you" with a deep-link to the inbox filtered to those leads.
+
+---
+
+## 6. Dashboard filters
+
+### 6.1 Patient Engagement Dashboard
+
+**AC 6.1 — Add filter bar** at the top with: **Channel** (multi-select: WhatsApp · SMS · Push · Email) · **Status** (multi-select: Live · Paused · Completed · Failed) · **Date range** (preset chips: Today · 7 days · 30 days · MTD · Custom).
+**AC 6.2** Filters drive every KPI card, chart, and the recent campaigns table on the page. Clearing filters restores defaults.
+
+### 6.2 Appointment Booking Dashboard
+
+**AC 6.3 — Add filter bar** at the top with: **Channel** (App · Web · multi-select) · **Specialisation** (multi-select, populated from doctor specialisations) · **Doctor** (multi-select, populated from doctors) · **Date range** (presets as above).
+**AC 6.4** Filters drive every KPI card, the booking-status breakdown chart, the by-specialisation chart, the trend chart, and the doctor utilisation table.
+
+---
+
+## 7. Collective Dashboard layout
+
+**AC 7.1 — Active Campaigns card spans full width.** *Given* I view the Collective Dashboard, *then* the **Active Campaigns** card (currently in the right column of a 2-column row alongside Leads by Channel) is **moved to a full-width row of its own**, beneath the Outgoing KPI strip. Use the extra width to add columns: Goal · Channel · Reached · Delivery rate · Conversions · Status (vs the current 5-column version). Cap visible rows at 6 with a "View all →" link.
+**AC 7.2** Leads-by-channel chart and Lead-to-outcome chart remain a 2-column row above the full-width Active Campaigns card.
+
+---
+
+## 8. Integrations Hub — 5 live channels
+
+### 8.1 Active Channels section
+
+**AC 8.1 — Five live channel cards** in the Active Channels section, in this order:
+1. **WhatsApp (WABA)** — keep existing layout (Active Numbers + ownership + default).
+2. **SMS** — keep existing layout (Approved Headers + ownership + default).
+3. **Push** — moved here from Phase 2. Show: Partner = **NotifyVisitors** · Workspace ID · Status pill.
+4. **Calling** — new card. Show: Provider (mocked, e.g. "Knowlarity" or a generic "VoIP Partner") · Caller IDs (mocked numbers) · Status pill.
+5. **Email** — keep existing layout (Provider = AWS SES · From address).
+
+**AC 8.2 — All 5 cards show four-state status** (Live · Pending · Not configured · Error) and a relative-time "Synced N min ago" indicator (per prior addendum AC 2.4–2.5).
+
+**AC 8.3 — Default marker on Calling** — exactly one Caller ID is marked ★ Default if multiple exist.
+
+### 8.2 Coming in Phase 2
+
+**AC 8.4 — Phase 2 section reduces to two tiles:** Google / Meta Ads · HIS Live Integration. Push, Calling, Email are no longer listed under Phase 2.
+
+### 8.3 Integration with Composer
+
+**AC 8.5 — Calling channel status gates the Call button.** *Given* the Calling channel is `Not configured` or `Error`, *then* the Call button on lead pages is disabled with a tooltip pointing to the Integrations Hub.
+**AC 8.6 — Email channel status gates email sends similarly.** If Email is Not configured / Error, the Email composer shows a banner: "Email channel is not live. Contact your administrator."
+
+---
+
+## 9. Wallet — free-form top-up + mock-PG success
+
+### 9.1 Replace the fixed-amount button
+
+**AC 9.1** Remove the **"+ Add ₹10,000"** button. Replace with **"+ Add Money"** (no amount in the label).
+
+### 9.2 Add Money modal
+
+**AC 9.2 — Modal opens on click** with three fields:
+- **Amount (₹)** — free-form numeric input, **min ₹500**, max ₹5,00,000 (enforce on Continue). Show inline validation errors.
+- **Payment Method** — radio: **PayU** · **Easebuzz** (defaults to PayU). Both are mocked.
+- **GST note** — small grey text: "*Top-up amount is credited to your wallet as-is. Platform fees and GST are debited at campaign approval, not at top-up.*"
+- **Continue to Payment** button (primary).
+
+### 9.3 Mock payment flow
+
+**AC 9.3 — On Continue,** show an in-modal **"Redirecting to payment gateway…"** state (spinner, 1 second), then transition to a mock-gateway screen rendered inside the same modal:
+- Gateway brand placeholder (logo box + name = PayU or Easebuzz depending on choice)
+- Amount: ₹[entered]
+- Merchant: Affordplan
+- Order ID: PG-TXN-[8-digit timestamp-based mock]
+- **Pay ₹[amount]** button (large, primary)
+- **Cancel** link
+
+**AC 9.4 — On Pay,** show "Processing payment…" with a spinner (2 seconds), then transition to a **success state**:
+- ✅ green checkmark icon
+- **"Payment Successful"** heading
+- Order ID: PG-TXN-XXXXXX
+- Amount added: ₹[X]
+- New wallet balance: ₹[old + X]
+- **Done** button (closes modal)
+
+**AC 9.5 — On Cancel during the mock-gateway step,** the modal returns to step 1 (Amount entry). Nothing is debited.
+
+**AC 9.6 — Failed-payment simulation.** Add a small "Simulate payment failure" dev toggle on the gateway step so failures can be demoed: shows "❌ Payment Failed · Reason: Insufficient funds (mock)" and the modal closes without adding money.
+
+### 9.4 Transaction log
+
+**AC 9.7 — On success, append a transaction to Recent Transactions:**
+- Date: today
+- Description: "Wallet top-up via [PayU/Easebuzz]"
+- Order ID line: PG-TXN-XXXXXX
+- Amount: +₹[X] (green)
+- Wallet balance card updates to the new total.
+
+**AC 9.8 — Role gating.** Only **Marketing Manager** and **AP Admin** see the **+ Add Money** button. Front-office Exec sees the wallet balance but not the Add Money CTA.
+
+---
+
+## 10. Super-Admin (Affordplan) scope reduction
+
+### 10.1 Sidebar trim
+
+**AC 10.1 — Super-Admin section shows only two items:** **Channels** · **Templates**.
+- Remove the **Campaigns** sub-tab from the Super-Admin sidebar.
+- Remove any "Campaign Approvals" inbox or queue from the AP Admin view.
+
+### 10.2 Campaign approval flow change
+
+**AC 10.2 — Marketing Manager is the sole approver.** *Given* a campaign is submitted, *when* the Manager opens Campaign Requests and clicks Approve, *then* the **6-check compliance gate runs immediately** and:
+- On pass: wallet debits, invoice generates, campaign goes Live — same as before.
+- On hard-block: specific reason shown to the Manager; no further AP step required. Manager can fix (e.g. swap template) and try again.
+
+**AC 10.3 — Audit log records Manager-only approval.** The campaign's audit trail shows: `Submitted by [Exec]` → `Approved by [Manager]` → `Compliance gate: passed/failed` → `Launched / Blocked`. No AP Admin step appears.
+
+### 10.3 What stays in Super-Admin (per prior prompts)
+
+**AC 10.4 — Channels:** per-hospital provisioning of SMS headers (up to 5), WABA numbers (up to 5), Push workspace ID, Calling provider config, Email SES config.
+**AC 10.5 — Templates:** approval queue for hospital TemplateRequests with the per-channel pathways (Push direct / SMS DLT update / WhatsApp Meta polling / **Email content review**).
+
+### 10.4 Other AP Admin powers accessible elsewhere
+
+**AC 10.6 — Send Rules edit access** remains an AP Admin-only ability inside **Settings → Send Rules** (the hospital sidebar, not Super-Admin) — unchanged. Frequency-cap override happens here.
+
+---
+
+## 11. Definition of Done — click-through verification
+
+A reviewer must, in one sitting:
+
+1. See the sidebar groups labelled **"LEAD MANAGEMENT"** and **"PATIENT ENGAGEMENT"**. ✔ / ✗
+2. Open the inbox; channel filter contains **no Push**; instead shows WhatsApp, Email, Web Form, the four module-driven sources, and CSV. ✔ / ✗
+3. Click **"Simulate inbound email"** (or similar); see a new Email lead appear; open it; the composer is the **email composer** with To/Subject/Body. ✔ / ✗
+4. Open a **Web Form** lead with an email captured; see the email composer; send a reply; see the outbound email in the thread. ✔ / ✗
+5. Open a **Medicine Order** lead; see the **vertical lifecycle stepper** showing all 8 stages; click **Advance to next stage**; confirm the stepper progresses; see the activity log entry. ✔ / ✗
+6. From the same lead, click **Jump to stage…**; pick `out_for_delivery`; see the stronger confirmation; advance; verify the skip is logged. ✔ / ✗
+7. Open a **Lab Test** lead; advance through stages until `report_delivered`; verify general status auto-flips to `fulfilled`. ✔ / ✗
+8. On any lead, click the **Call button**; complete the mock call flow with "Connected"; save outcome notes; confirm the activity log records the call with duration. ✔ / ✗
+9. As **Marketing Manager**, select 3 leads in the inbox; use **Assign to…**; pick another user; see the bulk action complete; verify the assigned user gets a notification badge. ✔ / ✗
+10. As **Exec**, try the same bulk action; confirm **only "Assign to me"** is available. ✔ / ✗
+11. Open **Patient Engagement Dashboard**; verify channel + status + date-range filters drive every chart and table. ✔ / ✗
+12. Open **Appointment Booking Dashboard**; verify channel + specialisation + doctor + date-range filters drive every chart. ✔ / ✗
+13. Open **Home Collective Dashboard**; verify **Active Campaigns** card is **full width** with expanded columns. ✔ / ✗
+14. Open **Settings → Integrations Hub**; verify **5 live channel cards** in order (WhatsApp · SMS · Push · Calling · Email); each has 4-state status + sync indicator + ownership/default where applicable. ✔ / ✗
+15. Open **Settings → Wallet**; click **+ Add Money**; enter ₹2,500; pick PayU; proceed through the mock-gateway screens; see the success state with Order ID and new balance; verify the transaction is logged. ✔ / ✗
+16. As **Exec**, confirm the **+ Add Money** button is hidden. ✔ / ✗
+17. Switch to **AP Admin**; confirm the sidebar **Super-Admin** section shows **only Channels and Templates** — no Campaigns sub-tab. ✔ / ✗
+18. As **Marketing Manager**, submit and approve a campaign end-to-end; confirm there is **no separate AP approval** required and the audit trail shows Manager → Compliance → Live with no AP backend step. ✔ / ✗
+19. As any role, configure the Calling channel as `Not configured` in Super-Admin; return to a lead; confirm the **Call button is disabled** with a tooltip. ✔ / ✗
+20. Open the **Template Library**; filter by channel **Email**; confirm Email templates exist with subject + body + variables; pick one in the Campaign Builder Step 2 and confirm Email shows as a selectable channel. ✔ / ✗
+
+---
+
+## 12. Flagged details & assumptions
+
+- **Lab Test lifecycle stages** were not explicitly specified by the user; I've used a sensible default (`test_booked → sample_collection_scheduled → sample_collected → in_testing → report_ready → report_delivered`). Confirm or override.
+- **Appointment Booking lifecycle stages** likewise inferred: `booked → confirmed → reminder_sent → arrived → consultation_done` with `cancelled` / `no_show` as alternative terminals.
+- **Calling provider** for the prototype is mocked. The Super-Admin Channels page should let AP Admin enter a provider name + caller IDs as text — no real telephony integration.
+- **Email channel** uses AWS SES per the current screenshot; treat as mocked. Inbound emails are simulated via the dev "Simulate inbound email" button.
+- **Push remains an outbound campaign channel** even though it's removed from the inbox. The Patient Engagement Campaign Builder still offers Push as one of the 3 marketing channels (alongside WhatsApp and SMS — and now Email).
+- **Module-driven leads do NOT consume a wallet free-text session message charge.** Calls and stage updates are free internal actions. Outbound WhatsApp/SMS/Email sends from a module-driven lead follow the same charge rules as any 1:1 message (session free / template charged per prior addenda).
+- **The "Reset Demo Data" button on the Wallet page** remains. It now also resets module-driven lead lifecycle stages.
+
+Nothing in this list may be a static placeholder or a dead control. Every AC requires a working interaction.

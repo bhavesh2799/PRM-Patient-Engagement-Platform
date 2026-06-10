@@ -358,10 +358,13 @@ export const ListLeadsResponseItem = zod.object({
   "firstName": zod.string(),
   "lastName": zod.string(),
   "mobile": zod.string(),
+  "email": zod.string().nullish(),
   "uhid": zod.string().nullish(),
   "specialization": zod.string().nullish(),
-  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'push']),
+  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'email', 'medicine_order', 'lab_test', 'web_appointment', 'app_appointment']),
   "status": zod.enum(['new', 'contacted', 'in_progress', 'fulfilled', 'closed']),
+  "moduleStage": zod.string().nullish(),
+  "transactionContext": zod.record(zod.string(), zod.unknown()).nullish(),
   "ownerUserId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "sourceListTag": zod.string().nullish(),
@@ -381,9 +384,11 @@ export const CreateLeadBody = zod.object({
   "firstName": zod.string(),
   "lastName": zod.string(),
   "mobile": zod.string(),
+  "email": zod.string().optional(),
   "uhid": zod.string().optional(),
   "specialization": zod.string().optional(),
-  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'push']),
+  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'email', 'medicine_order', 'lab_test', 'web_appointment', 'app_appointment']),
+  "moduleStage": zod.string().optional(),
   "optedIn": zod.boolean().optional(),
   "sourceListTag": zod.string().optional()
 })
@@ -401,10 +406,13 @@ export const GetLeadResponse = zod.object({
   "firstName": zod.string(),
   "lastName": zod.string(),
   "mobile": zod.string(),
+  "email": zod.string().nullish(),
   "uhid": zod.string().nullish(),
   "specialization": zod.string().nullish(),
-  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'push']),
+  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'email', 'medicine_order', 'lab_test', 'web_appointment', 'app_appointment']),
   "status": zod.enum(['new', 'contacted', 'in_progress', 'fulfilled', 'closed']),
+  "moduleStage": zod.string().nullish(),
+  "transactionContext": zod.record(zod.string(), zod.unknown()).nullish(),
   "ownerUserId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "sourceListTag": zod.string().nullish(),
@@ -444,10 +452,13 @@ export const UpdateLeadResponse = zod.object({
   "firstName": zod.string(),
   "lastName": zod.string(),
   "mobile": zod.string(),
+  "email": zod.string().nullish(),
   "uhid": zod.string().nullish(),
   "specialization": zod.string().nullish(),
-  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'push']),
+  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'email', 'medicine_order', 'lab_test', 'web_appointment', 'app_appointment']),
   "status": zod.enum(['new', 'contacted', 'in_progress', 'fulfilled', 'closed']),
+  "moduleStage": zod.string().nullish(),
+  "transactionContext": zod.record(zod.string(), zod.unknown()).nullish(),
   "ownerUserId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "sourceListTag": zod.string().nullish(),
@@ -479,6 +490,7 @@ export const GetLeadMessagesResponseItem = zod.object({
   "leadId": zod.number(),
   "direction": zod.enum(['in', 'out']),
   "body": zod.string(),
+  "subject": zod.string().nullish(),
   "channel": zod.string(),
   "templateId": zod.number().nullish(),
   "timestamp": zod.string(),
@@ -538,6 +550,69 @@ export const GroupLeadsIntoSegmentBody = zod.object({
   "leadIds": zod.array(zod.number()),
   "name": zod.string(),
   "description": zod.string().nullish()
+})
+
+
+/**
+ * @summary Simulate an inbound email (creates/finds lead + email message)
+ */
+export const SimulateInboundEmailBody = zod.object({
+  "email": zod.string(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
+  "mobile": zod.string().nullish(),
+  "subject": zod.string(),
+  "body": zod.string()
+})
+
+
+/**
+ * @summary Advance or set the module stage for a lead
+ */
+export const AdvanceLeadStageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdvanceLeadStageBody = zod.object({
+  "stage": zod.string(),
+  "userId": zod.number().nullish()
+})
+
+export const AdvanceLeadStageResponse = zod.object({
+  "id": zod.number(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "mobile": zod.string(),
+  "email": zod.string().nullish(),
+  "uhid": zod.string().nullish(),
+  "specialization": zod.string().nullish(),
+  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'email', 'medicine_order', 'lab_test', 'web_appointment', 'app_appointment']),
+  "status": zod.enum(['new', 'contacted', 'in_progress', 'fulfilled', 'closed']),
+  "moduleStage": zod.string().nullish(),
+  "transactionContext": zod.record(zod.string(), zod.unknown()).nullish(),
+  "ownerUserId": zod.number().nullish(),
+  "ownerName": zod.string().nullish(),
+  "sourceListTag": zod.string().nullish(),
+  "optedIn": zod.boolean(),
+  "dndListed": zod.boolean(),
+  "createdAt": zod.string(),
+  "lastActionAt": zod.string(),
+  "hasActiveSession": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Log a call outcome for a lead
+ */
+export const LogCallParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const LogCallBody = zod.object({
+  "outcome": zod.enum(['connected', 'no_answer', 'wrong_number', 'voicemail']),
+  "durationSeconds": zod.number().nullish(),
+  "note": zod.string().nullish(),
+  "userId": zod.number().nullish()
 })
 
 
@@ -1272,7 +1347,8 @@ export const GetWalletResponse = zod.object({
  * @summary Add money to wallet (simulated PayU/Easebuzz)
  */
 export const TopupWalletBody = zod.object({
-  "amount": zod.number()
+  "amount": zod.number(),
+  "paymentMethod": zod.enum(['PayU', 'Easebuzz']).optional()
 })
 
 export const TopupWalletResponse = zod.object({
@@ -1461,10 +1537,13 @@ export const GetHomeDashboardResponse = zod.object({
   "firstName": zod.string(),
   "lastName": zod.string(),
   "mobile": zod.string(),
+  "email": zod.string().nullish(),
   "uhid": zod.string().nullish(),
   "specialization": zod.string().nullish(),
-  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'push']),
+  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'email', 'medicine_order', 'lab_test', 'web_appointment', 'app_appointment']),
   "status": zod.enum(['new', 'contacted', 'in_progress', 'fulfilled', 'closed']),
+  "moduleStage": zod.string().nullish(),
+  "transactionContext": zod.record(zod.string(), zod.unknown()).nullish(),
   "ownerUserId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "sourceListTag": zod.string().nullish(),
@@ -1511,10 +1590,13 @@ export const GetCrmDashboardResponse = zod.object({
   "firstName": zod.string(),
   "lastName": zod.string(),
   "mobile": zod.string(),
+  "email": zod.string().nullish(),
   "uhid": zod.string().nullish(),
   "specialization": zod.string().nullish(),
-  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'push']),
+  "sourceChannel": zod.enum(['waba', 'web_chat', 'form', 'csv', 'app_booking', 'web_booking', 'email', 'medicine_order', 'lab_test', 'web_appointment', 'app_appointment']),
   "status": zod.enum(['new', 'contacted', 'in_progress', 'fulfilled', 'closed']),
+  "moduleStage": zod.string().nullish(),
+  "transactionContext": zod.record(zod.string(), zod.unknown()).nullish(),
   "ownerUserId": zod.number().nullish(),
   "ownerName": zod.string().nullish(),
   "sourceListTag": zod.string().nullish(),

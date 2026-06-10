@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetEngagementDashboard, useListCampaigns, useGetWallet, usePauseCampaign } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { AlertTriangle, Pause, MessageCircle, Mail, Globe, MessageSquare } from "lucide-react";
+import { AlertTriangle, Pause, MessageCircle, Mail, Globe, MessageSquare, Filter, X } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -36,6 +37,8 @@ export default function MarketingDashboard() {
   const { data: wallet } = useGetWallet();
   const pauseMutation = usePauseCampaign();
   const queryClient = useQueryClient();
+  const [filterChannels, setFilterChannels] = useState<Set<string>>(new Set());
+  const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
 
   const isLowBalance = wallet && (wallet.balance as number) < 5000;
   const d = dashboard as any;
@@ -61,6 +64,23 @@ export default function MarketingDashboard() {
 
   const channelPerf: any[] = d.channelPerformance ?? [];
   const maxReached = Math.max(...channelPerf.map((c: any) => c.reached ?? 0), 1);
+
+  const toggleChannel = (ch: string) => setFilterChannels(prev => {
+    const next = new Set(prev); next.has(ch) ? next.delete(ch) : next.add(ch); return next;
+  });
+  const toggleStatus = (s: string) => setFilterStatuses(prev => {
+    const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next;
+  });
+
+  const allCampaignChannels = [...new Set(recentCampaigns.map((c: any) => (c.channel ?? c.channels?.[0]?.channel ?? "").toLowerCase()).filter(Boolean))];
+  const allCampaignStatuses = [...new Set(recentCampaigns.map((c: any) => c.status).filter(Boolean))];
+
+  const filteredCampaigns = recentCampaigns.filter((c: any) => {
+    const ch = (c.channel ?? c.channels?.[0]?.channel ?? "").toLowerCase();
+    if (filterChannels.size > 0 && !filterChannels.has(ch)) return false;
+    if (filterStatuses.size > 0 && !filterStatuses.has(c.status)) return false;
+    return true;
+  });
 
   const handlePause = (id: number) => {
     pauseMutation.mutate({ id }, {
@@ -206,10 +226,43 @@ export default function MarketingDashboard() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">Latest activity · sorted by recency</p>
+              {/* Filter chips */}
+              <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Filter className="w-2.5 h-2.5" /> Channel:
+                </div>
+                {allCampaignChannels.map(ch => (
+                  <button key={ch} onClick={() => toggleChannel(ch)}
+                    className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${filterChannels.has(ch) ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary"}`}>
+                    {CHANNEL_LABELS[ch] ?? ch}
+                  </button>
+                ))}
+                {filterChannels.size > 0 && (
+                  <button onClick={() => setFilterChannels(new Set())} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+                    <X className="w-2.5 h-2.5" /> clear
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">Status:</div>
+                {allCampaignStatuses.map(s => (
+                  <button key={s} onClick={() => toggleStatus(s)}
+                    className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors capitalize ${filterStatuses.has(s) ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary"}`}>
+                    {s}
+                  </button>
+                ))}
+                {filterStatuses.size > 0 && (
+                  <button onClick={() => setFilterStatuses(new Set())} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+                    <X className="w-2.5 h-2.5" /> clear
+                  </button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="px-2 pb-3">
-              {recentCampaigns.length === 0 ? (
-                <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">No campaigns yet</div>
+              {filteredCampaigns.length === 0 ? (
+                <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
+                  {recentCampaigns.length === 0 ? "No campaigns yet" : "No campaigns match filters"}
+                </div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
@@ -221,7 +274,7 @@ export default function MarketingDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentCampaigns.slice(0, 6).map((c: any) => (
+                    {filteredCampaigns.slice(0, 6).map((c: any) => (
                       <tr
                         key={c.id}
                         className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"

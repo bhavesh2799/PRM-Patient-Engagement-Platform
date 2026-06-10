@@ -20,10 +20,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ActivityLogEntry,
   Appointment,
   AppointmentInput,
   AppointmentUpdate,
   AppointmentsDashboard,
+  CallLogInput,
   Campaign,
   CampaignApprovalResult,
   CampaignInput,
@@ -53,6 +55,7 @@ import type {
   Lead,
   LeadDetail,
   LeadInput,
+  LeadStageInput,
   LeadUpdate,
   ListAppointmentsParams,
   ListCampaignsParams,
@@ -70,6 +73,7 @@ import type {
   SendRulesUpdate,
   SessionRole,
   SessionRoleInput,
+  SimulateEmailInput,
   SimulateInboundInput,
   Specialization,
   SpecializationInput,
@@ -2447,6 +2451,221 @@ export const useGroupLeadsIntoSegment = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGroupLeadsIntoSegmentMutationOptions(options));
+    }
+
+export const getSimulateInboundEmailUrl = () => {
+
+
+
+
+  return `/api/leads/simulate-email`
+}
+
+/**
+ * @summary Simulate an inbound email (creates/finds lead + email message)
+ */
+export const simulateInboundEmail = async (simulateEmailInput: SimulateEmailInput, options?: RequestInit): Promise<Lead> => {
+
+  return customFetch<Lead>(getSimulateInboundEmailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      simulateEmailInput,)
+  }
+);}
+
+
+
+
+export const getSimulateInboundEmailMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateInboundEmail>>, TError,{data: BodyType<SimulateEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof simulateInboundEmail>>, TError,{data: BodyType<SimulateEmailInput>}, TContext> => {
+
+const mutationKey = ['simulateInboundEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof simulateInboundEmail>>, {data: BodyType<SimulateEmailInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  simulateInboundEmail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SimulateInboundEmailMutationResult = NonNullable<Awaited<ReturnType<typeof simulateInboundEmail>>>
+    export type SimulateInboundEmailMutationBody = BodyType<SimulateEmailInput>
+    export type SimulateInboundEmailMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Simulate an inbound email (creates/finds lead + email message)
+ */
+export const useSimulateInboundEmail = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateInboundEmail>>, TError,{data: BodyType<SimulateEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof simulateInboundEmail>>,
+        TError,
+        {data: BodyType<SimulateEmailInput>},
+        TContext
+      > => {
+      return useMutation(getSimulateInboundEmailMutationOptions(options));
+    }
+
+export const getAdvanceLeadStageUrl = (id: number,) => {
+
+
+
+
+  return `/api/leads/${id}/stage`
+}
+
+/**
+ * @summary Advance or set the module stage for a lead
+ */
+export const advanceLeadStage = async (id: number,
+    leadStageInput: LeadStageInput, options?: RequestInit): Promise<Lead> => {
+
+  return customFetch<Lead>(getAdvanceLeadStageUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      leadStageInput,)
+  }
+);}
+
+
+
+
+export const getAdvanceLeadStageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advanceLeadStage>>, TError,{id: number;data: BodyType<LeadStageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof advanceLeadStage>>, TError,{id: number;data: BodyType<LeadStageInput>}, TContext> => {
+
+const mutationKey = ['advanceLeadStage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof advanceLeadStage>>, {id: number;data: BodyType<LeadStageInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  advanceLeadStage(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdvanceLeadStageMutationResult = NonNullable<Awaited<ReturnType<typeof advanceLeadStage>>>
+    export type AdvanceLeadStageMutationBody = BodyType<LeadStageInput>
+    export type AdvanceLeadStageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Advance or set the module stage for a lead
+ */
+export const useAdvanceLeadStage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advanceLeadStage>>, TError,{id: number;data: BodyType<LeadStageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof advanceLeadStage>>,
+        TError,
+        {id: number;data: BodyType<LeadStageInput>},
+        TContext
+      > => {
+      return useMutation(getAdvanceLeadStageMutationOptions(options));
+    }
+
+export const getLogCallUrl = (id: number,) => {
+
+
+
+
+  return `/api/leads/${id}/calls`
+}
+
+/**
+ * @summary Log a call outcome for a lead
+ */
+export const logCall = async (id: number,
+    callLogInput: CallLogInput, options?: RequestInit): Promise<ActivityLogEntry> => {
+
+  return customFetch<ActivityLogEntry>(getLogCallUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      callLogInput,)
+  }
+);}
+
+
+
+
+export const getLogCallMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logCall>>, TError,{id: number;data: BodyType<CallLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof logCall>>, TError,{id: number;data: BodyType<CallLogInput>}, TContext> => {
+
+const mutationKey = ['logCall'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logCall>>, {id: number;data: BodyType<CallLogInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  logCall(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogCallMutationResult = NonNullable<Awaited<ReturnType<typeof logCall>>>
+    export type LogCallMutationBody = BodyType<CallLogInput>
+    export type LogCallMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Log a call outcome for a lead
+ */
+export const useLogCall = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logCall>>, TError,{id: number;data: BodyType<CallLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof logCall>>,
+        TError,
+        {id: number;data: BodyType<CallLogInput>},
+        TContext
+      > => {
+      return useMutation(getLogCallMutationOptions(options));
     }
 
 export const getListAppointmentsUrl = (params?: ListAppointmentsParams,) => {

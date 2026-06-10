@@ -1,13 +1,13 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetChannelConfig } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { MessageCircle, Smartphone, Mail, Phone, BarChart3, Database, Zap } from "lucide-react";
+import { MessageCircle, Smartphone, Mail, Phone, BarChart3, Database, Bell, RefreshCw } from "lucide-react";
 import { useLocation } from "wouter";
 
 const STATUS_STYLES: Record<string, string> = {
-  live:    "bg-green-100 text-green-700",
-  pending: "bg-blue-100 text-blue-700",
-  error:   "bg-red-100 text-red-700",
+  live:           "bg-green-100 text-green-700",
+  pending:        "bg-blue-100 text-blue-700",
+  error:          "bg-red-100 text-red-700",
   not_configured: "bg-gray-100 text-gray-500",
 };
 
@@ -20,6 +20,15 @@ function StatusBadge({ status }: { status: string }) {
     <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[status] ?? STATUS_STYLES.not_configured}`}>
       {label}
     </span>
+  );
+}
+
+function SyncBadge({ minsAgo }: { minsAgo: number }) {
+  return (
+    <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-2">
+      <RefreshCw size={9} />
+      <span>Synced {minsAgo} min ago</span>
+    </div>
   );
 }
 
@@ -48,12 +57,12 @@ export default function Integrations() {
 
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />)}
+              {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />)}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              {/* WhatsApp WABA */}
+              {/* 1. WhatsApp WABA */}
               <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/super-admin/channels")}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
@@ -75,10 +84,11 @@ export default function Integrations() {
                       ))}
                     </div>
                   ) : null}
+                  <SyncBadge minsAgo={3} />
                 </CardContent>
               </Card>
 
-              {/* SMS */}
+              {/* 2. SMS */}
               <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/super-admin/channels")}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
@@ -100,10 +110,67 @@ export default function Integrations() {
                       ))}
                     </div>
                   ) : null}
+                  <SyncBadge minsAgo={3} />
                 </CardContent>
               </Card>
 
-              {/* Email */}
+              {/* 3. Push */}
+              <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/super-admin/channels")}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-orange-100 flex items-center justify-center">
+                      <Bell className="w-5 h-5 text-orange-600" />
+                    </div>
+                    <StatusBadge status="live" />
+                  </div>
+                  <p className="font-semibold text-sm mb-1">Push Notifications</p>
+                  <p className="text-xs text-muted-foreground mb-3">In-app and browser push notifications for campaigns.</p>
+                  <div className="space-y-1 pt-2 border-t">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Configuration</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Partner</span>
+                      <span className="text-xs font-medium">NotifyVisitors</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Workspace ID</span>
+                      <span className="text-xs font-mono">NV-SRH-0041</span>
+                    </div>
+                  </div>
+                  <SyncBadge minsAgo={5} />
+                </CardContent>
+              </Card>
+
+              {/* 4. Calling */}
+              <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/super-admin/channels")}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-teal-600" />
+                    </div>
+                    <StatusBadge status="live" />
+                  </div>
+                  <p className="font-semibold text-sm mb-1">Calling / IVR</p>
+                  <p className="text-xs text-muted-foreground mb-3">Outbound call capability with outcome logging on every lead.</p>
+                  <div className="space-y-1 pt-2 border-t">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Caller IDs</p>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs">+91 80-4521-7890</span>
+                      <span className="text-[10px] text-amber-600 font-medium">★ Default</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs">+91 80-4521-7891</span>
+                      <span className="text-[10px] text-muted-foreground">Backup</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-muted-foreground">Provider</span>
+                      <span className="text-xs font-medium">Knowlarity</span>
+                    </div>
+                  </div>
+                  <SyncBadge minsAgo={8} />
+                </CardContent>
+              </Card>
+
+              {/* 5. Email */}
               <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/settings/email-config")}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
@@ -115,7 +182,6 @@ export default function Integrations() {
                   <p className="font-semibold text-sm mb-1">Email</p>
                   <p className="text-xs text-muted-foreground mb-3">SMTP-based email for appointment reminders, reports, and campaigns.</p>
                   <div className="space-y-1 pt-2 border-t">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Configuration</p>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Provider</span>
                       <span className="text-xs font-medium">AWS SES</span>
@@ -125,6 +191,7 @@ export default function Integrations() {
                       <span className="text-xs font-mono truncate max-w-[130px]">noreply@sunrisehospital.in</span>
                     </div>
                   </div>
+                  <SyncBadge minsAgo={2} />
                 </CardContent>
               </Card>
 
@@ -132,17 +199,15 @@ export default function Integrations() {
           )}
         </div>
 
-        {/* ── COMING SOON ─────────────────────── */}
+        {/* ── COMING IN PHASE 2 ─────────────────── */}
         <div>
           <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
             Coming in Phase 2
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 opacity-50 pointer-events-none">
+          <div className="grid grid-cols-2 gap-3 opacity-50 pointer-events-none">
             {[
-              { icon: Phone,    label: "Calling / IVR",        sub: "Outbound IVR campaigns" },
-              { icon: BarChart3, label: "Google / Meta Ads",   sub: "Retargeting & lookalikes" },
-              { icon: Database, label: "HIS Live Integration", sub: "Real-time patient sync" },
-              { icon: Zap,      label: "Push Notifications",   sub: "In-app & browser push" },
+              { icon: BarChart3, label: "Google / Meta Ads",    sub: "Retargeting & lookalikes" },
+              { icon: Database,  label: "HIS Live Integration", sub: "Real-time patient sync" },
             ].map(({ icon: Icon, label, sub }) => (
               <Card key={label}>
                 <CardContent className="p-4">

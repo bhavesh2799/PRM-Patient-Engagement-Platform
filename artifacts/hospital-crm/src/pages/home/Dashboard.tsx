@@ -13,8 +13,11 @@ import {
 import { useLocation } from "wouter";
 
 const CHANNEL_LABELS: Record<string, string> = {
-  waba: "WhatsApp", web_chat: "WhatsApp Chat", form: "Form",
+  waba: "WhatsApp", web_chat: "Web Chat", form: "Web Form",
   email: "Email", csv: "CSV Import",
+  app_booking: "App Appointment", web_booking: "Web Booking",
+  medicine_order: "Medicine Order", lab_test: "Lab Test",
+  web_appointment: "Web Appointment", app_appointment: "App Appointment",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -329,7 +332,7 @@ export default function HomeDashboard() {
           </div>
         </div>
 
-        {/* ── Charts row 1 ─────────────────────────────── */}
+        {/* ── Charts row 1: Leads-by-channel + Lead-to-outcome ─── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
           {/* Leads by channel — horizontal bars */}
@@ -356,7 +359,7 @@ export default function HomeDashboard() {
                       className="flex items-center gap-2 text-sm py-1 cursor-pointer hover:bg-muted/40 rounded px-1 -mx-1 group"
                       onClick={() => navigate(`/crm/inbox?channel=${ch.channel}`)}
                     >
-                      <span className="w-[88px] text-xs text-muted-foreground truncate shrink-0 group-hover:text-foreground transition-colors">
+                      <span className="w-[100px] text-xs text-muted-foreground truncate shrink-0 group-hover:text-foreground transition-colors">
                         {CHANNEL_LABELS[ch.channel] ?? ch.channel}
                       </span>
                       <div className="flex-1 h-[14px] bg-muted/30 rounded-sm overflow-hidden">
@@ -379,77 +382,11 @@ export default function HomeDashboard() {
             </CardContent>
           </Card>
 
-          {/* Active campaigns mini-table */}
-          <Card>
-            <CardHeader className="pb-2 pt-5 px-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-semibold">Active campaigns</CardTitle>
-                  <span className="text-[11px] bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">new</span>
-                </div>
-                <button
-                  className="text-xs text-blue-600 hover:underline shrink-0"
-                  onClick={() => navigate("/marketing/campaigns")}
-                >
-                  View all →
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Live & recent · by patients reached</p>
-            </CardHeader>
-            <CardContent className="px-2 pb-3">
-              {activeCampaignsList.length === 0 ? (
-                <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
-                  No active campaigns
-                </div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-muted-foreground border-b">
-                      <th className="text-left font-medium py-2 px-3">Campaign</th>
-                      <th className="text-center font-medium py-2 px-2 w-10">Ch</th>
-                      <th className="text-right font-medium py-2 px-2">Reached</th>
-                      <th className="text-right font-medium py-2 px-2">Delivery</th>
-                      <th className="text-right font-medium py-2 px-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeCampaignsList.map((c: any) => (
-                      <tr
-                        key={c.id}
-                        className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
-                        onClick={() => navigate("/marketing/campaigns")}
-                      >
-                        <td className="py-2 px-3 font-medium text-xs max-w-[120px] truncate">{c.name}</td>
-                        <td className="py-2 px-2 text-center">
-                          <ChannelIcon channel={c.channel} />
-                        </td>
-                        <td className="py-2 px-2 text-right text-xs text-muted-foreground">
-                          {c.reached.toLocaleString("en-IN")}
-                        </td>
-                        <td className="py-2 px-2 text-right text-xs text-muted-foreground">{c.deliveryRate}%</td>
-                        <td className="py-2 px-3 text-right">
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${CAMPAIGN_STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                            {c.status === "completed" ? "done" : c.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ── Charts row 2 ─────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
           {/* Lead-to-outcome stacked horizontal bars */}
           <Card>
             <CardHeader className="pb-2 pt-5 px-5">
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base font-semibold">Lead-to-outcome by channel</CardTitle>
-                <span className="text-[11px] bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">new</span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">Lifecycle stage distribution per source</p>
             </CardHeader>
@@ -469,7 +406,7 @@ export default function HomeDashboard() {
                       <YAxis
                         type="category"
                         dataKey="channelLabel"
-                        width={80}
+                        width={90}
                         tick={{ fontSize: 11 }}
                         tickLine={false}
                         axisLine={false}
@@ -493,15 +430,81 @@ export default function HomeDashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
 
-          {/* Lead volume — last 7 days */}
+        {/* ── Active campaigns — full width ─────────────────── */}
+        <Card>
+          <CardHeader className="pb-2 pt-5 px-5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Active campaigns</CardTitle>
+              <button
+                className="text-xs text-blue-600 hover:underline shrink-0"
+                onClick={() => navigate("/marketing/campaigns")}
+              >
+                View all →
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">Live, paused & recently completed · up to 6 shown</p>
+          </CardHeader>
+          <CardContent className="px-2 pb-3">
+            {activeCampaignsList.length === 0 ? (
+              <div className="h-20 flex items-center justify-center text-sm text-muted-foreground">
+                No active campaigns
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-muted-foreground border-b">
+                    <th className="text-left font-medium py-2 px-3">Campaign</th>
+                    <th className="text-left font-medium py-2 px-2">Goal</th>
+                    <th className="text-center font-medium py-2 px-2 w-10">Ch</th>
+                    <th className="text-right font-medium py-2 px-2">Reached</th>
+                    <th className="text-right font-medium py-2 px-2">Delivery</th>
+                    <th className="text-right font-medium py-2 px-2">Conversions</th>
+                    <th className="text-right font-medium py-2 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeCampaignsList.map((c: any) => (
+                    <tr
+                      key={c.id}
+                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                      onClick={() => navigate("/marketing/campaigns")}
+                    >
+                      <td className="py-2 px-3 font-medium text-xs max-w-[180px] truncate">{c.name}</td>
+                      <td className="py-2 px-2 text-xs text-muted-foreground truncate max-w-[120px]">{c.goal || "—"}</td>
+                      <td className="py-2 px-2 text-center">
+                        <ChannelIcon channel={c.channel} />
+                      </td>
+                      <td className="py-2 px-2 text-right text-xs text-muted-foreground">
+                        {(c.reached ?? 0).toLocaleString("en-IN")}
+                      </td>
+                      <td className="py-2 px-2 text-right text-xs text-muted-foreground">{c.deliveryRate ?? 0}%</td>
+                      <td className="py-2 px-2 text-right text-xs text-muted-foreground">
+                        {(c.conversions ?? 0).toLocaleString("en-IN")}
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${CAMPAIGN_STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                          {c.status === "completed" ? "done" : c.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Lead volume — last 7 days ───────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <Card>
             <CardHeader className="pb-2 pt-5 px-5">
               <CardTitle className="text-base font-semibold">Lead volume — last 7 days</CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">Daily arrivals across all channels</p>
             </CardHeader>
             <CardContent className="px-3 pb-5">
-              <div className="h-56">
+              <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={trend}

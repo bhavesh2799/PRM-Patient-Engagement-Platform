@@ -622,6 +622,75 @@ paths:
               schema:
                 $ref: "#/components/schemas/Segment"
 
+  /leads/simulate-email:
+    post:
+      operationId: simulateInboundEmail
+      tags: [leads]
+      summary: Simulate an inbound email (creates/finds lead + email message)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateEmailInput"
+      responses:
+        "201":
+          description: Lead with email thread
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/{id}/stage:
+    patch:
+      operationId: advanceLeadStage
+      tags: [leads]
+      summary: Advance or set the module stage for a lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadStageInput"
+      responses:
+        "200":
+          description: Updated lead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/{id}/calls:
+    post:
+      operationId: logCall
+      tags: [leads]
+      summary: Log a call outcome for a lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CallLogInput"
+      responses:
+        "201":
+          description: Activity log entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityLogEntry"
+
   # ── Appointments ──────────────────────────────────────────────────────────
   /appointments:
     get:
@@ -1672,16 +1741,23 @@ components:
           type: string
         mobile:
           type: string
+        email:
+          type: ["string", "null"]
         uhid:
           type: ["string", "null"]
         specialization:
           type: ["string", "null"]
         sourceChannel:
           type: string
-          enum: [waba, web_chat, form, csv, app_booking, web_booking, push]
+          enum: [waba, web_chat, form, csv, app_booking, web_booking, email, medicine_order, lab_test, web_appointment, app_appointment]
         status:
           type: string
           enum: [new, contacted, in_progress, fulfilled, closed]
+        moduleStage:
+          type: ["string", "null"]
+        transactionContext:
+          type: ["object", "null"]
+          additionalProperties: true
         ownerUserId:
           type: ["integer", "null"]
         ownerName:
@@ -1711,16 +1787,23 @@ components:
           type: string
         mobile:
           type: string
+        email:
+          type: ["string", "null"]
         uhid:
           type: ["string", "null"]
         specialization:
           type: ["string", "null"]
         sourceChannel:
           type: string
-          enum: [waba, web_chat, form, csv, app_booking, web_booking, push]
+          enum: [waba, web_chat, form, csv, app_booking, web_booking, email, medicine_order, lab_test, web_appointment, app_appointment]
         status:
           type: string
           enum: [new, contacted, in_progress, fulfilled, closed]
+        moduleStage:
+          type: ["string", "null"]
+        transactionContext:
+          type: ["object", "null"]
+          additionalProperties: true
         ownerUserId:
           type: ["integer", "null"]
         ownerName:
@@ -1769,13 +1852,17 @@ components:
           type: string
         mobile:
           type: string
+        email:
+          type: string
         uhid:
           type: string
         specialization:
           type: string
         sourceChannel:
           type: string
-          enum: [waba, web_chat, form, csv, app_booking, web_booking, push]
+          enum: [waba, web_chat, form, csv, app_booking, web_booking, email, medicine_order, lab_test, web_appointment, app_appointment]
+        moduleStage:
+          type: string
         optedIn:
           type: boolean
         sourceListTag:
@@ -1809,6 +1896,8 @@ components:
           enum: [in, out]
         body:
           type: string
+        subject:
+          type: ["string", "null"]
         channel:
           type: string
         templateId:
@@ -1842,6 +1931,46 @@ components:
           type: ["string", "null"]
         firstName:
           type: ["string", "null"]
+
+    SimulateEmailInput:
+      type: object
+      required: [email, subject, body]
+      properties:
+        email:
+          type: string
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        mobile:
+          type: ["string", "null"]
+        subject:
+          type: string
+        body:
+          type: string
+
+    LeadStageInput:
+      type: object
+      required: [stage]
+      properties:
+        stage:
+          type: string
+        userId:
+          type: ["integer", "null"]
+
+    CallLogInput:
+      type: object
+      required: [outcome]
+      properties:
+        outcome:
+          type: string
+          enum: [connected, no_answer, wrong_number, voicemail]
+        durationSeconds:
+          type: ["integer", "null"]
+        note:
+          type: ["string", "null"]
+        userId:
+          type: ["integer", "null"]
 
     CsvUploadInput:
       type: object
@@ -2364,6 +2493,9 @@ components:
       properties:
         amount:
           type: number
+        paymentMethod:
+          type: string
+          enum: [PayU, Easebuzz]
 
     # ── Invoice ───────────────────────────────────────────────────────────────
     Invoice:

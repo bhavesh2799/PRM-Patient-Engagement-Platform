@@ -4,3 +4,6 @@
 - [Appointment type imports](appt-type-imports.md) — import Appointment/Doctor types from `@workspace/api-client-react`, not `@workspace/api-zod` — api-zod is not in hospital-crm deps
 - [Express route ordering bulk vs :id](express-route-ordering.md) — tagsRouter (has /leads/bulk) must be mounted BEFORE leadsRouter (has /leads/:id) in routes/index.ts or "bulk" gets parsed as an ID param
 - [Seed drizzle eq import](seed-eq-import.md) — seed.ts doesn't import drizzle-orm by default; add `import { eq } from "drizzle-orm"` when using .where(eq(...)) in seed updates
+- [React hooks order in dashboards](hooks-order-dashboards.md) — all useState/useQuery must be declared before any early return; hoisting is required every time new state is added to a data-dependent component.
+- [Inbox bulk-assign role split](inbox-bulk-assign.md) — exec gets "Assign to me" button; manager/ap_admin gets "Assign to…" dropdown powered by useListUsers(); isManager checks both roles.
+- [Module channels list](module-channels.md) — MODULE_CHANNELS = ["medicine_order","lab_test","web_appointment","app_appointment"]; email is its own branch with subject+body composer; push removed from sourceChannel.

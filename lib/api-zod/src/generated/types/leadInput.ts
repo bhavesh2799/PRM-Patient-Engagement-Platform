@@ -11,9 +11,11 @@ export interface LeadInput {
   firstName: string;
   lastName: string;
   mobile: string;
+  email?: string;
   uhid?: string;
   specialization?: string;
   sourceChannel: LeadInputSourceChannel;
+  moduleStage?: string;
   optedIn?: boolean;
   sourceListTag?: string;
 }

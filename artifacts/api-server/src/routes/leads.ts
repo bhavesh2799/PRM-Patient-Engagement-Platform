@@ -56,9 +56,12 @@ router.post("/leads", async (req, res): Promise<void> => {
     firstName: z.string().min(1),
     lastName: z.string().min(1),
     mobile: z.string().min(10),
+    email: z.string().email().optional(),
     uhid: z.string().optional(),
     specialization: z.string().optional(),
-    sourceChannel: z.enum(["waba", "web_chat", "form", "csv", "app_booking", "web_booking", "push"]),
+    sourceChannel: z.enum(["waba", "web_chat", "form", "csv", "app_booking", "web_booking", "email", "medicine_order", "lab_test", "web_appointment", "app_appointment"]),
+    moduleStage: z.string().optional(),
+    transactionContext: z.record(z.unknown()).optional(),
     optedIn: z.boolean().default(true),
     sourceListTag: z.string().optional(),
     userId: z.number().int().nullable().optional(),
@@ -190,6 +193,7 @@ router.post("/leads/:id/messages", async (req, res): Promise<void> => {
   const schema = z.object({
     messageType: z.enum(["free_text", "template"]).default("template"),
     body: z.string().optional(),
+    subject: z.string().optional(),
     templateId: z.number().int().optional(),
     channel: z.string(),
     userId: z.number().int().nullable().optional(),
@@ -230,7 +234,7 @@ router.post("/leads/:id/messages", async (req, res): Promise<void> => {
     if (!body) { res.status(400).json({ error: "Message body is required" }); return; }
 
     const [msg] = await db.insert(messagesTable).values({
-      leadId, direction: "out", body, channel, status: "sent",
+      leadId, direction: "out", body, subject: parsed.data.subject ?? null, channel, status: "sent",
     }).returning();
 
     await db.update(leadsTable).set({
@@ -485,6 +489,150 @@ router.post("/leads/group-segment", async (req, res): Promise<void> => {
     memberLeadIds: parsed.data.leadIds,
   }).returning();
   res.status(201).json(seg);
+});
+
+// ─── Simulate inbound email ────────────────────────────────────
+router.post("/leads/simulate-email", async (req, res): Promise<void> => {
+  const schema = z.object({
+    email: z.string().email(),
+    firstName: z.string().nullable().optional(),
+    lastName: z.string().nullable().optional(),
+    mobile: z.string().nullable().optional(),
+    subject: z.string().min(1),
+    body: z.string().min(1),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const { email, subject, body } = parsed.data;
+  let lead: typeof leadsTable.$inferSelect | undefined;
+
+  // Try to find existing lead by email
+  const allLeads = await db.select().from(leadsTable);
+  lead = allLeads.find(l => l.email === email);
+
+  if (!lead) {
+    const mobile = parsed.data.mobile ?? `9${Math.floor(Math.random() * 900000000 + 100000000)}`;
+    const firstName = parsed.data.firstName ?? email.split("@")[0].split(".")[0] ?? "Patient";
+    [lead] = await db.insert(leadsTable).values({
+      firstName: firstName.charAt(0).toUpperCase() + firstName.slice(1),
+      lastName: parsed.data.lastName ?? "Patient",
+      mobile,
+      email,
+      sourceChannel: "email",
+      status: "new",
+      optedIn: true,
+    }).returning();
+    await db.insert(activityLogTable).values({
+      leadId: lead.id,
+      type: "created",
+      description: "Lead created via inbound email",
+      userId: null,
+    });
+  }
+
+  await db.insert(messagesTable).values({
+    leadId: lead.id,
+    direction: "in",
+    body,
+    subject,
+    channel: "email",
+    status: "received",
+  });
+
+  await db.update(leadsTable).set({ lastActionAt: new Date() }).where(eq(leadsTable.id, lead.id));
+
+  res.status(201).json(await enrichLead(lead));
+});
+
+// ─── Advance module stage ──────────────────────────────────────
+router.patch("/leads/:id/stage", async (req, res): Promise<void> => {
+  const id = parseId(req.params.id);
+  const schema = z.object({
+    stage: z.string().min(1),
+    userId: z.number().int().nullable().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Lead not found" }); return; }
+
+  const prevStage = existing.moduleStage ?? "—";
+  const newStage = parsed.data.stage;
+
+  // Auto-fulfil on terminal stages
+  const terminalStages = ["delivered", "result_ready", "visited"];
+  const newStatus = terminalStages.includes(newStage) ? "fulfilled" : existing.status;
+
+  const [lead] = await db.update(leadsTable)
+    .set({ moduleStage: newStage, status: newStatus, lastActionAt: new Date() })
+    .where(eq(leadsTable.id, id)).returning();
+
+  await db.insert(activityLogTable).values({
+    leadId: id,
+    type: "stage_change",
+    description: `Stage advanced: ${prevStage} → ${newStage}`,
+    userId: parsed.data.userId ?? null,
+  });
+
+  if (newStatus !== existing.status) {
+    await db.insert(activityLogTable).values({
+      leadId: id,
+      type: "status_change",
+      description: `Status auto-updated: ${existing.status} → ${newStatus} (terminal stage reached)`,
+      userId: parsed.data.userId ?? null,
+    });
+  }
+
+  res.json(await enrichLead(lead));
+});
+
+// ─── Log a call ────────────────────────────────────────────────
+router.post("/leads/:id/calls", async (req, res): Promise<void> => {
+  const id = parseId(req.params.id);
+  const schema = z.object({
+    outcome: z.enum(["connected", "no_answer", "wrong_number", "voicemail"]),
+    durationSeconds: z.number().int().nullable().optional(),
+    note: z.string().nullable().optional(),
+    userId: z.number().int().nullable().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Lead not found" }); return; }
+
+  const { outcome, durationSeconds, note, userId } = parsed.data;
+  const durStr = durationSeconds ? ` (${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s)` : "";
+  const noteStr = note ? ` — "${note}"` : "";
+  const description = `Call ${outcome}${durStr}${noteStr}`;
+
+  const [entry] = await db.insert(activityLogTable).values({
+    leadId: id,
+    type: "call",
+    description,
+    userId: userId ?? null,
+  }).returning();
+
+  // Advance status from new → contacted on any call attempt
+  if (existing.status === "new") {
+    await db.update(leadsTable)
+      .set({ status: "contacted", lastActionAt: new Date() })
+      .where(eq(leadsTable.id, id));
+    await db.insert(activityLogTable).values({
+      leadId: id,
+      type: "status_change",
+      description: "Status changed from new → contacted (call logged)",
+      userId: userId ?? null,
+    });
+  } else {
+    await db.update(leadsTable)
+      .set({ lastActionAt: new Date() })
+      .where(eq(leadsTable.id, id));
+  }
+
+  res.status(201).json(entry);
 });
 
 export default router;

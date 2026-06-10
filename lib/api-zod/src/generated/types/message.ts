@@ -12,6 +12,8 @@ export interface Message {
   leadId: number;
   direction: MessageDirection;
   body: string;
+  /** @nullable */
+  subject?: string | null;
   channel: string;
   /** @nullable */
   templateId?: number | null;

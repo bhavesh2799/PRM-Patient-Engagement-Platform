@@ -382,12 +382,22 @@ export async function runSeed(force = false): Promise<void> {
     { firstName: "Usha", lastName: "Bhat", mobile: "9622323456", specialization: "Gynaecology", sourceChannel: "web_booking" as const, status: "fulfilled" as const, uhid: "UHID-10003" },
     { firstName: "Nagesh", lastName: "Shetty", mobile: "9633423456", specialization: "Neurology", sourceChannel: "web_booking" as const, status: "in_progress" as const },
     { firstName: "Padma", lastName: "Venkatesh", mobile: "9644523456", specialization: "Paediatrics", sourceChannel: "web_booking" as const, status: "new" as const },
-    // Push-triggered
-    { firstName: "Rohit", lastName: "Malhotra", mobile: "9500123456", specialization: "Cardiology", sourceChannel: "push" as const, status: "contacted" as const, ownerUserId: u1.id, uhid: "UHID-20001" },
-    { firstName: "Kavya", lastName: "Hegde", mobile: "9511223456", specialization: "Dermatology", sourceChannel: "push" as const, status: "new" as const, uhid: "UHID-20002" },
-    { firstName: "Santosh", lastName: "Kulkarni", mobile: "9522323456", specialization: "General Medicine", sourceChannel: "push" as const, status: "new" as const, uhid: "UHID-20003", optedIn: false },
-    { firstName: "Hema", lastName: "Naidu", mobile: "9533423456", specialization: "Oncology", sourceChannel: "push" as const, status: "in_progress" as const, ownerUserId: u2.id, uhid: "UHID-20004" },
-    { firstName: "Prasad", lastName: "Rao", mobile: "9544523456", specialization: "Gastroenterology", sourceChannel: "push" as const, status: "fulfilled" as const, uhid: "UHID-20005" },
+    // Email leads
+    { firstName: "Rohit", lastName: "Malhotra", mobile: "9500123456", email: "rohit.malhotra@gmail.com", specialization: "Cardiology", sourceChannel: "email" as const, status: "new" as const, ownerUserId: u1.id },
+    { firstName: "Kavya", lastName: "Hegde", mobile: "9511223456", email: "kavya.hegde@outlook.com", specialization: "Dermatology", sourceChannel: "email" as const, status: "contacted" as const, ownerUserId: u1.id },
+    { firstName: "Santosh", lastName: "Kulkarni", mobile: "9522323456", email: "santosh.k@company.in", specialization: "General Medicine", sourceChannel: "email" as const, status: "in_progress" as const, ownerUserId: u2.id },
+    // Medicine order leads
+    { firstName: "Hema", lastName: "Naidu", mobile: "9533423456", specialization: "Oncology", sourceChannel: "medicine_order" as const, status: "in_progress" as const, ownerUserId: u2.id, uhid: "UHID-MO001", moduleStage: "processing" },
+    { firstName: "Prasad", lastName: "Rao", mobile: "9544523456", specialization: "Gastroenterology", sourceChannel: "medicine_order" as const, status: "fulfilled" as const, uhid: "UHID-MO002", moduleStage: "delivered" },
+    // Lab test leads
+    { firstName: "Nalini", lastName: "Subramaniam", mobile: "9555623456", specialization: "Cardiology", sourceChannel: "lab_test" as const, status: "new" as const, uhid: "UHID-LT001", moduleStage: "sample_collected" },
+    { firstName: "Bharath", lastName: "Krishnamurthy", mobile: "9566723456", specialization: "General Medicine", sourceChannel: "lab_test" as const, status: "in_progress" as const, ownerUserId: u1.id, uhid: "UHID-LT002", moduleStage: "processing" },
+    // Web appointment leads
+    { firstName: "Sarita", lastName: "Jain", mobile: "9577823456", specialization: "Gynaecology", sourceChannel: "web_appointment" as const, status: "contacted" as const, ownerUserId: u1.id, uhid: "UHID-WA001", moduleStage: "scheduled" },
+    { firstName: "Kiran", lastName: "Reddy", mobile: "9588923456", specialization: "Orthopedics", sourceChannel: "web_appointment" as const, status: "fulfilled" as const, ownerUserId: u2.id, uhid: "UHID-WA002", moduleStage: "visited" },
+    // App appointment leads
+    { firstName: "Divya", lastName: "Menon", mobile: "9599023456", specialization: "Paediatrics", sourceChannel: "app_appointment" as const, status: "new" as const, uhid: "UHID-AA001", moduleStage: "scheduled" },
+    { firstName: "Sudhir", lastName: "Pillai", mobile: "9610123456", specialization: "Neurology", sourceChannel: "app_appointment" as const, status: "in_progress" as const, ownerUserId: u2.id, uhid: "UHID-AA002", moduleStage: "confirmed" },
   ];
 
   // Offset createdAt for realistic dates
@@ -461,6 +471,102 @@ export async function runSeed(force = false): Promise<void> {
   await db.insert(messagesTable).values([
     { leadId: prashant.id, direction: "in", body: "Hi! I had a knee injury playing cricket 3 months ago. It still hurts when I climb stairs. Can I see Dr. Ramesh Nair?", channel: "web_chat", status: "received", timestamp: new Date(now - 20 * 60 * 1000) },
   ]);
+
+  // Email threads for email leads (insertedLeads[20-22])
+  const rohitEmail = insertedLeads[20];
+  if (rohitEmail) {
+    await db.insert(messagesTable).values([
+      { leadId: rohitEmail.id, direction: "in", body: "Hello,\n\nI have been experiencing occasional chest tightness and shortness of breath over the past 2 weeks. My family physician recommended I see a cardiologist.\n\nCould you please let me know about availability for Dr. Ananya Krishnan? I am based in Koramangala.\n\nThank you,\nRohit Malhotra", subject: "Cardiology Consultation Request", channel: "email", status: "received", timestamp: new Date(now - 3 * 3600 * 1000) },
+    ]);
+    await db.insert(activityLogTable).values({
+      leadId: rohitEmail.id, type: "message_received", description: "Email received: Cardiology Consultation Request", userId: null, createdAt: new Date(now - 3 * 3600 * 1000),
+    });
+  }
+
+  const kavyaEmail = insertedLeads[21];
+  if (kavyaEmail) {
+    await db.insert(messagesTable).values([
+      { leadId: kavyaEmail.id, direction: "in", body: "Hi,\n\nI visited your hospital last month for a skin rash. Dr. Sunitha had prescribed a topical cream. The rash has partially subsided but I still have itching.\n\nCan I book a follow-up appointment?\n\nRegards,\nKavya Hegde", subject: "Follow-up: Dermatology Visit (Ref: DRM-2024-447)", channel: "email", status: "received", timestamp: new Date(now - 5 * 3600 * 1000) },
+      { leadId: kavyaEmail.id, direction: "out", body: "Dear Kavya,\n\nThank you for reaching out. Dr. Sunitha is available this Friday between 10 AM – 1 PM and next Monday 9 AM – 12 PM.\n\nKindly reply with your preferred slot and we will confirm the appointment.\n\nWarm regards,\nPatient Relations – Sunrise Hospital", subject: "Re: Follow-up: Dermatology Visit (Ref: DRM-2024-447)", channel: "email", status: "delivered", timestamp: new Date(now - 4 * 3600 * 1000) },
+    ]);
+    await db.insert(activityLogTable).values({
+      leadId: kavyaEmail.id, type: "assignment", description: "Assigned to Priya Sharma", userId: u1.id, createdAt: new Date(now - 4.5 * 3600 * 1000),
+    });
+  }
+
+  const santoshEmail = insertedLeads[22];
+  if (santoshEmail) {
+    await db.insert(messagesTable).values([
+      { leadId: santoshEmail.id, direction: "in", body: "Dear Sir/Madam,\n\nI am writing on behalf of Santosh Kulkarni (Employee ID: EMP-3842) to inquire about your corporate health check-up packages.\n\nWe are looking for a package covering blood work, ECG, chest X-ray, and abdominal ultrasound. Could you share your corporate tariff?\n\nBest regards,\nHR Department, Infosys Ltd", subject: "Corporate Health Check-up Enquiry", channel: "email", status: "received", timestamp: new Date(now - 1 * 3600 * 1000) },
+      { leadId: santoshEmail.id, direction: "out", body: "Dear HR Team,\n\nThank you for your enquiry. Our Corporate Executive Health Check-up package (₹3,200/person) includes:\n• Complete Blood Count + Lipid profile\n• ECG (12-lead)\n• Chest X-ray (PA view)\n• Ultrasound Abdomen\n• BMI & BP assessment\n• Physician consultation\n\nFor groups of 20+, we offer a 15% discount. Our corporate coordinator Ankit Joshi (+91-80-4567-8910) can arrange a camp at your premises.\n\nKind regards,\nCorporate Health Division, Sunrise Hospital", subject: "Re: Corporate Health Check-up Enquiry", channel: "email", status: "read", timestamp: new Date(now - 30 * 60 * 1000) },
+    ]);
+    await db.insert(activityLogTable).values([
+      { leadId: santoshEmail.id, type: "status_change", description: "Status changed from new → in_progress", userId: u2.id, createdAt: new Date(now - 45 * 60 * 1000) },
+      { leadId: santoshEmail.id, type: "assignment", description: "Assigned to Ramesh Iyer", userId: u2.id, createdAt: new Date(now - 45 * 60 * 1000) },
+    ]);
+  }
+
+  // Add transactionContext for module-driven leads
+  const hema = insertedLeads[23]; // medicine_order – processing
+  if (hema) {
+    await db.update(leadsTable).set({
+      transactionContext: { medicines: [{ name: "Capecitabine 500mg", qty: 60, dosage: "Twice daily with food" }, { name: "Ondansetron 4mg", qty: 30, dosage: "As needed for nausea" }], totalAmount: 4820, pharmacy: "Sunrise Pharmacy – Main Block", orderId: "ORD-20240612-7841" },
+    }).where(eq(leadsTable.id, hema.id));
+    await db.insert(activityLogTable).values({ leadId: hema.id, type: "stage_change", description: "Stage advanced: order_placed → processing", userId: u2.id, createdAt: new Date(now - 2 * 3600 * 1000) });
+  }
+
+  const prasad = insertedLeads[24]; // medicine_order – delivered
+  if (prasad) {
+    await db.update(leadsTable).set({
+      transactionContext: { medicines: [{ name: "Pantoprazole 40mg", qty: 30, dosage: "Once daily before breakfast" }, { name: "Domperidone 10mg", qty: 30, dosage: "Twice daily before meals" }], totalAmount: 680, pharmacy: "Sunrise Pharmacy – Wing B", orderId: "ORD-20240608-5521" },
+    }).where(eq(leadsTable.id, prasad.id));
+    await db.insert(activityLogTable).values({ leadId: prasad.id, type: "stage_change", description: "Stage advanced: dispatched → delivered", userId: null, createdAt: new Date(now - 6 * 3600 * 1000) });
+  }
+
+  const nalini = insertedLeads[25]; // lab_test – sample_collected
+  if (nalini) {
+    await db.update(leadsTable).set({
+      transactionContext: { tests: [{ name: "Lipid Profile", code: "LIP-001" }, { name: "Troponin I (hsTnI)", code: "CAR-005" }, { name: "NT-proBNP", code: "CAR-009" }], lab: "Sunrise Diagnostics – Ground Floor", sampleCollectedAt: new Date(now - 4 * 3600 * 1000).toISOString(), labRefId: "LAB-20240612-3301" },
+    }).where(eq(leadsTable.id, nalini.id));
+  }
+
+  const bharath = insertedLeads[26]; // lab_test – processing
+  if (bharath) {
+    await db.update(leadsTable).set({
+      transactionContext: { tests: [{ name: "Complete Blood Count", code: "CBC-001" }, { name: "HbA1c", code: "DIA-003" }, { name: "Fasting Blood Glucose", code: "DIA-001" }], lab: "Sunrise Diagnostics – Ground Floor", sampleCollectedAt: new Date(now - 2 * 3600 * 1000).toISOString(), labRefId: "LAB-20240612-3485" },
+    }).where(eq(leadsTable.id, bharath.id));
+    await db.insert(activityLogTable).values({ leadId: bharath.id, type: "stage_change", description: "Stage advanced: sample_collected → processing", userId: null, createdAt: new Date(now - 1 * 3600 * 1000) });
+  }
+
+  const sarita = insertedLeads[27]; // web_appointment – scheduled
+  if (sarita) {
+    await db.update(leadsTable).set({
+      transactionContext: { doctorName: "Dr. Kavitha Reddy", specialization: "Gynaecology & Obstetrics", dateTime: new Date(now + 2 * 24 * 3600 * 1000).toISOString(), mode: "In-person", appointmentId: "APT-20240614-1122", opNo: "OP-8834" },
+    }).where(eq(leadsTable.id, sarita.id));
+  }
+
+  const kiran = insertedLeads[28]; // web_appointment – visited
+  if (kiran) {
+    await db.update(leadsTable).set({
+      transactionContext: { doctorName: "Dr. Ramesh Nair", specialization: "Orthopedics", dateTime: new Date(now - 1 * 24 * 3600 * 1000).toISOString(), mode: "In-person", appointmentId: "APT-20240611-0891", opNo: "OP-7712", visitNotes: "Reviewed X-ray. Physiotherapy plan advised for 6 weeks." },
+    }).where(eq(leadsTable.id, kiran.id));
+    await db.insert(activityLogTable).values({ leadId: kiran.id, type: "stage_change", description: "Stage advanced: confirmed → visited", userId: u2.id, createdAt: new Date(now - 4 * 3600 * 1000) });
+  }
+
+  const divya = insertedLeads[29]; // app_appointment – scheduled
+  if (divya) {
+    await db.update(leadsTable).set({
+      transactionContext: { doctorName: "Dr. Sunita Rao", specialization: "Paediatrics", dateTime: new Date(now + 1 * 24 * 3600 * 1000).toISOString(), mode: "In-person", appointmentId: "APT-20240613-2287", bookedVia: "Affordplan App" },
+    }).where(eq(leadsTable.id, divya.id));
+  }
+
+  const sudhir = insertedLeads[30]; // app_appointment – confirmed
+  if (sudhir) {
+    await db.update(leadsTable).set({
+      transactionContext: { doctorName: "Dr. Meera Pillai", specialization: "Neurology", dateTime: new Date(now + 3 * 3600 * 1000).toISOString(), mode: "In-person", appointmentId: "APT-20240612-4409", bookedVia: "Affordplan App", confirmationSentAt: new Date(now - 1 * 3600 * 1000).toISOString() },
+    }).where(eq(leadsTable.id, sudhir.id));
+    await db.insert(activityLogTable).values({ leadId: sudhir.id, type: "stage_change", description: "Stage advanced: scheduled → confirmed", userId: null, createdAt: new Date(now - 1 * 3600 * 1000) });
+  }
 
   // Additional activity logs for the other leads
   await db.insert(activityLogTable).values([
