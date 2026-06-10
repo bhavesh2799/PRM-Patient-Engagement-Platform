@@ -242,76 +242,75 @@ export default function MarketingDashboard() {
           </div>
         </div>
 
-        {/* ── CHARTS ROW ──────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-          {/* Channel performance */}
-          {channelPerf.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2 pt-5 px-5">
-                <CardTitle className="text-base font-semibold">Channel Performance</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">Patients reached by channel this month</p>
-              </CardHeader>
-              <CardContent className="px-5 pb-5">
-                <div className="space-y-2 mt-1">
-                  {channelPerf.map((ch: any) => (
-                    <div key={ch.channel} className="flex items-center gap-2 text-sm py-0.5">
-                      <span className="w-28 text-xs text-muted-foreground truncate shrink-0">
-                        {CHANNEL_LABELS[ch.channel] ?? ch.channel}
-                      </span>
-                      <div className="flex-1 h-[10px] bg-muted/30 rounded-sm overflow-hidden">
-                        <div
-                          className="h-full rounded-sm"
-                          style={{ width: `${(ch.reached / maxReached) * 100}%`, backgroundColor: "hsl(var(--primary) / 0.65)" }}
-                        />
-                      </div>
-                      <span className="w-10 text-xs font-medium text-right shrink-0">{ch.reached?.toLocaleString("en-IN") ?? 0}</span>
-                      <span className="w-12 text-right shrink-0 text-xs text-green-600 font-medium">
-                        {ch.deliveryRate > 0 ? `${ch.deliveryRate}%` : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Recent campaigns mini-table */}
+        {/* ── CHANNEL PERFORMANCE ─────────────── */}
+        {channelPerf.length > 0 && (
           <Card>
             <CardHeader className="pb-2 pt-5 px-5">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">Recent Campaigns</CardTitle>
-                <button className="text-xs text-blue-600 hover:underline shrink-0" onClick={() => navigate("/marketing/campaigns")}>
-                  View all →
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Latest activity · sorted by recency</p>
+              <CardTitle className="text-base font-semibold">Channel Performance</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Patients reached by channel this month</p>
             </CardHeader>
-            <CardContent className="px-2 pb-3">
-              {filteredCampaigns.length === 0 ? (
-                <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
-                  {recentCampaigns.length === 0 ? "No campaigns yet" : "No campaigns match filters"}
-                </div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-muted-foreground border-b">
-                      <th className="text-left font-medium py-2 px-3">Campaign</th>
-                      <th className="text-center font-medium py-2 px-2 w-8">Ch</th>
-                      <th className="text-right font-medium py-2 px-2">Sent</th>
-                      <th className="text-right font-medium py-2 px-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCampaigns.slice(0, 6).map((c: any) => (
+            <CardContent className="px-5 pb-5">
+              <div className="space-y-2 mt-1">
+                {channelPerf.map((ch: any) => (
+                  <div key={ch.channel} className="flex items-center gap-2 text-sm py-0.5">
+                    <span className="w-28 text-xs text-muted-foreground truncate shrink-0">
+                      {CHANNEL_LABELS[ch.channel] ?? ch.channel}
+                    </span>
+                    <div className="flex-1 h-[10px] bg-muted/30 rounded-sm overflow-hidden">
+                      <div
+                        className="h-full rounded-sm"
+                        style={{ width: `${(ch.reached / maxReached) * 100}%`, backgroundColor: "hsl(var(--primary) / 0.65)" }}
+                      />
+                    </div>
+                    <span className="w-10 text-xs font-medium text-right shrink-0">{ch.reached?.toLocaleString("en-IN") ?? 0}</span>
+                    <span className="w-12 text-right shrink-0 text-xs text-green-600 font-medium">
+                      {ch.deliveryRate > 0 ? `${ch.deliveryRate}%` : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── RECENT CAMPAIGNS (full width) ───── */}
+        <Card>
+          <CardHeader className="pb-2 pt-5 px-5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Recent Campaigns</CardTitle>
+              <button className="text-xs text-blue-600 hover:underline shrink-0" onClick={() => navigate("/marketing/campaigns")}>
+                View all →
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">Latest activity · sorted by recency</p>
+          </CardHeader>
+          <CardContent className="px-2 pb-3">
+            {filteredCampaigns.length === 0 ? (
+              <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
+                {recentCampaigns.length === 0 ? "No campaigns yet" : "No campaigns match filters"}
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-muted-foreground border-b">
+                    <th className="text-left font-medium py-2 px-3">Campaign</th>
+                    <th className="text-center font-medium py-2 px-2 w-8">Ch</th>
+                    <th className="text-right font-medium py-2 px-2">Sent</th>
+                    <th className="text-right font-medium py-2 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCampaigns.slice(0, 8).map((c: any) => {
+                    const channel = c.channel ?? c.channels?.[0]?.channel ?? "";
+                    return (
                       <tr
                         key={c.id}
                         className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
                         onClick={() => navigate(`/marketing/metrics?campaign=${c.id}`)}
                       >
-                        <td className="py-2 px-3 font-medium text-xs max-w-[130px] truncate">{c.name}</td>
+                        <td className="py-2 px-3 font-medium text-xs">{c.name}</td>
                         <td className="py-2 px-2 text-center">
-                          <ChannelIcon channel={c.channel ?? (c.channels?.[0]?.channel ?? "")} />
+                          <ChannelIcon channel={channel} />
                         </td>
                         <td className="py-2 px-2 text-right text-xs text-muted-foreground">
                           {(c.sent ?? 0).toLocaleString("en-IN")}
@@ -322,13 +321,13 @@ export default function MarketingDashboard() {
                           </span>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
 
       </div>
     </AppLayout>

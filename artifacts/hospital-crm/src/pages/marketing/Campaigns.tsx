@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Plus, Pause, AlertCircle, CheckCircle2, XCircle, BarChart2, AlertTriangle,
-  MessageSquare, Smartphone, Mail,
+  MessageSquare, Smartphone, Bell,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
@@ -38,7 +38,7 @@ const STATUS_COLORS: Record<string, string> = {
 function ChannelIcon({ channel }: { channel: string }) {
   if (channel === "whatsapp") return <MessageSquare size={12} className="text-green-600" />;
   if (channel === "sms") return <Smartphone size={12} className="text-blue-600" />;
-  if (channel === "email") return <Mail size={12} className="text-indigo-500" />;
+  if (channel === "push") return <Bell size={12} className="text-purple-500" />;
   return <MessageSquare size={12} className="text-gray-400" />;
 }
 
@@ -70,13 +70,25 @@ function MiniPreview({ channel, body }: { channel: string; body: string }) {
       </div>
     );
   }
-  // Email preview (default)
-  return (
-    <div className="bg-white border rounded-lg p-2 text-[11px] shadow-sm">
-      <div className="border-b pb-1.5 mb-2">
-        <div className="text-gray-400 text-[10px]">From: <span className="font-medium text-gray-700">noreply@sunrisehospital.in</span></div>
+  if (channel === "push") {
+    return (
+      <div className="bg-gray-900 rounded-xl p-3 text-[11px]">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <div className="w-3.5 h-3.5 rounded-sm bg-purple-500 flex items-center justify-center">
+            <Bell size={8} className="text-white" />
+          </div>
+          <span className="text-gray-400 text-[10px] font-medium">Sunrise Hospital</span>
+          <span className="ml-auto text-gray-500 text-[10px]">now</span>
+        </div>
+        <div className="text-white font-medium text-[11px] mb-0.5">Health Reminder</div>
+        <div className="text-gray-300 line-clamp-2">{sample}</div>
       </div>
-      <div className="text-gray-800 line-clamp-3 leading-relaxed">{sample}</div>
+    );
+  }
+  // Default
+  return (
+    <div className="bg-gray-100 rounded-lg p-2 text-[11px]">
+      <div className="text-gray-700 line-clamp-3">{sample}</div>
     </div>
   );
 }
@@ -132,7 +144,7 @@ export default function Campaigns() {
     if (tplId && ch && templates) {
       const tpl = templates.find(t => t.id === Number(tplId));
       if (tpl) {
-        const chRates: Record<string, number> = { whatsapp: 0.65, sms: 0.18, email: 0.02 };
+        const chRates: Record<string, number> = { whatsapp: 0.65, sms: 0.18, push: 0.05 };
         setFormData(f => ({
           ...f,
           channels: [{ channel: ch, templateId: tpl.id, perMessageCost: tpl.perMessageCost ?? chRates[ch] ?? 0.18, templateName: tpl.name, templateBody: tpl.body }],
@@ -543,10 +555,10 @@ export default function Campaigns() {
 
               <div className="space-y-3">
                 {[
-                  { ch: "whatsapp", label: "WhatsApp", rate: 0.65 },
-                  { ch: "sms", label: "SMS", rate: 0.18 },
-                  { ch: "email", label: "Email", rate: 0.02 },
-                ].map(({ ch, label, rate }) => {
+                  { ch: "whatsapp", label: "WhatsApp", rate: 0.65, note: "Meta-approved templates · DLT required" },
+                  { ch: "sms", label: "SMS", rate: 0.18, note: "DLT registered header · TRAI 09:00–21:00 IST" },
+                  { ch: "push", label: "Push Notification", rate: 0.05, note: "App-installed patients · via NotifyVisitors" },
+                ].map(({ ch, label, rate, note }) => {
                   const isSelected = formData.channels.some(c => c.channel === ch);
                   const chanEntry = formData.channels.find(c => c.channel === ch);
                   const channelTemplates = (templates ?? []).filter(t => t.channel === ch && t.status === "approved");
@@ -571,10 +583,13 @@ export default function Campaigns() {
                         <label htmlFor={`ch-${ch}`} className="flex items-center gap-2 font-medium text-sm cursor-pointer">
                           {ch === "whatsapp" && <MessageSquare size={14} className="text-green-600" />}
                           {ch === "sms" && <Smartphone size={14} className="text-blue-600" />}
-                          {ch === "email" && <Mail size={14} className="text-indigo-500" />}
+                          {ch === "push" && <Bell size={14} className="text-purple-500" />}
                           {label}
                         </label>
-                        <span className="ml-auto text-xs text-muted-foreground">₹{rate}/msg</span>
+                        <div className="ml-auto text-right">
+                          <span className="text-xs font-medium text-primary">₹{rate}/msg</span>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{note}</p>
+                        </div>
                       </div>
 
                       {isSelected && (
