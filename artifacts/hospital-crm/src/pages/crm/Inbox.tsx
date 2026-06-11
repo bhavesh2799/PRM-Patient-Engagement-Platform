@@ -565,6 +565,17 @@ export default function Inbox() {
     refetchLead(); refetchLeads();
   };
 
+  const handleAssignLead = async (ownerId: number, ownerName: string) => {
+    if (!selectedLeadId) return;
+    await api.updateLead(selectedLeadId, {
+      ownerUserId: ownerId,
+      ...(selectedLead?.status === "new" ? { status: "in_progress" } : {}),
+      userId: session?.userId ?? null,
+    });
+    refetchLead(); refetchLeads();
+    toast.success(`Lead assigned to ${ownerName}`);
+  };
+
   const handleStatusChange = async (status: string) => {
     if (!selectedLeadId) return;
     await api.updateLead(selectedLeadId, { status, userId: session?.userId ?? null });
@@ -926,7 +937,23 @@ export default function Inbox() {
                     >
                       <PhoneCall className="w-3 h-3" />
                     </Button>
-                    {!selectedLead.ownerUserId ? (
+                    {isManager ? (
+                      <select
+                        className="text-xs border rounded px-2 py-1 bg-background h-7 max-w-[150px]"
+                        value={selectedLead.ownerUserId ?? ""}
+                        onChange={e => {
+                          const id = e.target.value;
+                          const name = e.target.options[e.target.selectedIndex].text;
+                          if (id) handleAssignLead(Number(id), name);
+                        }}
+                        title="Assign lead"
+                      >
+                        <option value="" disabled>Assign to…</option>
+                        {teamUsers.filter(u => u.active).map(u => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                      </select>
+                    ) : !selectedLead.ownerUserId ? (
                       <Button size="sm" onClick={handlePickUp} className="h-7 text-xs gap-1">
                         <UserPlus className="w-3 h-3" /> Pick Up
                       </Button>
