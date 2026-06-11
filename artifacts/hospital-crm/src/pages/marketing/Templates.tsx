@@ -271,7 +271,9 @@ export default function Templates() {
   );
 
   const pendingRequests = applyFilters(
-    (requests ?? []).map(r => ({ ...r, language: r.variables?.includes("Hindi") ? "Hindi" : "English" }))
+    (requests ?? [])
+      .filter(r => r.approvalStage !== "live")
+      .map(r => ({ ...r, language: r.variables?.includes("Hindi") ? "Hindi" : "English" }))
   );
 
   const toggleChannel = (ch: string) => {
