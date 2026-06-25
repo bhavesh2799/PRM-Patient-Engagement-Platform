@@ -398,25 +398,114 @@ export async function runSeed(force = false): Promise<void> {
     // App appointment leads
     { firstName: "Divya", lastName: "Menon", mobile: "9599023456", specialization: "Paediatrics", sourceChannel: "app_appointment" as const, status: "new" as const, uhid: "UHID-AA001", moduleStage: "scheduled" },
     { firstName: "Sudhir", lastName: "Pillai", mobile: "9610123456", specialization: "Neurology", sourceChannel: "app_appointment" as const, status: "in_progress" as const, ownerUserId: u2.id, uhid: "UHID-AA002", moduleStage: "confirmed" },
+
+    // ── EXTRA LEADS for rich dashboard data ──────────────────────────────────
+    // SLA Critical: >72 h, new, unactioned  (indices 31-36)
+    { firstName: "Sanjay",   lastName: "Mehta",        mobile: "9870001001", specialization: "Cardiology",       sourceChannel: "waba"          as const, status: "new" as const, _hoursAgo: 96  },
+    { firstName: "Preethi",  lastName: "Rajan",        mobile: "9870001002", specialization: "Orthopedics",      sourceChannel: "form"          as const, status: "new" as const, _hoursAgo: 120 },
+    { firstName: "Venkat",   lastName: "Subash",       mobile: "9870001003", specialization: "Neurology",        sourceChannel: "csv"           as const, status: "new" as const, _hoursAgo: 84, sourceListTag: "Neuro-WinBack" },
+    { firstName: "Asha",     lastName: "Krishnan",     mobile: "9870001004", specialization: "General Medicine", sourceChannel: "web_chat"      as const, status: "new" as const, _hoursAgo: 108 },
+    { firstName: "Ramesh",   lastName: "Pillai",       mobile: "9870001005", specialization: "Gynaecology",      sourceChannel: "email"         as const, status: "new" as const, _hoursAgo: 78  },
+    { firstName: "Nirmala",  lastName: "Iyer",         mobile: "9870001006", specialization: "Oncology",         sourceChannel: "app_booking"   as const, status: "new" as const, _hoursAgo: 144 },
+
+    // SLA At-risk: 24-72 h, new  (indices 37-44)
+    { firstName: "Siddharth",lastName: "Bose",         mobile: "9870001007", specialization: "Cardiology",       sourceChannel: "web_booking"   as const, status: "new" as const, _hoursAgo: 36 },
+    { firstName: "Kavita",   lastName: "Shah",         mobile: "9870001008", specialization: "Dermatology",      sourceChannel: "form"          as const, status: "new" as const, _hoursAgo: 48 },
+    { firstName: "Thirumalai",lastName:"Krishnan",     mobile: "9870001009", specialization: "Urology",          sourceChannel: "csv"           as const, status: "new" as const, _hoursAgo: 60, sourceListTag: "Neuro-WinBack" },
+    { firstName: "Manjula",  lastName: "Pai",          mobile: "9870001010", specialization: "Paediatrics",      sourceChannel: "waba"          as const, status: "new" as const, _hoursAgo: 30 },
+    { firstName: "Prashanth",lastName: "Nair",         mobile: "9870001011", specialization: "Cardiology",       sourceChannel: "web_chat"      as const, status: "new" as const, _hoursAgo: 54 },
+    { firstName: "Saroja",   lastName: "Devi",         mobile: "9870001012", specialization: "Neurology",        sourceChannel: "form"          as const, status: "new" as const, _hoursAgo: 42 },
+    { firstName: "Arun",     lastName: "Kapoor",       mobile: "9870001013", specialization: "General Medicine", sourceChannel: "email"         as const, status: "new" as const, _hoursAgo: 27 },
+    { firstName: "Rohini",   lastName: "Verma",        mobile: "9870001014", specialization: "Gynaecology",      sourceChannel: "web_booking"   as const, status: "new" as const, _hoursAgo: 66 },
+
+    // Watching: 6-24 h, new  (indices 45-50)
+    { firstName: "Sunil",    lastName: "Patil",        mobile: "9870001015", specialization: "Cardiology",       sourceChannel: "waba"          as const, status: "new" as const, _hoursAgo: 8  },
+    { firstName: "Deepika",  lastName: "Nair",         mobile: "9870001016", specialization: "Orthopedics",      sourceChannel: "form"          as const, status: "new" as const, _hoursAgo: 12 },
+    { firstName: "Prakash",  lastName: "Hegde",        mobile: "9870001017", specialization: "General Medicine", sourceChannel: "web_chat"      as const, status: "new" as const, _hoursAgo: 18 },
+    { firstName: "Amrutha",  lastName: "Singh",        mobile: "9870001018", specialization: "Neurology",        sourceChannel: "csv"           as const, status: "new" as const, _hoursAgo: 10, sourceListTag: "Q1-Ortho-Followup" },
+    { firstName: "Dinesh",   lastName: "Rao",          mobile: "9870001019", specialization: "Cardiology",       sourceChannel: "app_booking"   as const, status: "new" as const, _hoursAgo: 20 },
+    { firstName: "Swetha",   lastName: "Gowda",        mobile: "9870001020", specialization: "Gynaecology",      sourceChannel: "web_booking"   as const, status: "new" as const, _hoursAgo: 7  },
+
+    // Fresh: <6 h, new  (indices 51-54)
+    { firstName: "Vinod",    lastName: "Kumar",        mobile: "9870001021", specialization: "Orthopedics",      sourceChannel: "waba"          as const, status: "new" as const, _hoursAgo: 1 },
+    { firstName: "Ratna",    lastName: "Bai",          mobile: "9870001022", specialization: "Cardiology",       sourceChannel: "form"          as const, status: "new" as const, _hoursAgo: 2 },
+    { firstName: "Ajith",    lastName: "Thomas",       mobile: "9870001023", specialization: "General Medicine", sourceChannel: "web_chat"      as const, status: "new" as const, _hoursAgo: 3 },
+    { firstName: "Pooja",    lastName: "Krishnamurthy",mobile: "9870001024", specialization: "Neurology",        sourceChannel: "email"         as const, status: "new" as const, _hoursAgo: 5 },
+
+    // Contacted (owner assigned, follow-up in progress)  (indices 55-66)
+    { firstName: "Madhuri",  lastName: "Desai",        mobile: "9870002001", specialization: "Cardiology",       sourceChannel: "waba"          as const, status: "contacted" as const, ownerUserId: u1.id, _hoursAgo: 52,  _lastActionHoursAgo: 48 },
+    { firstName: "Ganesh",   lastName: "Rao",          mobile: "9870002002", specialization: "Orthopedics",      sourceChannel: "form"          as const, status: "contacted" as const, ownerUserId: u1.id, _hoursAgo: 72,  _lastActionHoursAgo: 60 },
+    { firstName: "Leela",    lastName: "Krishnaswamy", mobile: "9870002003", specialization: "Gynaecology",      sourceChannel: "csv"           as const, status: "contacted" as const, ownerUserId: u2.id, _hoursAgo: 96,  _lastActionHoursAgo: 80, sourceListTag: "Cardio-May" },
+    { firstName: "Balaji",   lastName: "Subramaniam",  mobile: "9870002004", specialization: "Dermatology",      sourceChannel: "email"         as const, status: "contacted" as const, ownerUserId: u1.id, _hoursAgo: 40,  _lastActionHoursAgo: 30 },
+    { firstName: "Sudha",    lastName: "Rao",          mobile: "9870002005", specialization: "General Medicine", sourceChannel: "web_chat"      as const, status: "contacted" as const, ownerUserId: u2.id, _hoursAgo: 120, _lastActionHoursAgo: 100 },
+    { firstName: "Pradeep",  lastName: "Nambiar",      mobile: "9870002006", specialization: "Neurology",        sourceChannel: "web_booking"   as const, status: "contacted" as const, ownerUserId: u1.id, _hoursAgo: 60,  _lastActionHoursAgo: 55 },
+    { firstName: "Usha",     lastName: "Kumari",       mobile: "9870002007", specialization: "Paediatrics",      sourceChannel: "app_booking"   as const, status: "contacted" as const, ownerUserId: u2.id, _hoursAgo: 28,  _lastActionHoursAgo: 24 },
+    { firstName: "Santanu",  lastName: "Ghosh",        mobile: "9870002008", specialization: "Gastroenterology", sourceChannel: "email"         as const, status: "contacted" as const, ownerUserId: u2.id, _hoursAgo: 84,  _lastActionHoursAgo: 72 },
+    { firstName: "Meenakshi",lastName: "Sundaram",     mobile: "9870002009", specialization: "Cardiology",       sourceChannel: "waba"          as const, status: "contacted" as const, ownerUserId: u1.id, _hoursAgo: 36,  _lastActionHoursAgo: 30 },
+    { firstName: "Harish",   lastName: "Bhat",         mobile: "9870002010", specialization: "Urology",          sourceChannel: "csv"           as const, status: "contacted" as const, ownerUserId: u1.id, _hoursAgo: 48,  _lastActionHoursAgo: 40, sourceListTag: "Q1-Ortho-Followup" },
+    { firstName: "Vijaya",   lastName: "Lakshmi",      mobile: "9870002011", specialization: "Oncology",         sourceChannel: "web_booking"   as const, status: "contacted" as const, ownerUserId: u2.id, _hoursAgo: 56,  _lastActionHoursAgo: 50 },
+    { firstName: "Naresh",   lastName: "Reddy",        mobile: "9870002012", specialization: "Orthopedics",      sourceChannel: "waba"          as const, status: "contacted" as const, ownerUserId: u1.id, _hoursAgo: 68,  _lastActionHoursAgo: 60 },
+
+    // In Progress  (indices 67-76)
+    { firstName: "Ramya",    lastName: "Nair",         mobile: "9870003001", specialization: "Cardiology",       sourceChannel: "web_chat"      as const, status: "in_progress" as const, ownerUserId: u1.id, _hoursAgo: 144, _lastActionHoursAgo: 2  },
+    { firstName: "Karthik",  lastName: "Srinivasan",   mobile: "9870003002", specialization: "Orthopedics",      sourceChannel: "waba"          as const, status: "in_progress" as const, ownerUserId: u2.id, _hoursAgo: 216, _lastActionHoursAgo: 5  },
+    { firstName: "Anupama",  lastName: "Sharma",       mobile: "9870003003", specialization: "Gynaecology",      sourceChannel: "form"          as const, status: "in_progress" as const, ownerUserId: u1.id, _hoursAgo: 72,  _lastActionHoursAgo: 1  },
+    { firstName: "Sriram",   lastName: "Venkatesh",    mobile: "9870003004", specialization: "Neurology",        sourceChannel: "csv"           as const, status: "in_progress" as const, ownerUserId: u2.id, _hoursAgo: 168, _lastActionHoursAgo: 6, sourceListTag: "Neuro-WinBack" },
+    { firstName: "Bhavana",  lastName: "Krishnan",     mobile: "9870003005", specialization: "Dermatology",      sourceChannel: "email"         as const, status: "in_progress" as const, ownerUserId: u1.id, _hoursAgo: 96,  _lastActionHoursAgo: 3  },
+    { firstName: "Suresh",   lastName: "Chandran",     mobile: "9870003006", specialization: "Cardiology",       sourceChannel: "app_booking"   as const, status: "in_progress" as const, ownerUserId: u2.id, _hoursAgo: 120, _lastActionHoursAgo: 4  },
+    { firstName: "Lakshmi",  lastName: "Prasad",       mobile: "9870003007", specialization: "General Medicine", sourceChannel: "web_booking"   as const, status: "in_progress" as const, ownerUserId: u1.id, _hoursAgo: 48,  _lastActionHoursAgo: 2  },
+    { firstName: "Manoj",    lastName: "Pillai",       mobile: "9870003008", specialization: "Gastroenterology", sourceChannel: "waba"          as const, status: "in_progress" as const, ownerUserId: u2.id, _hoursAgo: 192, _lastActionHoursAgo: 8  },
+    { firstName: "Radha",    lastName: "Krishnaswamy", mobile: "9870003009", specialization: "Cardiology",       sourceChannel: "form"          as const, status: "in_progress" as const, ownerUserId: u1.id, _hoursAgo: 60,  _lastActionHoursAgo: 1  },
+    { firstName: "Vikram",   lastName: "Nambiar",      mobile: "9870003010", specialization: "Paediatrics",      sourceChannel: "email"         as const, status: "in_progress" as const, ownerUserId: u2.id, _hoursAgo: 80,  _lastActionHoursAgo: 3  },
+
+    // Fulfilled (recent conversions — big pool for CRM conversion metrics)  (indices 77-91)
+    { firstName: "Anand",    lastName: "Subramaniam",  mobile: "9870004001", specialization: "Cardiology",       sourceChannel: "waba"          as const, status: "fulfilled" as const, ownerUserId: u1.id, _hoursAgo: 48  },
+    { firstName: "Lata",     lastName: "Mangeshkar",   mobile: "9870004002", specialization: "Orthopedics",      sourceChannel: "form"          as const, status: "fulfilled" as const, ownerUserId: u2.id, _hoursAgo: 72  },
+    { firstName: "Girish",   lastName: "Karnad",       mobile: "9870004003", specialization: "Neurology",        sourceChannel: "csv"           as const, status: "fulfilled" as const, ownerUserId: u1.id, _hoursAgo: 96,  sourceListTag: "Cardio-May" },
+    { firstName: "Smitha",   lastName: "Patil",        mobile: "9870004004", specialization: "Gynaecology",      sourceChannel: "web_chat"      as const, status: "fulfilled" as const, ownerUserId: u2.id, _hoursAgo: 120 },
+    { firstName: "Prasad",   lastName: "Naik",         mobile: "9870004005", specialization: "General Medicine", sourceChannel: "app_booking"   as const, status: "fulfilled" as const, ownerUserId: u1.id, _hoursAgo: 36  },
+    { firstName: "Kaveri",   lastName: "Deshpande",    mobile: "9870004006", specialization: "Cardiology",       sourceChannel: "web_booking"   as const, status: "fulfilled" as const, ownerUserId: u1.id, _hoursAgo: 168 },
+    { firstName: "Suresh",   lastName: "Prabhu",       mobile: "9870004007", specialization: "Dermatology",      sourceChannel: "email"         as const, status: "fulfilled" as const, ownerUserId: u2.id, _hoursAgo: 144 },
+    { firstName: "Deepa",    lastName: "Menon",        mobile: "9870004008", specialization: "Oncology",         sourceChannel: "form"          as const, status: "fulfilled" as const, ownerUserId: u2.id, _hoursAgo: 192 },
+    { firstName: "Rajendra", lastName: "Prasad",       mobile: "9870004009", specialization: "Orthopedics",      sourceChannel: "waba"          as const, status: "fulfilled" as const, ownerUserId: u1.id, _hoursAgo: 240 },
+    { firstName: "Girija",   lastName: "Devi",         mobile: "9870004010", specialization: "Paediatrics",      sourceChannel: "web_chat"      as const, status: "fulfilled" as const, ownerUserId: u2.id, _hoursAgo: 288 },
+    { firstName: "Ramachandran",lastName:"Iyer",       mobile: "9870004011", specialization: "Urology",          sourceChannel: "csv"           as const, status: "fulfilled" as const, ownerUserId: u1.id, _hoursAgo: 336, sourceListTag: "Q1-Ortho-Followup" },
+    { firstName: "Padmaja",  lastName: "Rao",          mobile: "9870004012", specialization: "Cardiology",       sourceChannel: "app_booking"   as const, status: "fulfilled" as const, ownerUserId: u2.id, _hoursAgo: 60  },
+    { firstName: "Sundar",   lastName: "Rajan",        mobile: "9870004013", specialization: "Gastroenterology", sourceChannel: "web_booking"   as const, status: "fulfilled" as const, ownerUserId: u1.id, _hoursAgo: 80  },
+    { firstName: "Mythili",  lastName: "Krishnan",     mobile: "9870004014", specialization: "Gynaecology",      sourceChannel: "email"         as const, status: "fulfilled" as const, ownerUserId: u2.id, _hoursAgo: 110 },
+    { firstName: "Shankar",  lastName: "Mahadevan",    mobile: "9870004015", specialization: "Cardiology",       sourceChannel: "waba"          as const, status: "fulfilled" as const, ownerUserId: u1.id, _hoursAgo: 130 },
+
+    // Closed  (indices 92-96)
+    { firstName: "Balu",     lastName: "Narayanan",    mobile: "9870005001", specialization: "Cardiology",       sourceChannel: "form"          as const, status: "closed"    as const, _hoursAgo: 360 },
+    { firstName: "Kamala",   lastName: "Devi",         mobile: "9870005002", specialization: "Orthopedics",      sourceChannel: "csv"           as const, status: "closed"    as const, _hoursAgo: 480, sourceListTag: "Neuro-WinBack" },
+    { firstName: "Prabhu",   lastName: "Shankar",      mobile: "9870005003", specialization: "Neurology",        sourceChannel: "web_chat"      as const, status: "closed"    as const, _hoursAgo: 504 },
+    { firstName: "Indira",   lastName: "Gandhi",       mobile: "9870005004", specialization: "General Medicine", sourceChannel: "email"         as const, status: "closed"    as const, _hoursAgo: 600 },
+    { firstName: "Subramani",lastName: "Swamy",        mobile: "9870005005", specialization: "Gastroenterology", sourceChannel: "app_booking"   as const, status: "closed"    as const, _hoursAgo: 720 },
   ];
 
   // Offset createdAt for realistic dates
   const now = Date.now();
-  const insertedLeads = await Promise.all(leadsData.map(async (ld, i) => {
-    const daysAgo = Math.floor(Math.random() * 30);
+  const insertedLeads = await Promise.all(leadsData.map(async (ld) => {
+    const { _hoursAgo, _lastActionHoursAgo, ...leadFields } = ld as any;
+    const createdMs  = _hoursAgo != null
+      ? (_hoursAgo as number) * 3600 * 1000
+      : Math.floor(Math.random() * 28 + 1) * 24 * 3600 * 1000;
+    const lastActMs  = _lastActionHoursAgo != null
+      ? (_lastActionHoursAgo as number) * 3600 * 1000
+      : (_hoursAgo != null ? createdMs : Math.floor(Math.random() * 5) * 24 * 3600 * 1000);
     const [lead] = await db.insert(leadsTable).values({
-      ...ld,
-      optedIn: ld.optedIn !== undefined ? ld.optedIn : true,
-      hasActiveSession: ld.hasActiveSession ?? false,
-      createdAt: new Date(now - daysAgo * 24 * 3600 * 1000),
-      lastActionAt: new Date(now - Math.floor(Math.random() * 5) * 24 * 3600 * 1000),
+      ...leadFields,
+      optedIn: leadFields.optedIn !== undefined ? leadFields.optedIn : true,
+      hasActiveSession: leadFields.hasActiveSession ?? false,
+      createdAt:    new Date(now - createdMs),
+      lastActionAt: new Date(now - Math.min(lastActMs, createdMs)),
     }).returning();
     await db.insert(activityLogTable).values({
       leadId: lead.id,
       type: "created",
       description: `Lead created via ${lead.sourceChannel}`,
       userId: null,
-      createdAt: new Date(now - daysAgo * 24 * 3600 * 1000),
+      createdAt: new Date(now - createdMs),
     });
     return lead;
   }));
@@ -664,16 +753,48 @@ export async function runSeed(force = false): Promise<void> {
   };
 
   await db.insert(appointmentsTable).values([
-    { leadId: insertedLeads[0].id, doctorId: d1.id, specialization: "Cardiology", sourceChannel: "app_booking", status: "confirmed", datetime: futureDate(2, 10) },
-    { leadId: insertedLeads[3].id, doctorId: d1.id, specialization: "Cardiology", sourceChannel: "web_booking", status: "booked", datetime: futureDate(4, 14) },
-    { leadId: insertedLeads[15].id, doctorId: d1.id, specialization: "Cardiology", sourceChannel: "app_booking", status: "completed", datetime: pastDate(5, 9) },
-    { leadId: insertedLeads[16].id, doctorId: d2.id, specialization: "Orthopedics", sourceChannel: "app_booking", status: "completed", datetime: pastDate(3, 11) },
-    { leadId: insertedLeads[17].id, doctorId: d5.id, specialization: "Gynaecology", sourceChannel: "web_booking", status: "completed", datetime: pastDate(7, 10) },
-    { leadId: insertedLeads[1].id, doctorId: d5.id, specialization: "Gynaecology", sourceChannel: "app_booking", status: "confirmed", datetime: futureDate(3, 9) },
-    { leadId: insertedLeads[4].id, doctorId: d2.id, specialization: "Orthopedics", sourceChannel: "web_booking", status: "booked", datetime: futureDate(7, 10) },
-    { leadId: insertedLeads[2].id, doctorId: d3.id, specialization: "Neurology", sourceChannel: "app_booking", status: "booked", datetime: futureDate(5, 14) },
-    { leadId: insertedLeads[7].id, doctorId: d4.id, specialization: "General Medicine", sourceChannel: "app_booking", status: "completed", datetime: pastDate(10, 11) },
-    { leadId: insertedLeads[20].id, doctorId: d1.id, specialization: "Cardiology", sourceChannel: "app_booking", status: "cancelled", datetime: pastDate(2, 9) },
+    // ── Original 10 ──────────────────────────────────────────────────────────
+    { leadId: insertedLeads[0].id,  doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "app_booking", status: "confirmed",  datetime: futureDate(2, 10) },
+    { leadId: insertedLeads[3].id,  doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "web_booking", status: "booked",     datetime: futureDate(4, 14) },
+    { leadId: insertedLeads[15].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "app_booking", status: "completed",  datetime: pastDate(5,  9) },
+    { leadId: insertedLeads[16].id, doctorId: d2.id, specialization: "Orthopedics",      sourceChannel: "app_booking", status: "completed",  datetime: pastDate(3, 11) },
+    { leadId: insertedLeads[17].id, doctorId: d5.id, specialization: "Gynaecology",      sourceChannel: "web_booking", status: "completed",  datetime: pastDate(7, 10) },
+    { leadId: insertedLeads[1].id,  doctorId: d5.id, specialization: "Gynaecology",      sourceChannel: "app_booking", status: "confirmed",  datetime: futureDate(3,  9) },
+    { leadId: insertedLeads[4].id,  doctorId: d2.id, specialization: "Orthopedics",      sourceChannel: "web_booking", status: "booked",     datetime: futureDate(7, 10) },
+    { leadId: insertedLeads[2].id,  doctorId: d3.id, specialization: "Neurology",        sourceChannel: "app_booking", status: "booked",     datetime: futureDate(5, 14) },
+    { leadId: insertedLeads[7].id,  doctorId: d4.id, specialization: "General Medicine", sourceChannel: "app_booking", status: "completed",  datetime: pastDate(10, 11) },
+    { leadId: insertedLeads[20].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "app_booking", status: "cancelled",  datetime: pastDate(2,  9) },
+
+    // ── Extra appointments — past (completed / cancelled) ─────────────────────
+    { leadId: insertedLeads[5].id,  doctorId: d5.id, specialization: "Gynaecology",      sourceChannel: "web_booking", status: "completed",  datetime: pastDate(1,  11) },
+    { leadId: insertedLeads[6].id,  doctorId: d4.id, specialization: "General Medicine", sourceChannel: "app_booking", status: "completed",  datetime: pastDate(2,  10) },
+    { leadId: insertedLeads[8].id,  doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "web_booking", status: "completed",  datetime: pastDate(4,  9)  },
+    { leadId: insertedLeads[9].id,  doctorId: d3.id, specialization: "Neurology",        sourceChannel: "app_booking", status: "cancelled",  datetime: pastDate(6,  14) },
+    { leadId: insertedLeads[10].id, doctorId: d2.id, specialization: "Orthopedics",      sourceChannel: "csv",         status: "completed",  datetime: pastDate(8,  11) },
+    { leadId: insertedLeads[11].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "csv",         status: "completed",  datetime: pastDate(9,  10) },
+    { leadId: insertedLeads[12].id, doctorId: d4.id, specialization: "General Medicine", sourceChannel: "csv",         status: "completed",  datetime: pastDate(11,  9) },
+    { leadId: insertedLeads[13].id, doctorId: d5.id, specialization: "Gynaecology",      sourceChannel: "csv",         status: "completed",  datetime: pastDate(12, 10) },
+    { leadId: insertedLeads[18].id, doctorId: d3.id, specialization: "Neurology",        sourceChannel: "web_booking", status: "completed",  datetime: pastDate(13, 11) },
+    { leadId: insertedLeads[21].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "app_booking", status: "cancelled",  datetime: pastDate(3,  10) },
+    { leadId: insertedLeads[22].id, doctorId: d4.id, specialization: "General Medicine", sourceChannel: "email",       status: "completed",  datetime: pastDate(14,  9) },
+    { leadId: insertedLeads[23].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "app_booking", status: "completed",  datetime: pastDate(15, 10) },
+    { leadId: insertedLeads[24].id, doctorId: d4.id, specialization: "General Medicine", sourceChannel: "app_booking", status: "completed",  datetime: pastDate(16, 11) },
+    { leadId: insertedLeads[25].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "app_booking", status: "completed",  datetime: pastDate(17,  9) },
+    { leadId: insertedLeads[26].id, doctorId: d4.id, specialization: "General Medicine", sourceChannel: "app_booking", status: "completed",  datetime: pastDate(18, 10) },
+    { leadId: insertedLeads[27].id, doctorId: d5.id, specialization: "Gynaecology",      sourceChannel: "web_booking", status: "completed",  datetime: pastDate(19,  9) },
+    { leadId: insertedLeads[28].id, doctorId: d2.id, specialization: "Orthopedics",      sourceChannel: "web_booking", status: "completed",  datetime: pastDate(20, 11) },
+    { leadId: insertedLeads[29].id, doctorId: d3.id, specialization: "Neurology",        sourceChannel: "app_booking", status: "completed",  datetime: pastDate(21, 14) },
+    { leadId: insertedLeads[30].id, doctorId: d3.id, specialization: "Neurology",        sourceChannel: "app_booking", status: "completed",  datetime: pastDate(22, 10) },
+
+    // ── Extra appointments — future (booked / confirmed) ──────────────────────
+    { leadId: insertedLeads[31].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "web_booking", status: "booked",     datetime: futureDate(1, 10) },
+    { leadId: insertedLeads[37].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "web_booking", status: "booked",     datetime: futureDate(2, 11) },
+    { leadId: insertedLeads[45].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "app_booking", status: "booked",     datetime: futureDate(3, 10) },
+    { leadId: insertedLeads[51].id, doctorId: d2.id, specialization: "Orthopedics",      sourceChannel: "web_booking", status: "confirmed",  datetime: futureDate(1,  9) },
+    { leadId: insertedLeads[55].id, doctorId: d5.id, specialization: "Gynaecology",      sourceChannel: "app_booking", status: "confirmed",  datetime: futureDate(2, 14) },
+    { leadId: insertedLeads[67].id, doctorId: d3.id, specialization: "Neurology",        sourceChannel: "web_booking", status: "booked",     datetime: futureDate(4, 10) },
+    { leadId: insertedLeads[77].id, doctorId: d1.id, specialization: "Cardiology",       sourceChannel: "app_booking", status: "confirmed",  datetime: futureDate(1, 11) },
+    { leadId: insertedLeads[81].id, doctorId: d4.id, specialization: "General Medicine", sourceChannel: "web_booking", status: "booked",     datetime: futureDate(3,  9) },
   ]);
 
   // Campaigns
@@ -744,28 +865,109 @@ export async function runSeed(force = false): Promise<void> {
     },
   ]).returning();
 
+  // Extra campaigns (completed with rich historical data)
+  const [camp6, camp7, camp8] = await db.insert(campaignsTable).values([
+    {
+      name: "Monsoon Wellness Camp – July",
+      goal: "Promotional",
+      audienceSegmentId: seg2.id,
+      channels: [
+        { channel: "sms",      templateId: t3.id,  templateName: t3.name,  perMessageCost: 0.18, senderId: "SUNRSE" },
+        { channel: "whatsapp", templateId: t6.id,  templateName: t6.name,  perMessageCost: 0.65, wabaContact: "+918045678901" },
+        { channel: "push",     templateId: t10.id, templateName: t10.name, perMessageCost: 0.04 },
+      ],
+      estimatedRecipients: 2400,
+      costBreakdown: { channelCost: 2088, fee: 104.4, gst: 394.632, total: 2587.032 },
+      status: "completed",
+      createdBy: u2.id,
+      approvedBy: u2.id,
+      createdAt: new Date(now - 45 * 24 * 3600 * 1000),
+      launchedAt: new Date(now - 40 * 24 * 3600 * 1000),
+    },
+    {
+      name: "Diabetes Awareness – Chronic Care",
+      goal: "Chronic Care",
+      audienceSegmentId: seg4.id,
+      channels: [
+        { channel: "whatsapp", templateId: t13.id, templateName: t13.name, perMessageCost: 0.65, wabaContact: "+918045678901" },
+        { channel: "push",     templateId: t11.id, templateName: t11.name, perMessageCost: 0.04 },
+      ],
+      estimatedRecipients: 1800,
+      costBreakdown: { channelCost: 1242, fee: 62.1, gst: 234.738, total: 1538.838 },
+      status: "completed",
+      createdBy: u1.id,
+      approvedBy: u2.id,
+      createdAt: new Date(now - 32 * 24 * 3600 * 1000),
+      launchedAt: new Date(now - 28 * 24 * 3600 * 1000),
+    },
+    {
+      name: "Post-Discharge Follow-up – June",
+      goal: "Chronic Care",
+      audienceSegmentId: seg4.id,
+      channels: [
+        { channel: "sms",      templateId: t1.id, templateName: t1.name, perMessageCost: 0.18, senderId: "SUNRSE" },
+        { channel: "whatsapp", templateId: t8.id, templateName: t8.name, perMessageCost: 0.65, wabaContact: "+918045678901" },
+      ],
+      estimatedRecipients: 480,
+      costBreakdown: { channelCost: 398.4, fee: 19.92, gst: 75.2976, total: 493.6176 },
+      status: "live",
+      createdBy: u2.id,
+      approvedBy: u2.id,
+      createdAt: new Date(now - 8 * 24 * 3600 * 1000),
+      launchedAt: new Date(now - 6 * 24 * 3600 * 1000),
+    },
+  ]).returning();
+
   // Campaign Metrics for live/completed/paused
   await db.insert(campaignMetricsTable).values([
     {
       campaignId: camp1.id,
-      sent: 120, delivered: 104, opened: 62, clicked: 21, converted: 9,
-      spend: "11.89", revenueAttributed: "11200",
-      channelBreakdown: [{ channel: "sms", sent: 120, delivered: 104, opened: 62, clicked: 21, converted: 9 }],
+      sent: 1240, delivered: 1082, opened: 648, clicked: 218, converted: 89,
+      spend: "1189.44", revenueAttributed: "118944",
+      channelBreakdown: [{ channel: "sms", sent: 1240, delivered: 1082, opened: 648, clicked: 218, converted: 89 }],
     },
     {
       campaignId: camp2.id,
-      sent: 35, delivered: 31, opened: 18, clicked: 7, converted: 3,
-      spend: "18.65", revenueAttributed: "4500",
+      sent: 845, delivered: 778, opened: 412, clicked: 115, converted: 43,
+      spend: "1864.65", revenueAttributed: "62700",
       channelBreakdown: [
-        { channel: "sms", sent: 35, delivered: 30, opened: 15, clicked: 5, converted: 2 },
-        { channel: "whatsapp", sent: 35, delivered: 31, opened: 18, clicked: 7, converted: 3 },
+        { channel: "sms",      sent: 845, delivered: 758, opened: 380, clicked: 102, converted: 38 },
+        { channel: "whatsapp", sent: 845, delivered: 778, opened: 412, clicked: 115, converted: 43 },
       ],
     },
     {
       campaignId: camp4.id,
-      sent: 72, delivered: 60, opened: 34, clicked: 12, converted: 4,
-      spend: "31.22", revenueAttributed: "5600",
-      channelBreakdown: [{ channel: "whatsapp", sent: 72, delivered: 60, opened: 34, clicked: 12, converted: 4 }],
+      sent: 720, delivered: 648, opened: 340, clicked: 92, converted: 28,
+      spend: "3122.28", revenueAttributed: "41160",
+      channelBreakdown: [{ channel: "whatsapp", sent: 720, delivered: 648, opened: 340, clicked: 92, converted: 28 }],
+    },
+    {
+      campaignId: camp6.id,
+      sent: 2400, delivered: 2088, opened: 1124, clicked: 402, converted: 162,
+      spend: "2587.03", revenueAttributed: "214000",
+      channelBreakdown: [
+        { channel: "sms",      sent: 2400, delivered: 2040, opened:  980, clicked: 320, converted: 118 },
+        { channel: "whatsapp", sent: 2400, delivered: 2088, opened: 1124, clicked: 402, converted: 162 },
+        { channel: "push",     sent: 2400, delivered: 2280, opened: 1560, clicked: 540, converted: 204 },
+      ],
+    },
+    {
+      campaignId: camp7.id,
+      sent: 1800, delivered: 1638, opened: 982, clicked: 342, converted: 128,
+      spend: "1538.84", revenueAttributed: "184000",
+      channelBreakdown: [
+        { channel: "whatsapp", sent: 1800, delivered: 1638, opened: 982, clicked: 342, converted: 128 },
+        { channel: "push",     sent: 1800, delivered: 1710, opened: 1188, clicked: 396, converted: 152 },
+      ],
+    },
+    {
+      campaignId: camp8.id,
+      sent: 480, delivered: 442, opened: 246, clicked: 84, converted: 32,
+      spend: "493.62", revenueAttributed: "48000",
+      channelBreakdown: [
+        { channel: "sms",      sent: 480, delivered: 432, opened: 210, clicked: 68, converted: 24 },
+        { channel: "whatsapp", sent: 480, delivered: 442, opened: 246, clicked: 84, converted: 32 },
+      ],
     },
   ]);
 
