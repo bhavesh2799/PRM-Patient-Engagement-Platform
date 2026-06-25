@@ -361,6 +361,41 @@ router.get("/dashboard/crm", async (req, res): Promise<void> => {
   };
   const fulfilledLeads = leads.filter(l => l.status === "fulfilled").length;
 
+  // SLA watchlist: 6 oldest unactioned leads
+  const crmUserMap: Record<number, string> = Object.fromEntries(allUsers.map(u => [u.id, u.name]));
+  const slaWatchlist = [...crmNew]
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .slice(0, 6)
+    .map(l => ({
+      id: l.id,
+      name: `${l.firstName} ${l.lastName}`.trim(),
+      channel: l.sourceChannel,
+      ownerName: l.ownerUserId ? (crmUserMap[l.ownerUserId] ?? null) : null,
+      ageHours: Math.round(crmAgeHours(l)),
+    }));
+
+  // Recent leads: 10 most recently actioned
+  const recentLeads = [...leads]
+    .sort((a, b) => new Date(b.lastActionAt).getTime() - new Date(a.lastActionAt).getTime())
+    .slice(0, 10)
+    .map(l => {
+      const latestLog = [...allLogs.filter(a => a.leadId === l.id)]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      return {
+        id: l.id,
+        firstName: l.firstName,
+        lastName: l.lastName,
+        sourceChannel: l.sourceChannel,
+        status: l.status,
+        ownerName: l.ownerUserId ? (crmUserMap[l.ownerUserId] ?? null) : null,
+        createdAt: l.createdAt.toISOString(),
+        lastActionAt: l.lastActionAt.toISOString(),
+        lastActionDescription: latestLog
+          ? latestLog.type.replace(/_/g, " ")
+          : (l.status === "new" ? "No action yet" : l.status),
+      };
+    });
+
   res.json({
     totalLeads: leads.length,
     newLeads: leads.filter(l => l.status === "new").length,
@@ -378,11 +413,16 @@ router.get("/dashboard/crm", async (req, res): Promise<void> => {
     dndRate: leads.length ? Math.round((leads.filter(l => l.dndListed).length / leads.length) * 100) : 0,
     ttfaMedianMinutes,
     ownerWorkload,
+    slaWatchlist,
+    recentLeads,
   });
 });
 
-router.get("/dashboard/engagement", async (_req, res): Promise<void> => {
-  const campaigns = await db.select().from(campaignsTable);
+router.get("/dashboard/engagement", async (req, res): Promise<void> => {
+  const { dateFrom, dateTo } = req.query as Record<string, string>;
+  let campaigns = await db.select().from(campaignsTable);
+  if (dateFrom) campaigns = campaigns.filter(c => new Date(c.createdAt) >= new Date(dateFrom));
+  if (dateTo) campaigns = campaigns.filter(c => new Date(c.createdAt) <= new Date(dateTo));
   const metrics = await db.select().from(campaignMetricsTable);
   const [wallet] = await db.select().from(walletTable);
 

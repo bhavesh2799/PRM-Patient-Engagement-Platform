@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useGetEngagementDashboard, useGetWallet } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import { useGetWallet } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import {
   T, DashPage, PageHead, DCard, CardTitle, SectionLabel, MetricCard,
@@ -31,13 +32,36 @@ const STATUS_NOTE: Record<string, string> = {
 
 const BENCHMARKS = { delivery: 82, open: 40, ctr: 18, conv: 5 };
 
+function buildQs(params: Record<string, string>) {
+  const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v)));
+  return qs.toString() ? `?${qs}` : "";
+}
+
+function periodToDateFrom(period: string): string {
+  if (period === "7d") return new Date(Date.now() - 7 * 86400_000).toISOString();
+  if (period === "30d") return new Date(Date.now() - 30 * 86400_000).toISOString();
+  // "mtd" — start of current month
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
+
 export default function MarketingDashboard() {
   const [, navigate] = useLocation();
-  const { data: dashboard, isLoading } = useGetEngagementDashboard();
   const { data: wallet } = useGetWallet();
-
   const [filterChannel, setFilterChannel] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [period, setPeriod] = useState("mtd");
+
+  const { data: dashboard, isLoading } = useQuery({
+    queryKey: ["engagement-dashboard", period],
+    queryFn: async () => {
+      const dateFrom = periodToDateFrom(period);
+      const qs = buildQs({ dateFrom });
+      const r = await fetch(`/api/dashboard/engagement${qs}`);
+      return r.json();
+    },
+    refetchInterval: 30000,
+  });
 
   if (isLoading) {
     return (
@@ -65,6 +89,8 @@ export default function MarketingDashboard() {
 
   const recentCampaigns: any[] = d.recentCampaigns ?? [];
   const fc = d.featuredCampaign as any | null;
+
+  const periodLabel = period === "7d" ? "Last 7 days" : period === "30d" ? "Last 30 days" : "Month to date";
 
   const filtered = recentCampaigns.filter((c: any) => {
     const ch = (c.channel ?? "").toLowerCase();
@@ -97,13 +123,18 @@ export default function MarketingDashboard() {
       <DashPage>
         <PageHead
           title="Engagement Dashboard"
-          subtitle="Outreach performance, campaign ROI & channel efficiency — month to date"
+          subtitle="Outreach performance, campaign ROI & channel efficiency"
           right={<span className="text-xs" style={{ color: T.ink3 }}>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>}
         />
 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap rounded-[10px] px-3.5 py-2.5 mb-5" style={{ background: T.surface, border: `1px solid ${T.border}`, boxShadow: "0 1px 2px rgba(0,0,0,.05)" }}>
           <span className="text-[10px] font-bold tracking-[0.08em] uppercase" style={{ color: T.ink3 }}>Filter</span>
+          <select style={selectStyle} value={period} onChange={e => setPeriod(e.target.value)}>
+            <option value="mtd">Month to date</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+          </select>
           <select style={selectStyle} value={filterChannel} onChange={e => setFilterChannel(e.target.value)}>
             <option value="">All channels</option>
             <option value="whatsapp">WhatsApp</option>
@@ -121,9 +152,8 @@ export default function MarketingDashboard() {
             <option value="completed">Completed</option>
             <option value="paused">Paused</option>
           </select>
-          <span className="text-[11px] px-2 py-[5px] rounded-md" style={{ background: T.surface2, color: T.ink3, border: `1px solid ${T.border}` }}>Month to date</span>
-          {(filterChannel || filterStatus) && (
-            <button onClick={() => { setFilterChannel(""); setFilterStatus(""); }} className="text-xs px-3 py-[5px] rounded-md" style={{ border: `1px solid ${T.border}`, color: T.ink1, background: T.surface }}>Clear</button>
+          {(filterChannel || filterStatus || period !== "mtd") && (
+            <button onClick={() => { setFilterChannel(""); setFilterStatus(""); setPeriod("mtd"); }} className="text-xs px-3 py-[5px] rounded-md" style={{ border: `1px solid ${T.border}`, color: T.ink1, background: T.surface }}>Clear</button>
           )}
         </div>
 
@@ -136,7 +166,7 @@ export default function MarketingDashboard() {
         )}
 
         {/* Outreach KPIs */}
-        <SectionLabel>Outreach — month to date</SectionLabel>
+        <SectionLabel>Outreach — {periodLabel}</SectionLabel>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <MetricCard accent={T.blue} label="Patients reached" value={nf(patientsReached)} valueColor={T.blue} sub={`${activeCampaigns} active campaign${activeCampaigns !== 1 ? "s" : ""}`} onClick={() => navigate("/marketing/campaigns")} />
           <MetricCard accent={T.green} label="Avg delivery rate" value={`${deliveryRate}%`} valueColor={T.green} delta={`${deliveryRate - BENCHMARKS.delivery >= 0 ? "↑ +" : "↓ "}${deliveryRate - BENCHMARKS.delivery}pp vs industry (${BENCHMARKS.delivery}%)`} deltaTone={deliveryRate >= BENCHMARKS.delivery ? "up" : "down"} progress={{ pct: deliveryRate, color: T.green }} />
@@ -149,15 +179,14 @@ export default function MarketingDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 items-stretch">
           <MetricCard label="Total spend" value={<span className="text-[24px]">{inr(totalSpend, 2)}</span>} sub="Campaign costs + fees + GST" onClick={() => navigate("/settings/wallet")} />
           <MetricCard label="Revenue attributed" value={<span className="text-[24px]">{compactInr(totalRevenue)}</span>} valueColor={T.green} sub="From UHID-matched bookings" delta={`${totalConversions} conversions · ${inr(avgBooking)} avg booking`} deltaTone="up" />
-          {/* Dark ROI card */}
           <div className="rounded-[14px] p-5 flex flex-col" style={{ background: "#1A1A18", color: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }}>
             <div className="text-[11px] font-medium mb-1.5" style={{ color: "#9A9A92" }}>Return on investment</div>
-            <div className="text-[28px] font-bold leading-none tracking-tight" style={{ color: "#fff" }}>{nf(roi)}%</div>
-            <div className="text-[11px] mt-1.5" style={{ color: "#9A9A92" }}>Revenue ÷ Spend · Month to date</div>
+            <div className="text-[28px] font-bold leading-none tracking-tight">{nf(roi)}%</div>
+            <div className="text-[11px] mt-1.5" style={{ color: "#9A9A92" }}>Revenue ÷ Spend · {periodLabel}</div>
             <div className="grid grid-cols-2 gap-2 mt-auto pt-4">
               <div className="rounded-md px-2.5 py-2" style={{ background: "rgba(255,255,255,.06)" }}>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.06em] mb-0.5" style={{ color: "#7A7A72" }}>Cost / patient</div>
-                <div className="text-[15px] font-bold" style={{ color: "#fff" }}>{inr(costPerPatient, 2)}</div>
+                <div className="text-[15px] font-bold">{inr(costPerPatient, 2)}</div>
               </div>
               <div className="rounded-md px-2.5 py-2" style={{ background: "rgba(255,255,255,.06)" }}>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.06em] mb-0.5" style={{ color: "#7A7A72" }}>ROAS</div>
@@ -213,7 +242,7 @@ export default function MarketingDashboard() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-10" style={{ color: T.ink3 }}>{recentCampaigns.length === 0 ? "No campaigns yet" : "No campaigns match filters"}</td></tr>
+                <tr><td colSpan={10} className="text-center py-10" style={{ color: T.ink3 }}>{recentCampaigns.length === 0 ? "No campaigns in this period" : "No campaigns match filters"}</td></tr>
               ) : filtered.map((c: any) => {
                 const st = CAMPAIGN_STATUS[c.status] ?? { tone: "neutral" as BadgeTone, label: c.status };
                 const hasData = c.delivered > 0;

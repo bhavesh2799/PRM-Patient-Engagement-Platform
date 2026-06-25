@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery } from "@tanstack/react-query";
-import { useGetSessionRole } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import {
   T, DashPage, PageHead, DCard, CardTitle, SectionLabel, MetricCard,
-  InsightStrip, ActionCard, FunnelSVG, Badge, Avatar, BadgeTone,
+  InsightStrip, ActionCard, FunnelSVG, Badge, Avatar, BadgeTone, BarRow,
   nf, durationFromMinutes, type FunnelStage,
 } from "@/components/dashboard/ui";
 
@@ -29,6 +28,11 @@ interface CrmDashboardData {
     userId: number; name: string; role: string; idx: number;
     new: number; contacted: number; in_progress: number; fulfilled: number; total: number; breached: number;
   }[];
+  slaWatchlist: { id: number; name: string; channel: string; ownerName: string | null; ageHours: number }[];
+  recentLeads: {
+    id: number; firstName: string; lastName: string; sourceChannel: string;
+    status: string; ownerName: string | null; createdAt: string; lastActionAt: string; lastActionDescription: string;
+  }[];
 }
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -40,24 +44,51 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 const chLabel = (c: string) => CHANNEL_LABELS[c] ?? c;
 
+const STATUS_BADGE: Record<string, { tone: BadgeTone; label: string }> = {
+  new: { tone: "danger", label: "New" },
+  contacted: { tone: "warn", label: "Contacted" },
+  in_progress: { tone: "info", label: "In progress" },
+  fulfilled: { tone: "ok", label: "Fulfilled" },
+  closed: { tone: "neutral", label: "Closed" },
+};
+
 function pct(n: number, d: number) { return d > 0 ? Math.round((n / d) * 100) : 0; }
+
+function timeAgo(iso: string) {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+function shortDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+function buildQs(params: Record<string, string>) {
+  const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v)));
+  return qs.toString() ? `?${qs}` : "";
+}
 
 export default function CrmDashboard() {
   const [channelFilter, setChannelFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("");
+  const [period, setPeriod] = useState("14d");
   const [, navigate] = useLocation();
 
-  const { data: session } = useGetSessionRole() as { data?: { role: string } };
-  const canSeeWorkload = session?.role === "manager" || session?.role === "ap_admin";
-
-  const params = new URLSearchParams();
-  if (channelFilter !== "all") params.set("channel", channelFilter);
-  if (ownerFilter) params.set("ownerId", ownerFilter);
-  const paramStr = params.toString();
-
   const { data: d, isLoading } = useQuery<CrmDashboardData>({
-    queryKey: ["crm-dashboard", channelFilter, ownerFilter],
-    queryFn: () => fetch(`/api/dashboard/crm${paramStr ? `?${paramStr}` : ""}`).then(r => r.json()),
+    queryKey: ["crm-dashboard", channelFilter, ownerFilter, period],
+    queryFn: () => {
+      const days = period === "7d" ? 7 : period === "30d" ? 30 : 14;
+      const dateFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const qs = buildQs({
+        channel: channelFilter === "all" ? "" : channelFilter,
+        ownerId: ownerFilter,
+        dateFrom,
+      });
+      return fetch(`/api/dashboard/crm${qs}`).then(r => r.json());
+    },
   });
   const { data: users = [] } = useQuery<{ id: number; name: string; role: string }[]>({
     queryKey: ["users"],
@@ -87,6 +118,8 @@ export default function CrmDashboard() {
   const worstChannel = [...channels].reverse().find(c => c.count >= 2);
   const owners = d.ownerWorkload ?? [];
   const topBreacher = owners[0];
+  const slaWatchlist = d.slaWatchlist ?? [];
+  const recentLeads = d.recentLeads ?? [];
 
   const funnel: FunnelStage[] = [
     { label: "Total", count: total, sub: "100%", color: T.blue, fill: "rgba(37,99,235,.85)" },
@@ -106,6 +139,8 @@ export default function CrmDashboard() {
   const chMax = Math.max(...channels.map(c => c.conversionRate), 1);
   const ageMax = Math.max(ageing.lt6h, ageing.h6_24, ageing.h24_72, ageing.gt72, 1);
 
+  const periodLabel = period === "7d" ? "Last 7 days" : period === "30d" ? "Last 30 days" : "Last 14 days";
+
   return (
     <AppLayout>
       <DashPage>
@@ -118,6 +153,11 @@ export default function CrmDashboard() {
         {/* Filter bar */}
         <div className="flex items-center gap-2 flex-wrap rounded-[10px] px-3.5 py-2.5 mb-5" style={{ background: T.surface, border: `1px solid ${T.border}`, boxShadow: "0 1px 2px rgba(0,0,0,.05)" }}>
           <span className="text-[10px] font-bold tracking-[0.08em] uppercase" style={{ color: T.ink3 }}>Filter</span>
+          <select style={selectStyle} value={period} onChange={e => setPeriod(e.target.value)}>
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="30d">Last 30 days</option>
+          </select>
           <select style={selectStyle} value={channelFilter} onChange={e => setChannelFilter(e.target.value)}>
             <option value="all">All channels</option>
             {Object.entries(CHANNEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -126,8 +166,8 @@ export default function CrmDashboard() {
             <option value="">All owners</option>
             {users.filter(u => u.role !== "ap_admin").map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
           </select>
-          {hasFilters && (
-            <button onClick={() => { setChannelFilter("all"); setOwnerFilter(""); }} className="text-xs px-3 py-[5px] rounded-md" style={{ border: `1px solid ${T.border}`, color: T.ink1, background: T.surface }}>Clear</button>
+          {(hasFilters || period !== "14d") && (
+            <button onClick={() => { setChannelFilter("all"); setOwnerFilter(""); setPeriod("14d"); }} className="text-xs px-3 py-[5px] rounded-md" style={{ border: `1px solid ${T.border}`, color: T.ink1, background: T.surface }}>Clear</button>
           )}
         </div>
 
@@ -145,9 +185,9 @@ export default function CrmDashboard() {
         )}
 
         {/* Pipeline overview */}
-        <SectionLabel>Pipeline overview</SectionLabel>
+        <SectionLabel>Pipeline overview — {periodLabel}</SectionLabel>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
-          <MetricCard accent={T.blue} label="Total leads" value={nf(total)} sub="Last 14 days" />
+          <MetricCard accent={T.blue} label="Total leads" value={nf(total)} sub={periodLabel} />
           <MetricCard accent={T.red} label="New / unactioned" value={nf(newLeads)} valueColor={T.red} delta={`${pct(newLeads, total)}% of pipeline at risk`} deltaTone="down" />
           <MetricCard accent="#F59E0B" label="In progress" value={nf(inProgress)} valueColor={T.amber} sub="Open cases" />
           <MetricCard accent={T.green} label="Fulfilled" value={nf(fulfilled)} valueColor={T.green} delta={`${conversionRate}% conversion`} deltaTone="up" />
@@ -155,7 +195,7 @@ export default function CrmDashboard() {
         </div>
 
         {/* Speed & quality */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           <MetricCard
             label="Median time-to-first-action"
             value={<span className="text-[22px]">{durationFromMinutes(ttfa)}</span>}
@@ -221,90 +261,156 @@ export default function CrmDashboard() {
         </div>
 
         {/* Owner workload + lead ageing */}
-        {canSeeWorkload && (
-          <>
-            <SectionLabel>Team accountability &amp; urgency</SectionLabel>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-              <DCard>
-                <CardTitle>Owner workload</CardTitle>
-                <table className="w-full text-[12px]">
-                  <thead>
-                    <tr className="text-[10px] uppercase tracking-[0.06em]" style={{ color: T.ink3 }}>
-                      <th className="text-left font-semibold pb-2">Owner</th>
-                      <th className="text-left font-semibold pb-2">Assigned</th>
-                      <th className="text-left font-semibold pb-2">In prog.</th>
-                      <th className="text-left font-semibold pb-2">Fulfilled</th>
-                      <th className="text-left font-semibold pb-2">SLA status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {owners.map((o, i) => (
-                      <tr key={o.userId} style={{ borderTop: `1px solid ${T.border2}` }}>
-                        <td className="py-2">
-                          <div className="flex items-center gap-2">
-                            <Avatar name={o.name} index={o.idx ?? i} />
-                            <div>
-                              <div className="font-medium" style={{ color: T.ink1 }}>{o.name}</div>
-                              {i === 0 && o.breached > 0 ? <div className="text-[10px]" style={{ color: T.ink3 }}>Most overloaded</div>
-                                : o.breached === 0 ? <div className="text-[10px]" style={{ color: T.green }}>Best performer</div> : null}
-                            </div>
+        <SectionLabel>Team accountability &amp; urgency</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <DCard>
+            <CardTitle>Owner workload</CardTitle>
+            {owners.length === 0 ? (
+              <div className="text-[12px] py-4" style={{ color: T.ink3 }}>No assigned leads in this period.</div>
+            ) : (
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-[0.06em]" style={{ color: T.ink3 }}>
+                    <th className="text-left font-semibold pb-2">Owner</th>
+                    <th className="text-left font-semibold pb-2">Assigned</th>
+                    <th className="text-left font-semibold pb-2">In prog.</th>
+                    <th className="text-left font-semibold pb-2">Fulfilled</th>
+                    <th className="text-left font-semibold pb-2">SLA status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {owners.map((o, i) => (
+                    <tr key={o.userId} style={{ borderTop: `1px solid ${T.border2}` }}>
+                      <td className="py-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar name={o.name} index={o.idx ?? i} />
+                          <div>
+                            <div className="font-medium" style={{ color: T.ink1 }}>{o.name}</div>
+                            {i === 0 && o.breached > 0 ? <div className="text-[10px]" style={{ color: T.ink3 }}>Most overloaded</div>
+                              : o.breached === 0 ? <div className="text-[10px]" style={{ color: T.green }}>Best performer</div> : null}
                           </div>
-                        </td>
-                        <td className="py-2 font-semibold">{o.total}</td>
-                        <td className="py-2">{o.in_progress}</td>
-                        <td className="py-2">{o.fulfilled}</td>
-                        <td className="py-2"><Badge tone={o.breached === 0 ? "ok" : o.breached >= 5 ? "danger" : "warn"}>{o.breached} breached</Badge></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {topBreacher && topBreacher.breached > 0 && slaBreach > 0 && (
-                  <InsightStrip tone="amber">
-                    <strong>{topBreacher.name} accounts for {pct(topBreacher.breached, slaBreach)}% of all SLA breaches</strong> with {pct(topBreacher.total, total)}% of leads. Consider redistributing leads or reviewing their workflow.
-                  </InsightStrip>
-                )}
-              </DCard>
+                        </div>
+                      </td>
+                      <td className="py-2 font-semibold">{o.total}</td>
+                      <td className="py-2">{o.in_progress}</td>
+                      <td className="py-2">{o.fulfilled}</td>
+                      <td className="py-2"><Badge tone={o.breached === 0 ? "ok" : o.breached >= 5 ? "danger" : "warn"}>{o.breached} breached</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {topBreacher && topBreacher.breached > 0 && slaBreach > 0 && (
+              <InsightStrip tone="amber">
+                <strong>{topBreacher.name} accounts for {pct(topBreacher.breached, slaBreach)}% of all SLA breaches</strong> with {pct(topBreacher.total, total)}% of leads. Consider redistributing leads or reviewing their workflow.
+              </InsightStrip>
+            )}
+          </DCard>
 
-              <DCard>
-                <CardTitle>Lead ageing — unactioned</CardTitle>
-                {[
-                  { label: "< 6h", v: ageing.lt6h, c: T.green, badge: <Badge tone="ok">Safe</Badge> },
-                  { label: "6–24h", v: ageing.h6_24, c: T.amber, badge: <Badge tone="warn">Watch</Badge> },
-                  { label: "24–72h", v: ageing.h24_72, c: T.red, badge: <Badge tone="danger">Urgent</Badge> },
-                  { label: "> 72h", v: ageing.gt72, c: "#7F1D1D", badge: <Badge tone="danger">Critical</Badge> },
-                ].map(b => (
-                  <div key={b.label} className="flex items-center gap-2.5 mb-2.5">
-                    <div className="text-[12px] shrink-0" style={{ color: T.ink2, width: 64 }}>{b.label}</div>
-                    <div className="flex-1 h-2 rounded overflow-hidden" style={{ background: T.surface2 }}>
-                      <div className="h-2 rounded" style={{ width: `${Math.max((b.v / ageMax) * 100, 2)}%`, background: b.c }} />
-                    </div>
-                    <div className="text-[12px] font-medium text-right shrink-0" style={{ width: 50, color: T.ink1 }}>{b.v} lead{b.v !== 1 ? "s" : ""}</div>
-                    <div className="shrink-0" style={{ width: 56 }}>{b.badge}</div>
-                  </div>
-                ))}
-                <div className="h-px my-3" style={{ background: T.border2 }} />
-                <div className="text-[12px] mb-3" style={{ color: T.ink2 }}>Unactioned lead summary</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg px-3 py-2.5" style={{ background: T.redBg }}>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.05em]" style={{ color: "#991B1B" }}>Critical (&gt;72h)</div>
-                    <div className="text-[20px] font-bold mt-0.5" style={{ color: T.red }}>{ageSummary.critical}</div>
-                    <div className="text-[11px]" style={{ color: T.ink3 }}>Immediate escalation needed</div>
-                  </div>
-                  <div className="rounded-lg px-3 py-2.5" style={{ background: T.amberBg }}>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.05em]" style={{ color: "#92400E" }}>At risk (24–72h)</div>
-                    <div className="text-[20px] font-bold mt-0.5" style={{ color: T.amber }}>{ageSummary.atRisk}</div>
-                    <div className="text-[11px]" style={{ color: T.ink3 }}>Act within next 2h</div>
-                  </div>
-                </div>
-                {slaBreach > 0 && (
-                  <InsightStrip tone="red">
-                    <strong>{slaBreach} breached lead{slaBreach !== 1 ? "s" : ""} need action today.</strong> {ageing.gt72} are over 72h old — escalate these to a senior team member immediately.
-                  </InsightStrip>
-                )}
-              </DCard>
+          <DCard>
+            <CardTitle>Lead ageing — unactioned</CardTitle>
+            <BarRow label="< 6h" pct={(ageing.lt6h / ageMax) * 100} color={T.green} value={ageing.lt6h} labelWidth={56} />
+            <BarRow label="6–24h" pct={(ageing.h6_24 / ageMax) * 100} color={T.amber} value={ageing.h6_24} labelWidth={56} />
+            <BarRow label="24–72h" pct={(ageing.h24_72 / ageMax) * 100} color={T.red} value={ageing.h24_72} labelWidth={56} />
+            <BarRow label="> 72h" pct={(ageing.gt72 / ageMax) * 100} color="#7F1D1D" value={ageing.gt72} labelWidth={56} />
+            <div className="h-px my-3" style={{ background: T.border2 }} />
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg px-3 py-2.5 text-center" style={{ background: T.redBg }}>
+                <div className="text-[10px] font-bold uppercase tracking-[0.05em] mb-0.5" style={{ color: T.red }}>Critical</div>
+                <div className="text-[20px] font-bold" style={{ color: T.red }}>{ageSummary.critical}</div>
+                <div className="text-[10px]" style={{ color: T.ink3 }}>&gt;72h old</div>
+              </div>
+              <div className="rounded-lg px-3 py-2.5 text-center" style={{ background: T.amberBg }}>
+                <div className="text-[10px] font-bold uppercase tracking-[0.05em] mb-0.5" style={{ color: T.amber }}>At risk</div>
+                <div className="text-[20px] font-bold" style={{ color: T.amber }}>{ageSummary.atRisk}</div>
+                <div className="text-[10px]" style={{ color: T.ink3 }}>24–72h old</div>
+              </div>
+              <div className="rounded-lg px-3 py-2.5 text-center" style={{ background: T.greenBg }}>
+                <div className="text-[10px] font-bold uppercase tracking-[0.05em] mb-0.5" style={{ color: T.green }}>On time</div>
+                <div className="text-[20px] font-bold" style={{ color: T.green }}>{ageSummary.onTime}</div>
+                <div className="text-[10px]" style={{ color: T.ink3 }}>&lt;24h old</div>
+              </div>
             </div>
-          </>
-        )}
+            {slaBreach > 0 && (
+              <InsightStrip tone="red">
+                <strong>{slaBreach} breached lead{slaBreach !== 1 ? "s" : ""} need action today.</strong> {ageing.gt72} are over 72h old — escalate these to a senior team member immediately.
+              </InsightStrip>
+            )}
+          </DCard>
+        </div>
+
+        {/* SLA watchlist */}
+        <SectionLabel>SLA breach watchlist</SectionLabel>
+        <DCard className="mb-4">
+          <CardTitle hint="Unactioned leads · sorted by age">Oldest unactioned leads</CardTitle>
+          {slaWatchlist.length === 0 ? (
+            <div className="text-[12px] py-4 text-center" style={{ color: T.ink3 }}>✓ No unactioned leads — all caught up.</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8">
+              {slaWatchlist.map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => navigate(`/crm/inbox?lead=${l.id}`)}
+                  className="flex items-center justify-between py-2.5 w-full text-left hover:bg-[#FAFAF8] -mx-1 px-1 rounded"
+                  style={{ borderBottom: `1px solid ${T.border2}` }}
+                >
+                  <div>
+                    <div className="text-[12px] font-medium" style={{ color: T.ink1 }}>{l.name}</div>
+                    <div className="text-[11px]" style={{ color: T.ink3 }}>
+                      {chLabel(l.channel)} · {l.ownerName ?? "Unassigned"}
+                    </div>
+                  </div>
+                  <div className="text-right ml-4 shrink-0">
+                    <div className="text-[12px] font-semibold" style={{ color: l.ageHours >= 72 ? T.red : T.amber }}>
+                      {durationFromMinutes(l.ageHours * 60)} old
+                    </div>
+                    <Badge tone={l.ageHours >= 72 ? "danger" : "warn"}>New</Badge>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </DCard>
+
+        {/* Recent leads */}
+        <SectionLabel>Recent leads</SectionLabel>
+        <DCard className="mb-4 overflow-x-auto">
+          <CardTitle hint="Last action & status">Most recently actioned</CardTitle>
+          <table className="w-full text-[12px]" style={{ minWidth: 720 }}>
+            <thead>
+              <tr className="text-[10px] uppercase tracking-[0.06em]" style={{ color: T.ink3 }}>
+                {["Patient", "Channel", "Status", "Owner", "Last action", "Created"].map(h => (
+                  <th key={h} className="text-left font-semibold pb-2 pr-3 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recentLeads.length === 0 ? (
+                <tr><td colSpan={6} className="py-8 text-center text-[12px]" style={{ color: T.ink3 }}>No leads in this period.</td></tr>
+              ) : recentLeads.map((l) => {
+                const sb = STATUS_BADGE[l.status] ?? { tone: "neutral" as BadgeTone, label: l.status };
+                const noAction = l.status === "new";
+                return (
+                  <tr
+                    key={l.id}
+                    style={{ borderTop: `1px solid ${T.border2}` }}
+                    className="cursor-pointer hover:bg-[#FAFAF8]"
+                    onClick={() => navigate(`/crm/inbox?lead=${l.id}`)}
+                    role="button" tabIndex={0}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") navigate(`/crm/inbox?lead=${l.id}`); }}
+                  >
+                    <td className="py-2.5 pr-3 font-medium" style={{ color: T.ink1 }}>{l.firstName} {l.lastName}</td>
+                    <td className="py-2.5 pr-3" style={{ color: T.ink2 }}>{chLabel(l.sourceChannel)}</td>
+                    <td className="py-2.5 pr-3"><Badge tone={sb.tone}>{sb.label}</Badge></td>
+                    <td className="py-2.5 pr-3 text-[11px]" style={{ color: T.ink2 }}>{l.ownerName ?? <span style={{ color: T.ink4 }}>Unassigned</span>}</td>
+                    <td className="py-2.5 pr-3" style={{ color: noAction ? T.red : T.ink2 }}>{timeAgo(l.lastActionAt)} · {l.lastActionDescription}</td>
+                    <td className="py-2.5 pr-3 text-[11px]" style={{ color: T.ink3 }}>{shortDate(l.createdAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </DCard>
 
         {/* Recommended actions */}
         <SectionLabel>Recommended actions</SectionLabel>
