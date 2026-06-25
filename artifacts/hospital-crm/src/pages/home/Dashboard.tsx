@@ -1,44 +1,38 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
-} from "recharts";
-import { format } from "date-fns";
-import {
-  SlidersHorizontal, Bell, MessageSquare, MessageCircle, Globe, X,
-} from "lucide-react";
 import { useLocation } from "wouter";
+import {
+  T, DashPage, PageHead, DCard, CardTitle, SectionLabel, MetricCard,
+  StatMini, BarRow, FunnelSVG, Badge, Avatar, BadgeTone,
+  nf, compactInr, inr, durationFromMinutes, type FunnelStage,
+} from "@/components/dashboard/ui";
 
 const CHANNEL_LABELS: Record<string, string> = {
   waba: "WhatsApp", web_chat: "Web Chat", form: "Web Form",
-  email: "Email", csv: "CSV Import",
-  app_booking: "App Appointment", web_booking: "Web Booking",
+  email: "Email", csv: "CSV Import", walk_in: "Walk-in",
+  app_booking: "App Appt.", web_booking: "Web Booking",
   medicine_order: "Medicine Order", lab_test: "Lab Test",
-  web_appointment: "Web Appointment", app_appointment: "App Appointment",
+  web_appointment: "Web Appt.", app_appointment: "App Appt.",
+};
+const chLabel = (c: string) => CHANNEL_LABELS[c] ?? c;
+
+const STATUS_BADGE: Record<string, { tone: BadgeTone; label: string }> = {
+  new: { tone: "neutral", label: "New" },
+  contacted: { tone: "warn", label: "Contacted" },
+  in_progress: { tone: "info", label: "In progress" },
+  fulfilled: { tone: "ok", label: "Fulfilled" },
+  closed: { tone: "neutral", label: "Closed" },
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-100 text-blue-700",
-  contacted: "bg-yellow-100 text-yellow-800",
-  in_progress: "bg-purple-100 text-purple-700",
-  fulfilled: "bg-green-100 text-green-700",
-  closed: "bg-gray-100 text-gray-600",
+const CAMPAIGN_CHANNEL_BADGE: Record<string, BadgeTone> = {
+  waba: "purple", sms: "info", push: "purple", email: "info",
 };
-
-const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
-  live: "bg-green-100 text-green-700",
-  paused: "bg-amber-100 text-amber-700",
-  completed: "bg-gray-100 text-gray-600",
+const CAMPAIGN_STATUS: Record<string, { tone: BadgeTone; label: string }> = {
+  live: { tone: "ok", label: "● Live" },
+  paused: { tone: "warn", label: "⏸ Paused" },
+  completed: { tone: "neutral", label: "Done" },
 };
-
-function formatRevenue(n: number): string {
-  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
-  if (n >= 1000) return `₹${Math.round(n / 1000)}K`;
-  return `₹${n.toLocaleString("en-IN")}`;
-}
 
 function timeAgo(dateStr: string): string {
   const ms = Date.now() - new Date(dateStr).getTime();
@@ -50,40 +44,29 @@ function timeAgo(dateStr: string): string {
   if (mins > 0) return `${mins}m ago`;
   return "just now";
 }
-
+function shortDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
 function buildQs(params: Record<string, string>) {
   const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v)));
   return qs.toString() ? `?${qs}` : "";
 }
+function pct(n: number, d: number) { return d > 0 ? Math.round((n / d) * 100) : 0; }
 
-function convRateColor(rate: number): string {
-  if (rate >= 30) return "text-green-600 font-semibold";
-  if (rate > 0) return "text-amber-600 font-semibold";
-  return "text-muted-foreground";
-}
-
-function ChannelIcon({ channel }: { channel: string }) {
-  const cls = "w-4 h-4 shrink-0 mx-auto";
-  if (channel === "waba") return <MessageCircle className={`${cls} text-green-600`} />;
-  if (channel === "sms") return <MessageSquare className={`${cls} text-blue-600`} />;
-  if (channel === "push") return <Bell className={`${cls} text-purple-600`} />;
-  if (channel === "web_chat") return <Globe className={`${cls} text-blue-500`} />;
-  return <MessageSquare className={`${cls} text-gray-500`} />;
-}
+const STACK_COLORS = { new: "#6EAAF7", contacted: "#E8A838", in_progress: "#50B892", fulfilled: T.green };
 
 export default function HomeDashboard() {
   const [, navigate] = useLocation();
   const [channelFilter, setChannelFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-
-  const filtersActive = !!(channelFilter || dateFrom || dateTo || statusFilter);
+  const [period, setPeriod] = useState("14d");
 
   const { data: dashboard, isLoading } = useQuery({
-    queryKey: ["dashboard-home", channelFilter, dateFrom, dateTo, statusFilter],
+    queryKey: ["dashboard-home", channelFilter, statusFilter, period],
     queryFn: async () => {
-      const qs = buildQs({ channel: channelFilter, dateFrom, dateTo, status: statusFilter });
+      const days = period === "7d" ? 7 : 14;
+      const dateFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const qs = buildQs({ channel: channelFilter, status: statusFilter, dateFrom });
       const r = await fetch(`/api/dashboard/home${qs}`);
       return r.json();
     },
@@ -93,525 +76,386 @@ export default function HomeDashboard() {
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96 text-muted-foreground">Loading…</div>
+        <DashPage>
+          <div className="flex items-center justify-center h-96 text-sm" style={{ color: T.ink3 }}>Loading…</div>
+        </DashPage>
       </AppLayout>
     );
   }
   if (!dashboard) return null;
+  const d = dashboard as any;
 
-  const d = dashboard;
   const totalLeads: number = d.totalLeads ?? 0;
   const newLeads: number = d.newLeads ?? 0;
-  const convertedLeads: number = d.convertedLeads ?? 0;
+  const inProgress: number = d.inProgressLeads ?? 0;
+  const converted: number = d.convertedLeads ?? 0;
+  const conversionRate: number = d.conversionRate ?? 0;
+  const slaBreach: number = d.slaBreach ?? 0;
+  const slaBreachRate: number = d.slaBreachRate ?? 0;
+  const ttfa: number | null = d.ttfaMedianMinutes ?? null;
+  const ageing = d.leadAgeing ?? { lt6h: 0, h6_24: 0, h24_72: 0, gt72: 0 };
+  const ageSummary = d.ageSummary ?? { critical: 0, atRisk: 0, onTime: 0 };
+
   const appt = d.appointmentSummary ?? {};
   const apptBooked = (appt.booked ?? 0) + (appt.confirmed ?? 0);
+  const apptFulfilled = appt.completed ?? 0;
 
-  const patientsReached: number = d.patientsReachedMtd ?? 0;
+  const out = d.outreach ?? { sent: 0, delivered: 0, opened: 0, clicked: 0, converted: 0, spend: 0, revenue: 0, roas: 0 };
   const activeCampaigns = d.activeCampaigns ?? { total: 0, live: 0, paused: 0 };
-  const avgDelivery: number = d.avgDeliveryRate ?? 0;
-  const deliveryDelta: number = d.deliveryRateDelta ?? 0;
   const revenue: number = d.revenueAttributed ?? 0;
-  const roi: number = d.roi ?? 0;
+
+  const ownerWorkload: any[] = d.ownerWorkload ?? [];
+  const slaWatchlist: any[] = d.slaWatchlist ?? [];
   const activeCampaignsList: any[] = d.activeCampaignsList ?? [];
-  const campaignCount = activeCampaignsList.length;
-
-  const leadsByChannel: any[] = (d.leadsByChannel ?? [])
-    .filter((c: any) => c.count > 0)
-    .sort((a: any, b: any) => b.count - a.count);
-  const maxChannelCount = Math.max(...leadsByChannel.map((c: any) => c.count), 1);
-
-  const leadToOutcome: any[] = (d.leadToOutcomeByChannel ?? []).map((c: any) => ({
-    ...c,
-    channelLabel: CHANNEL_LABELS[c.channel] ?? c.channel,
-  }));
-
-  const trend: any[] = d.trend ?? [];
   const recentLeads: any[] = d.recentLeads ?? [];
+  const leadToOutcome: any[] = (d.leadToOutcomeByChannel ?? []).slice().sort((a: any, b: any) => {
+    const at = a.new + a.contacted + a.in_progress + a.fulfilled;
+    const bt = b.new + b.contacted + b.in_progress + b.fulfilled;
+    return bt - at;
+  });
 
-  const dateLabel =
-    dateFrom && dateTo
-      ? `${format(new Date(dateFrom), "d MMM")} – ${format(new Date(dateTo), "d MMM")}`
-      : dateFrom
-      ? `From ${format(new Date(dateFrom), "d MMM")}`
-      : dateTo
-      ? `To ${format(new Date(dateTo), "d MMM")}`
-      : null;
+  const leadFunnel: FunnelStage[] = [
+    { label: "Total", count: totalLeads, sub: "100%", color: T.blue, fill: "rgba(37,99,235,.85)" },
+    { label: "Unactioned", count: newLeads, sub: `${pct(newLeads, totalLeads)}% stuck`, color: T.red, fill: "rgba(216,59,59,.8)" },
+    { label: "In progress", count: inProgress, sub: `${pct(inProgress, totalLeads)}%`, color: T.amber, fill: "rgba(180,83,9,.85)" },
+    { label: "Fulfilled", count: converted, sub: `${conversionRate}% conv.`, color: T.green, fill: "rgba(26,148,104,.9)" },
+  ];
+  const outFunnel: FunnelStage[] = [
+    { label: "Sent", count: out.sent, sub: "100%", color: T.blue, fill: "rgba(37,99,235,.85)" },
+    { label: "Delivered", count: out.delivered, sub: `${pct(out.delivered, out.sent)}%`, color: T.blue, fill: "rgba(37,99,235,.5)" },
+    { label: "Opened", count: out.opened, sub: `${pct(out.opened, out.sent)}%`, color: T.purple, fill: "rgba(124,58,237,.85)" },
+    { label: "Clicked", count: out.clicked, sub: `${pct(out.clicked, out.sent)}%`, color: T.amber, fill: "rgba(180,83,9,.9)" },
+    { label: "Converted", count: out.converted, sub: `${pct(out.converted, out.sent)}%`, color: T.green, fill: "rgba(26,148,104,.9)" },
+  ];
+
+  const ageMax = Math.max(ageing.lt6h, ageing.h6_24, ageing.h24_72, ageing.gt72, 1);
+  const selectStyle: React.CSSProperties = {
+    fontSize: 12, fontWeight: 500, color: T.ink1, background: T.surface2,
+    border: `1px solid ${T.border}`, borderRadius: 6, padding: "5px 9px", cursor: "pointer",
+  };
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <DashPage>
+        <PageHead
+          title="Overview"
+          subtitle="Leads, outreach & appointments — all channels"
+          right={<span className="text-xs" style={{ color: T.ink3 }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}</span>}
+        />
 
-        {/* ── Filter bar ─────────────────────────────── */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mr-1">
-            <SlidersHorizontal className="w-4 h-4" />
-            <span className="font-medium">Filters</span>
-          </div>
-          <select
-            value={channelFilter}
-            onChange={e => setChannelFilter(e.target.value)}
-            className="text-sm border rounded-full px-3 py-1.5 bg-background cursor-pointer focus:outline-none hover:border-foreground/40 transition-colors"
-          >
+        {/* Filter bar */}
+        <div className="flex items-center gap-2 flex-wrap rounded-[10px] px-3.5 py-2.5 mb-5" style={{ background: T.surface, border: `1px solid ${T.border}`, boxShadow: "0 1px 2px rgba(0,0,0,.05)" }}>
+          <span className="text-[10px] font-bold tracking-[0.08em] uppercase" style={{ color: T.ink3 }}>Filter</span>
+          <select style={selectStyle} value={channelFilter} onChange={e => setChannelFilter(e.target.value)}>
             <option value="">All channels</option>
             {Object.entries(CHANNEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="text-sm border rounded-full px-3 py-1.5 bg-background cursor-pointer focus:outline-none hover:border-foreground/40 transition-colors"
-          >
+          <select style={selectStyle} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">All statuses</option>
             <option value="new">New</option>
             <option value="contacted">Contacted</option>
-            <option value="in_progress">In Progress</option>
+            <option value="in_progress">In progress</option>
             <option value="fulfilled">Fulfilled</option>
             <option value="closed">Closed</option>
           </select>
-          {dateLabel ? (
-            <div className="flex items-center gap-1 border rounded-full px-3 py-1.5 bg-background text-sm">
-              <span>{dateLabel}</span>
-              <button
-                onClick={() => { setDateFrom(""); setDateTo(""); }}
-                className="ml-1 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3 h-3" />
-              </button>
+          <select style={selectStyle} value={period} onChange={e => setPeriod(e.target.value)}>
+            <option value="7d">Last 7 days</option>
+            <option value="14d">Last 14 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="mtd">Month to date</option>
+          </select>
+          {(channelFilter || statusFilter) && (
+            <button onClick={() => { setChannelFilter(""); setStatusFilter(""); }} className="text-xs px-3 py-[5px] rounded-md" style={{ border: `1px solid ${T.border}`, color: T.ink1, background: T.surface }}>Clear</button>
+          )}
+        </div>
+
+        {/* Pulse strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          <MetricCard
+            accent={T.red}
+            label="Unactioned leads"
+            value={newLeads}
+            valueColor={T.red}
+            sub={`of ${nf(totalLeads)} total · ${pct(newLeads, totalLeads)}% of pipeline`}
+            delta={<Badge tone="danger">{slaBreach} SLA breached</Badge>}
+            onClick={() => navigate("/crm/inbox")}
+          />
+          <MetricCard
+            accent={T.green}
+            label="Patients reached (MTD)"
+            value={nf(out.sent)}
+            valueColor={T.green}
+            sub={`${activeCampaigns.total} campaigns · ${pct(out.delivered, out.sent)}% delivery`}
+            delta={<Badge tone="ok">↑ {nf(out.delivered)} delivered</Badge>}
+            onClick={() => navigate("/marketing/campaigns")}
+          />
+          <MetricCard
+            accent="#F59E0B"
+            label="Appointments booked"
+            value={apptBooked}
+            valueColor={T.amber}
+            sub={`This period · ${apptFulfilled} completed`}
+            delta={<Badge tone="warn">{conversionRate}% conversion rate</Badge>}
+            onClick={() => navigate("/appointments/bookings")}
+          />
+          <MetricCard
+            accent={T.blue}
+            label="Revenue attributed"
+            value={compactInr(revenue)}
+            valueColor={T.blue}
+            sub={`UHID-matched · ${out.roas}× ROAS`}
+            delta={<Badge tone="info">{inr(out.spend, 2)} spend</Badge>}
+            onClick={() => navigate("/marketing/campaigns")}
+          />
+        </div>
+
+        {/* Row 1 — Lead pipeline | Outreach */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <DCard>
+            <CardTitle hint="Incoming · all channels">Lead pipeline</CardTitle>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              <StatMini label="Total" value={nf(totalLeads)} sub="All channels" />
+              <StatMini label="Unactioned" value={nf(newLeads)} valueColor={T.red} sub={`${pct(newLeads, totalLeads)}% of pipeline`} />
+              <StatMini label="In progress" value={nf(inProgress)} valueColor={T.blue} sub="Open cases" />
+              <StatMini label="Fulfilled" value={nf(converted)} valueColor={T.green} sub={`${conversionRate}% conversion`} />
             </div>
-          ) : (
-            <div className="flex items-center gap-1 border rounded-full px-3 py-1.5 bg-background text-sm hover:border-foreground/40 transition-colors">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                className="bg-transparent text-xs w-24 focus:outline-none cursor-pointer"
-              />
-              <span className="text-muted-foreground">–</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                className="bg-transparent text-xs w-24 focus:outline-none cursor-pointer"
-              />
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <StatMini label="SLA breach rate" value={<span className="text-[18px]">{slaBreachRate}%</span>} valueColor={T.red} sub={`${slaBreach} of ${totalLeads} leads`} />
+              <StatMini label="Time to first action" value={<span className="text-[18px]">{durationFromMinutes(ttfa)}</span>} valueColor={ttfa != null && ttfa > 1440 ? T.red : T.ink1} sub="Target: 24h" />
+              <StatMini label="Conversion rate" value={<span className="text-[18px]">{conversionRate}%</span>} valueColor={T.green} sub={`${converted} of ${totalLeads}`} />
             </div>
-          )}
-          {filtersActive && (
-            <button
-              onClick={() => { setChannelFilter(""); setDateFrom(""); setDateTo(""); setStatusFilter(""); }}
-              className="text-xs text-muted-foreground hover:text-foreground underline ml-1"
-            >
-              Clear all
-            </button>
-          )}
-          {filtersActive && (
-            <span className="text-xs text-muted-foreground border rounded-full px-2.5 py-1">
-              {totalLeads} leads
-            </span>
-          )}
+            <SectionLabel>Lead funnel — stage breakdown</SectionLabel>
+            <FunnelSVG stages={leadFunnel} />
+          </DCard>
+
+          <DCard>
+            <CardTitle hint="All campaigns · MTD">Outreach performance</CardTitle>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <StatMini label="Sent" value={nf(out.sent)} sub={`${activeCampaigns.total} campaigns`} />
+              <StatMini label="Delivered" value={nf(out.delivered)} valueColor={T.green} sub={`${pct(out.delivered, out.sent)}% delivery`} />
+              <StatMini label="Conversions" value={nf(out.converted)} valueColor={T.green} sub={`${pct(out.converted, out.sent)}% of sent`} />
+            </div>
+            <SectionLabel>Aggregated funnel — all campaigns</SectionLabel>
+            <FunnelSVG stages={outFunnel} />
+            <div className="h-px my-3" style={{ background: T.border2 }} />
+            <SectionLabel>ROI</SectionLabel>
+            <div className="grid grid-cols-3 gap-2">
+              <StatMini label="Spend" value={<span className="text-[16px]">{inr(out.spend, 2)}</span>} sub="MTD total" />
+              <StatMini label="Revenue" value={<span className="text-[16px]">{compactInr(out.revenue)}</span>} valueColor={T.green} sub="UHID-matched" />
+              <StatMini label="ROAS" value={<span className="text-[16px]">{out.roas}×</span>} valueColor={T.blue} sub="Revenue ÷ Spend" />
+            </div>
+          </DCard>
         </div>
 
-        {/* ── INCOMING ENGAGEMENTS ─────────────────────── */}
-        <div>
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
-            Incoming Engagements
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card
-              className="cursor-pointer hover:border-foreground/30 transition-colors"
-              onClick={() => navigate("/crm/inbox")}
-            >
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Total leads</p>
-                <p className="text-3xl font-bold" data-testid="stat-total-leads">
-                  {totalLeads.toLocaleString("en-IN")}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {channelFilter ? (CHANNEL_LABELS[channelFilter] ?? channelFilter) : "All channels"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:border-blue-200 transition-colors"
-              onClick={() => navigate("/crm/inbox?status=new")}
-            >
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">New (unactioned)</p>
-                <p className="text-3xl font-bold text-amber-600" data-testid="stat-new-leads">
-                  {newLeads.toLocaleString("en-IN")}
-                </p>
-                <p className="text-xs text-blue-600 mt-1 hover:underline">Click to view →</p>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:border-foreground/30 transition-colors"
-              onClick={() => navigate("/appointments/bookings")}
-            >
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Appointments booked</p>
-                <p className="text-3xl font-bold" data-testid="stat-appt-booked">
-                  {apptBooked.toLocaleString("en-IN")}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">This period</p>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:border-green-200 transition-colors"
-              onClick={() => navigate("/crm/inbox?status=fulfilled")}
-            >
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Fulfilled</p>
-                <p className="text-3xl font-bold text-green-600" data-testid="stat-converted">
-                  {convertedLeads.toLocaleString("en-IN")}
-                </p>
-                <p className="text-xs text-green-600 mt-1 hover:underline">Click to view →</p>
-              </CardContent>
-            </Card>
+        {/* Lead-to-outcome by channel */}
+        <DCard className="mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <span className="text-[13px] font-semibold" style={{ color: T.ink1 }}>Lead-to-outcome by channel</span>
+            <div className="flex items-center gap-3.5 text-[11px]" style={{ color: T.ink2 }}>
+              {[["New", STACK_COLORS.new], ["Contacted", STACK_COLORS.contacted], ["In progress", STACK_COLORS.in_progress], ["Fulfilled", STACK_COLORS.fulfilled]].map(([l, c]) => (
+                <span key={l} className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: c as string }} />{l}</span>
+              ))}
+            </div>
           </div>
-        </div>
-
-        {/* ── OUTGOING ENGAGEMENTS ─────────────────────── */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
-              Outgoing Engagements
-            </p>
-            <span className="text-[11px] bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-medium">
-              new section
-            </span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card
-              className="cursor-pointer hover:border-foreground/30 transition-colors"
-              onClick={() => navigate("/marketing/dashboard")}
-            >
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Patients reached (MTD)</p>
-                <p className="text-3xl font-bold text-blue-600">
-                  {patientsReached.toLocaleString("en-IN")}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {campaignCount} campaign{campaignCount !== 1 ? "s" : ""}
-                </p>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:border-foreground/30 transition-colors"
-              onClick={() => navigate("/marketing/campaigns")}
-            >
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Active campaigns</p>
-                <p className="text-3xl font-bold">{activeCampaigns.total}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {activeCampaigns.live} live{activeCampaigns.paused > 0 ? ` · ${activeCampaigns.paused} paused` : ""}
-                </p>
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:border-foreground/30 transition-colors"
-              onClick={() => navigate("/marketing/dashboard")}
-            >
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Avg delivery rate</p>
-                <p className="text-3xl font-bold text-green-600">{avgDelivery}%</p>
-                {deliveryDelta > 0 && (
-                  <p className="text-xs text-green-600 mt-1">↑ {deliveryDelta}% vs last period</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card
-              className="cursor-pointer hover:border-foreground/30 transition-colors"
-              onClick={() => navigate("/marketing/campaigns")}
-            >
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Revenue attributed</p>
-                <p className="text-3xl font-bold">{formatRevenue(revenue)}</p>
-                {roi > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">ROI {roi}×</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* ── Charts row 1: Leads-by-channel + Lead-to-outcome ─── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-          {/* Leads by channel — horizontal bars */}
-          <Card>
-            <CardHeader className="pb-2 pt-5 px-5">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base font-semibold">Leads by channel</CardTitle>
-                <span className="text-[11px] bg-green-100 text-green-700 rounded-full px-2 py-0.5">+ conv. rate</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Click a bar to filter inbox · % = fulfilled / total
-              </p>
-            </CardHeader>
-            <CardContent className="px-5 pb-5">
-              {leadsByChannel.length === 0 ? (
-                <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
-                  No leads match current filters
-                </div>
-              ) : (
-                <div className="space-y-1.5 mt-2">
-                  {leadsByChannel.map((ch: any) => (
-                    <div
-                      key={ch.channel}
-                      className="flex items-center gap-2 text-sm py-1 cursor-pointer hover:bg-muted/40 rounded px-1 -mx-1 group"
-                      onClick={() => navigate(`/crm/inbox?channel=${ch.channel}`)}
-                    >
-                      <span className="w-[100px] text-xs text-muted-foreground truncate shrink-0 group-hover:text-foreground transition-colors">
-                        {CHANNEL_LABELS[ch.channel] ?? ch.channel}
-                      </span>
-                      <div className="flex-1 h-[14px] bg-muted/30 rounded-sm overflow-hidden">
-                        <div
-                          className="h-full rounded-sm transition-all"
-                          style={{
-                            width: `${(ch.count / maxChannelCount) * 100}%`,
-                            backgroundColor: "hsl(var(--primary) / 0.65)",
-                          }}
-                        />
-                      </div>
-                      <span className="w-5 text-xs font-medium text-right shrink-0">{ch.count}</span>
-                      <span className={`w-10 text-right shrink-0 text-xs ${convRateColor(ch.convRate)}`}>
-                        {ch.convRate > 0 ? `${ch.convRate}%` : ""}
-                      </span>
-                    </div>
+          {leadToOutcome.map((row: any) => {
+            const tot = row.new + row.contacted + row.in_progress + row.fulfilled;
+            return (
+              <div key={row.channel} className="flex items-center gap-2.5 mb-2.5">
+                <div className="text-[12px] text-right shrink-0" style={{ color: T.ink2, width: 120 }}>{chLabel(row.channel)}</div>
+                <div className="flex-1 flex h-[18px] rounded overflow-hidden" style={{ background: T.surface2 }}>
+                  {(["new", "contacted", "in_progress", "fulfilled"] as const).map(k => row[k] > 0 && (
+                    <div key={k} style={{ width: `${(row[k] / tot) * 100}%`, background: STACK_COLORS[k] }} title={`${k}: ${row[k]}`} />
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Lead-to-outcome stacked horizontal bars */}
-          <Card>
-            <CardHeader className="pb-2 pt-5 px-5">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base font-semibold">Lead-to-outcome by channel</CardTitle>
+                <div className="text-[12px] font-semibold text-right shrink-0" style={{ width: 28 }}>{tot}</div>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Lifecycle stage distribution per source</p>
-            </CardHeader>
-            <CardContent className="px-3 pb-5">
-              {leadToOutcome.length === 0 ? (
-                <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">No data</div>
-              ) : (
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={leadToOutcome}
-                      layout="vertical"
-                      barSize={14}
-                      margin={{ left: 0, right: 8, top: 4, bottom: 4 }}
-                    >
-                      <XAxis type="number" hide />
-                      <YAxis
-                        type="category"
-                        dataKey="channelLabel"
-                        width={90}
-                        tick={{ fontSize: 11 }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <Tooltip
-                        formatter={(val, name) => [val, String(name).replace(/_/g, " ")]}
-                        contentStyle={{ fontSize: 12 }}
-                      />
-                      <Legend
-                        iconSize={8}
-                        wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                        formatter={v => String(v).replace(/_/g, " ")}
-                      />
-                      <Bar dataKey="new" name="New" stackId="s" fill="#bfdbfe" />
-                      <Bar dataKey="contacted" name="Contacted" stackId="s" fill="#fde68a" />
-                      <Bar dataKey="in_progress" name="In-progress" stackId="s" fill="#ddd6fe" />
-                      <Bar dataKey="fulfilled" name="Fulfilled" stackId="s" fill="#bbf7d0" radius={[0, 3, 3, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            );
+          })}
+        </DCard>
 
-        {/* ── Active campaigns — full width ─────────────────── */}
-        <Card>
-          <CardHeader className="pb-2 pt-5 px-5">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold">Active campaigns</CardTitle>
-              <button
-                className="text-xs text-blue-600 hover:underline shrink-0"
-                onClick={() => navigate("/marketing/campaigns")}
-              >
-                View all →
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">Live, paused & recently completed · up to 6 shown</p>
-          </CardHeader>
-          <CardContent className="px-2 pb-3">
-            {activeCampaignsList.length === 0 ? (
-              <div className="h-20 flex items-center justify-center text-sm text-muted-foreground">
-                No active campaigns
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-muted-foreground border-b">
-                    <th className="text-left font-medium py-2 px-3">Campaign</th>
-                    <th className="text-left font-medium py-2 px-2">Goal</th>
-                    <th className="text-center font-medium py-2 px-2 w-10">Ch</th>
-                    <th className="text-right font-medium py-2 px-2">Reached</th>
-                    <th className="text-right font-medium py-2 px-2">Delivery</th>
-                    <th className="text-right font-medium py-2 px-2">Conversions</th>
-                    <th className="text-right font-medium py-2 px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeCampaignsList.map((c: any) => (
-                    <tr
-                      key={c.id}
-                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
-                      onClick={() => navigate("/marketing/campaigns")}
-                    >
-                      <td className="py-2 px-3 font-medium text-xs max-w-[180px] truncate">{c.name}</td>
-                      <td className="py-2 px-2 text-xs text-muted-foreground truncate max-w-[120px]">{c.goal || "—"}</td>
-                      <td className="py-2 px-2 text-center">
-                        <ChannelIcon channel={c.channel} />
-                      </td>
-                      <td className="py-2 px-2 text-right text-xs text-muted-foreground">
-                        {(c.reached ?? 0).toLocaleString("en-IN")}
-                      </td>
-                      <td className="py-2 px-2 text-right text-xs text-muted-foreground">{c.deliveryRate ?? 0}%</td>
-                      <td className="py-2 px-2 text-right text-xs text-muted-foreground">
-                        {(c.conversions ?? 0).toLocaleString("en-IN")}
-                      </td>
-                      <td className="py-2 px-3 text-right">
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${CAMPAIGN_STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                          {c.status === "completed" ? "done" : c.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ── Lead volume — last 7 days ───────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <Card>
-            <CardHeader className="pb-2 pt-5 px-5">
-              <CardTitle className="text-base font-semibold">Lead volume — last 7 days</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Daily arrivals across all channels</p>
-            </CardHeader>
-            <CardContent className="px-3 pb-5">
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={trend}
-                    barCategoryGap="35%"
-                    margin={{ left: 0, right: 8, top: 4, bottom: 4 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="count" name="Leads" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ── Recent leads ──────────────────────────────── */}
-        <Card>
-          <CardHeader className="pt-5 pb-3 px-5 flex-row items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              <CardTitle className="text-base font-semibold">Recent leads</CardTitle>
-              <span className="text-[11px] bg-green-100 text-green-700 rounded-full px-2 py-0.5">
-                + last action &amp; campaign touch
-              </span>
-            </div>
-            <button
-              className="text-xs text-blue-600 hover:underline shrink-0"
-              onClick={() => navigate("/crm/inbox")}
-            >
-              View all →
-            </button>
-          </CardHeader>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
+        {/* Owner workload | Lead ageing */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <DCard>
+            <CardTitle hint="Leads assigned + SLA breach">Owner workload</CardTitle>
+            <table className="w-full text-[12px]">
               <thead>
-                <tr className="border-b text-xs text-muted-foreground">
-                  <th className="text-left font-medium py-2 px-5">Patient name</th>
-                  <th className="text-left font-medium py-2 px-2">Channel</th>
-                  <th className="text-left font-medium py-2 px-2">Status</th>
-                  <th className="text-left font-medium py-2 px-2">
-                    Last action{" "}
-                    <span className="bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 text-[10px] ml-0.5">new</span>
-                  </th>
-                  <th className="text-left font-medium py-2 px-2">
-                    Campaign touch{" "}
-                    <span className="bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 text-[10px] ml-0.5">new</span>
-                  </th>
-                  <th className="text-right font-medium py-2 px-5">Created</th>
+                <tr className="text-[10px] uppercase tracking-[0.06em]" style={{ color: T.ink3 }}>
+                  <th className="text-left font-semibold pb-2">Owner</th>
+                  <th className="text-left font-semibold pb-2">Assigned</th>
+                  <th className="text-left font-semibold pb-2">In prog.</th>
+                  <th className="text-left font-semibold pb-2">Fulfilled</th>
+                  <th className="text-left font-semibold pb-2">SLA status</th>
                 </tr>
               </thead>
               <tbody>
-                {recentLeads.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-10 text-center text-muted-foreground">
-                      No leads match current filters
+                {ownerWorkload.map((o: any, i: number) => (
+                  <tr key={o.userId} style={{ borderTop: `1px solid ${T.border2}` }}>
+                    <td className="py-2">
+                      <div className="flex items-center gap-2">
+                        <Avatar name={o.name} index={o.idx ?? i} />
+                        <div>
+                          <div className="font-medium" style={{ color: T.ink1 }}>{o.name}</div>
+                          {i === 0 && o.breached > 0 && <div className="text-[10px]" style={{ color: T.ink3 }}>Most overloaded</div>}
+                          {o.breached === 0 && <div className="text-[10px]" style={{ color: T.green }}>On track</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-2 font-semibold">{o.total}</td>
+                    <td className="py-2">{o.in_progress}</td>
+                    <td className="py-2">{o.fulfilled}</td>
+                    <td className="py-2">
+                      <Badge tone={o.breached === 0 ? "ok" : o.breached >= 5 ? "danger" : "warn"}>{o.breached} breached</Badge>
                     </td>
                   </tr>
-                ) : (
-                  recentLeads.map((lead: any) => {
-                    const daysSince = (Date.now() - new Date(lead.lastActionAt).getTime()) / 86400000;
-                    const isNoAction = lead.lastActionDescription === "No action yet";
-                    const isSlaWarning = isNoAction && daysSince > 1;
-                    return (
-                      <tr
-                        key={lead.id}
-                        className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
-                        onClick={() => navigate("/crm/inbox")}
-                      >
-                        <td className="py-2.5 px-5 font-medium text-sm">
-                          {lead.firstName} {lead.lastName}
-                        </td>
-                        <td className="py-2.5 px-2 text-xs text-muted-foreground">
-                          {CHANNEL_LABELS[lead.sourceChannel] ?? lead.sourceChannel}
-                        </td>
-                        <td className="py-2.5 px-2">
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${STATUS_COLORS[lead.status] ?? "bg-gray-100 text-gray-600"}`}>
-                            {lead.status.replace(/_/g, " ")}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-2 text-xs text-muted-foreground whitespace-nowrap">
-                          {timeAgo(lead.lastActionAt)} · {lead.lastActionDescription}
-                          {isSlaWarning && <span className="ml-1 text-amber-500">⚠</span>}
-                        </td>
-                        <td className="py-2.5 px-2">
-                          {lead.campaignTouchName ? (
-                            <span className="text-[11px] bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-2 py-0.5 whitespace-nowrap">
-                              {lead.campaignTouchName}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-5 text-xs text-muted-foreground text-right">
-                          {format(new Date(lead.createdAt), "d MMM")}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                ))}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
+          </DCard>
 
-      </div>
+          <DCard>
+            <CardTitle hint="Unactioned · by age">Lead ageing</CardTitle>
+            <div className="grid grid-cols-4 gap-2 mb-3.5">
+              {[
+                { label: "< 6h", v: ageing.lt6h, c: T.green, bg: T.greenBg, note: "On time" },
+                { label: "6–24h", v: ageing.h6_24, c: T.amber, bg: T.amberBg, note: "Watch" },
+                { label: "24–72h", v: ageing.h24_72, c: T.red, bg: T.redBg, note: "Urgent" },
+                { label: "> 72h", v: ageing.gt72, c: "#7F1D1D", bg: "#FEF2F2", note: "Critical" },
+              ].map(b => (
+                <div key={b.label} className="rounded-lg px-3 py-2.5 text-center" style={{ background: b.bg }}>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.05em] mb-1" style={{ color: b.c }}>{b.label}</div>
+                  <div className="text-[20px] font-bold" style={{ color: b.c }}>{b.v}</div>
+                  <div className="text-[10px]" style={{ color: T.ink3 }}>{b.note}</div>
+                </div>
+              ))}
+            </div>
+            <BarRow label="< 6h" pct={(ageing.lt6h / ageMax) * 100} color={T.green} value={ageing.lt6h} labelWidth={56} />
+            <BarRow label="6–24h" pct={(ageing.h6_24 / ageMax) * 100} color={T.amber} value={ageing.h6_24} labelWidth={56} />
+            <BarRow label="24–72h" pct={(ageing.h24_72 / ageMax) * 100} color={T.red} value={ageing.h24_72} labelWidth={56} />
+            <BarRow label="> 72h" pct={(ageing.gt72 / ageMax) * 100} color="#7F1D1D" value={ageing.gt72} labelWidth={56} />
+          </DCard>
+        </div>
+
+        {/* Active campaigns */}
+        <DCard className="mb-4 overflow-x-auto">
+          <CardTitle hint="Live, paused & recently completed">Active campaigns</CardTitle>
+          <table className="w-full text-[12px]" style={{ minWidth: 900 }}>
+            <thead>
+              <tr className="text-[10px] uppercase tracking-[0.06em]" style={{ color: T.ink3 }}>
+                {["Campaign", "Goal", "Channel", "Sent", "Delivery", "Open", "CTR", "Conversions", "Revenue", "Cost/conv.", "Status"].map(h => (
+                  <th key={h} className="text-left font-semibold pb-2 pr-3 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {activeCampaignsList.map((c: any) => {
+                const st = CAMPAIGN_STATUS[c.status] ?? { tone: "neutral" as BadgeTone, label: c.status };
+                const hasMetrics = c.reached > 0;
+                return (
+                  <tr key={c.id} style={{ borderTop: `1px solid ${T.border2}` }} className="cursor-pointer hover:bg-[#FAFAF8]" onClick={() => navigate(`/marketing/metrics?campaign=${c.id}`)}>
+                    <td className="py-2.5 pr-3 font-medium" style={{ color: T.ink1 }}>{c.name}</td>
+                    <td className="py-2.5 pr-3 text-[11px]" style={{ color: T.ink2 }}>{c.goal || "—"}</td>
+                    <td className="py-2.5 pr-3"><Badge tone={CAMPAIGN_CHANNEL_BADGE[c.channel] ?? "neutral"}>{chLabel(c.channel)}</Badge></td>
+                    <td className="py-2.5 pr-3">{nf(c.reached)}</td>
+                    <td className="py-2.5 pr-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-11 h-1 rounded-sm overflow-hidden" style={{ background: T.surface2 }}>
+                          <div className="h-1 rounded-sm" style={{ width: `${c.deliveryRate}%`, background: c.deliveryRate >= 85 ? T.green : T.amber }} />
+                        </div>
+                        <span className="font-semibold" style={{ color: c.deliveryRate >= 85 ? T.green : T.amber }}>{c.deliveryRate}%</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 pr-3 font-semibold" style={{ color: hasMetrics ? T.purple : T.ink4 }}>{hasMetrics ? `${c.openRate}%` : "—"}</td>
+                    <td className="py-2.5 pr-3 font-semibold" style={{ color: hasMetrics ? T.amber : T.ink4 }}>{hasMetrics ? `${c.ctr}%` : "—"}</td>
+                    <td className="py-2.5 pr-3 font-semibold" style={{ color: T.green }}>{c.conversions || "—"}</td>
+                    <td className="py-2.5 pr-3 font-semibold" style={{ color: c.revenueAttributed > 0 ? T.green : T.ink4 }}>{c.revenueAttributed > 0 ? compactInr(c.revenueAttributed) : "—"}</td>
+                    <td className="py-2.5 pr-3">{c.costPerConversion > 0 ? inr(c.costPerConversion) : "—"}</td>
+                    <td className="py-2.5 pr-3"><Badge tone={st.tone}>{st.label}</Badge></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </DCard>
+
+        {/* SLA breach watchlist */}
+        <DCard className="mb-4">
+          <CardTitle hint="Unactioned leads · sorted by age">SLA breach watchlist</CardTitle>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              {slaWatchlist.length === 0 && <div className="text-[12px] py-4" style={{ color: T.ink3 }}>No unactioned leads — all caught up.</div>}
+              {slaWatchlist.map((l: any) => (
+                <div key={l.id} className="flex items-center justify-between py-1.5" style={{ borderBottom: `1px solid ${T.border2}` }}>
+                  <div>
+                    <div className="text-[12px] font-medium" style={{ color: T.ink1 }}>{l.name}</div>
+                    <div className="text-[11px]" style={{ color: T.ink3 }}>
+                      {chLabel(l.channel)}{l.campaignTouchName ? ` · ${l.campaignTouchName}` : ""}{l.ownerName ? ` · ${l.ownerName}` : " · Unassigned"}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[12px] font-semibold" style={{ color: T.red }}>{durationFromMinutes(l.ageHours * 60)} old</div>
+                    <Badge tone="neutral">New</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg px-3.5 py-3 text-center" style={{ background: T.redBg }}>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.05em] mb-1" style={{ color: T.red }}>Critical</div>
+                  <div className="text-[22px] font-bold" style={{ color: T.red }}>{ageSummary.critical}</div>
+                  <div className="text-[10px]" style={{ color: T.ink3 }}>&gt;72h old</div>
+                </div>
+                <div className="rounded-lg px-3.5 py-3 text-center" style={{ background: T.amberBg }}>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.05em] mb-1" style={{ color: T.amber }}>At risk</div>
+                  <div className="text-[22px] font-bold" style={{ color: T.amber }}>{ageSummary.atRisk}</div>
+                  <div className="text-[10px]" style={{ color: T.ink3 }}>24–72h old</div>
+                </div>
+                <div className="rounded-lg px-3.5 py-3 text-center" style={{ background: T.greenBg }}>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.05em] mb-1" style={{ color: T.green }}>On time</div>
+                  <div className="text-[22px] font-bold" style={{ color: T.green }}>{ageSummary.onTime}</div>
+                  <div className="text-[10px]" style={{ color: T.ink3 }}>&lt;24h old</div>
+                </div>
+              </div>
+              <div className="mt-1">
+                <BarRow label="< 6h" pct={(ageing.lt6h / ageMax) * 100} color={T.green} value={ageing.lt6h} labelWidth={60} />
+                <BarRow label="6–24h" pct={(ageing.h6_24 / ageMax) * 100} color={T.amber} value={ageing.h6_24} labelWidth={60} />
+                <BarRow label="24–72h" pct={(ageing.h24_72 / ageMax) * 100} color={T.red} value={ageing.h24_72} labelWidth={60} />
+                <BarRow label="> 72h" pct={(ageing.gt72 / ageMax) * 100} color="#7F1D1D" value={ageing.gt72} labelWidth={60} />
+              </div>
+            </div>
+          </div>
+        </DCard>
+
+        {/* Recent leads */}
+        <DCard className="overflow-x-auto">
+          <CardTitle hint="Last action & campaign touch">Recent leads</CardTitle>
+          <table className="w-full text-[12px]" style={{ minWidth: 760 }}>
+            <thead>
+              <tr className="text-[10px] uppercase tracking-[0.06em]" style={{ color: T.ink3 }}>
+                {["Patient", "Channel", "Status", "Last action", "Campaign touch", "Created"].map(h => (
+                  <th key={h} className="text-left font-semibold pb-2 pr-3 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recentLeads.map((l: any) => {
+                const sb = STATUS_BADGE[l.status] ?? { tone: "neutral" as BadgeTone, label: l.status };
+                const noAction = l.status === "new";
+                return (
+                  <tr key={l.id} style={{ borderTop: `1px solid ${T.border2}` }} className="cursor-pointer hover:bg-[#FAFAF8]" onClick={() => navigate(`/crm/inbox?lead=${l.id}`)}>
+                    <td className="py-2.5 pr-3 font-medium" style={{ color: T.ink1 }}>{l.firstName} {l.lastName}</td>
+                    <td className="py-2.5 pr-3" style={{ color: T.ink2 }}>{chLabel(l.sourceChannel)}</td>
+                    <td className="py-2.5 pr-3"><Badge tone={sb.tone}>{sb.label}</Badge></td>
+                    <td className="py-2.5 pr-3" style={{ color: noAction ? T.red : T.ink2 }}>{timeAgo(l.lastActionAt)} · {l.lastActionDescription}</td>
+                    <td className="py-2.5 pr-3">{l.campaignTouchName ? <span style={{ color: T.green }}>{l.campaignTouchName}</span> : <span style={{ color: T.ink4 }}>—</span>}</td>
+                    <td className="py-2.5 pr-3 text-[11px]" style={{ color: T.ink3 }}>{shortDate(l.createdAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </DCard>
+      </DashPage>
     </AppLayout>
   );
 }

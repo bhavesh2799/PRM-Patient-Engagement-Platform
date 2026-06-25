@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Affordplan — Home Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg:       #F7F5F0;
+  --surface:  #FFFFFF;
+  --s2:       #F2F0EB;
+  --s3:       #ECEAE4;
+  --border:   #E6E3DB;
+  --border2:  #EFEDE7;
+  --ink1:     #111110;
+  --ink2:     #52524E;
+  --ink3:     #A8A49C;
+  --ink4:     #C8C5BC;
+  --teal:     #0C7C6E;
+  --teal-bg:  #EBF5F3;
+  --teal-mid: #C2E4DF;
+  --red:      #C93535;
+  --red-bg:   #FDF2F2;
+  --amber:    #C07A16;
+  --amber-bg: #FDF6EC;
+  --blue:     #2054C8;
+  --blue-bg:  #EEF2FC;
+  --purple:   #6B3FA0;
+  --r-sm: 6px;
+  --r:    10px;
+  --r-lg: 14px;
+  --sh:   0 1px 2px rgba(0,0,0,.05), 0 1px 4px rgba(0,0,0,.04);
+  --sh-md:0 2px 8px rgba(0,0,0,.07), 0 1px 3px rgba(0,0,0,.04);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--ink1);
+  min-width: 1140px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  background: var(--ink1);
+  padding: 0 32px;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: #fff; color: var(--ink1);
+  font-size: 11px; font-weight: 800; letter-spacing: -.3px;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-name { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: -.2px; }
+.brand-divider { width: 1px; height: 16px; background: rgba(255,255,255,.15); margin: 0 6px; }
+.brand-page { font-size: 13px; color: rgba(255,255,255,.45); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.tb-pill {
+  font-size: 12px; padding: 4px 11px; border-radius: 20px; font-weight: 500;
+}
+.tb-pill.balance { background: rgba(255,255,255,.1); color: rgba(255,255,255,.8); }
+.tb-pill.hospital { background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); }
+.tb-pill.role { background: rgba(255,255,255,.15); color: #fff; }
+
+/* ── PAGE WRAPPER ── */
+.page { padding: 28px 32px 48px; }
+
+/* ── PAGE HEAD ── */
+.page-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 22px;
+}
+.page-title { font-size: 20px; font-weight: 700; letter-spacing: -.4px; color: var(--ink1); }
+.page-sub { font-size: 13px; color: var(--ink3); margin-top: 2px; }
+.page-date { font-size: 12px; color: var(--ink3); }
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 9px 14px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 20px; box-shadow: var(--sh);
+}
+.f-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); flex-shrink: 0; }
+.f-sel {
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
+  color: var(--ink1); background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 5px 24px 5px 9px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 7px center; cursor: pointer;
+}
+.f-sel:focus { outline: none; border-color: var(--ink1); }
+.f-date { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink1); background: var(--s2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 5px 9px; width: 126px; }
+.f-vr { width: 1px; height: 16px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+.f-btn { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; padding: 5px 13px; border-radius: var(--r-sm); border: 1px solid var(--border); cursor: pointer; background: var(--surface); color: var(--ink1); }
+.f-btn.primary { background: var(--ink1); color: #fff; border-color: var(--ink1); }
+
+/* ── PULSE STRIP ── */
+.pulse-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--surface); overflow: hidden;
+  margin-bottom: 20px; box-shadow: var(--sh);
+}
+.pulse-cell {
+  padding: 18px 22px; position: relative;
+}
+.pulse-cell + .pulse-cell { border-left: 1px solid var(--border); }
+.pulse-cell::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.pulse-cell.c-red::before    { background: var(--red); }
+.pulse-cell.c-amber::before  { background: #F59E0B; }
+.pulse-cell.c-teal::before   { background: var(--teal); }
+.pulse-cell.c-blue::before   { background: var(--blue); }
+.pulse-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--ink3); margin-bottom: 7px; }
+.pulse-value { font-size: 32px; font-weight: 700; letter-spacing: -.8px; line-height: 1; font-variant-numeric: tabular-nums; margin-bottom: 5px; }
+.pulse-sub { font-size: 11px; color: var(--ink3); }
+.pulse-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 600; padding: 2px 7px;
+  border-radius: 20px; margin-top: 5px;
+}
+
+/* ── SECTION ROW ── */
+.section-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.section-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--sh);
+  overflow: hidden;
+}
+.card-head {
+  padding: 16px 20px 12px;
+  display: flex; align-items: baseline; justify-content: space-between;
+  border-bottom: 1px solid var(--border2);
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--ink1); }
+.card-sub { font-size: 11px; color: var(--ink3); margin-top: 1px; }
+.card-link { font-size: 12px; color: var(--teal); text-decoration: none; font-weight: 500; white-space: nowrap; }
+.card-body { padding: 16px 20px; }
+
+/* ── SECTION LABEL ── */
+.slabel {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--ink3); margin-bottom: 10px;
+}
+
+/* ── STAT ROW ── */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.stat-mini {
+  background: var(--s2); border-radius: var(--r-sm); padding: 10px 12px;
+}
+.sm-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink3); margin-bottom: 4px; }
+.sm-val { font-size: 20px; font-weight: 700; letter-spacing: -.4px; font-variant-numeric: tabular-nums; }
+.sm-sub { font-size: 10px; color: var(--ink3); margin-top: 2px; }
+
+/* ── CHANNEL BARS ── */
+.ch-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.ch-label { font-size: 11px; color: var(--ink2); width: 100px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-track { flex: 1; height: 7px; background: var(--s2); border-radius: 4px; overflow: hidden; position: relative; }
+.ch-fill-a { height: 7px; border-radius: 4px; position: absolute; top: 0; left: 0; }
+.ch-fill-b { height: 7px; border-radius: 4px; position: absolute; top: 0; left: 0; opacity: .35; }
+.ch-count { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; width: 20px; text-align: right; flex-shrink: 0; }
+.ch-rate { font-size: 11px; font-weight: 600; width: 34px; text-align: right; flex-shrink: 0; }
+
+/* ── BADGES ── */
+.badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; letter-spacing: .02em; white-space: nowrap; }
+.b-new       { background: var(--s3); color: var(--ink2); }
+.b-progress  { background: var(--blue-bg); color: var(--blue); }
+.b-contacted { background: var(--amber-bg); color: var(--amber); }
+.b-fulfilled { background: var(--teal-bg); color: var(--teal); }
+.b-live      { background: var(--teal-bg); color: var(--teal); }
+.b-paused    { background: var(--amber-bg); color: var(--amber); }
+.b-done      { background: var(--s3); color: var(--ink2); }
+.b-submitted { background: var(--blue-bg); color: var(--blue); }
+.b-breach    { background: var(--red-bg); color: var(--red); }
+
+/* ── TABLE ── */
+table.t { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.t th {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--ink3); padding: 8px 12px;
+  text-align: left; background: var(--s2);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+table.t th:first-child { padding-left: 20px; }
+table.t th:last-child  { padding-right: 20px; }
+table.t td {
+  padding: 9px 12px; border-bottom: 1px solid var(--border2);
+  vertical-align: middle;
+}
+table.t td:first-child { padding-left: 20px; }
+table.t td:last-child  { padding-right: 20px; }
+table.t tr:last-child td { border-bottom: none; }
+table.t tbody tr:hover td { background: #FAFAF8; }
+.td-name { font-weight: 500; }
+.td-muted { color: var(--ink4); }
+.td-sub { font-size: 11px; color: var(--ink3); margin-top: 1px; }
+
+/* ── PROGRESS ── */
+.prog { height: 4px; background: var(--s2); border-radius: 2px; overflow: hidden; margin-top: 5px; }
+.prog-fill { height: 4px; border-radius: 2px; }
+
+/* ── SLA BREACH LIST ── */
+.breach-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 0; border-bottom: 1px solid var(--border2);
+}
+.breach-row:last-child { border-bottom: none; }
+.breach-name { font-size: 12px; font-weight: 500; }
+.breach-meta { font-size: 11px; color: var(--ink3); margin-top: 1px; }
+.breach-age { font-size: 12px; font-weight: 600; color: var(--red); }
+
+/* ── CAMPAIGN TABLE ── */
+.conv-bar { display: flex; align-items: center; gap: 5px; }
+.conv-track { width: 44px; height: 4px; background: var(--s2); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.conv-fill { height: 4px; border-radius: 2px; }
+
+/* ── MINI FUNNEL (inline SVG) ── */
+.funnel-inline { display: flex; align-items: flex-end; gap: 2px; height: 40px; }
+.fi-bar { flex: 1; border-radius: 2px 2px 0 0; }
+
+/* ── SPARKLINE ── */
+.sparkline { width: 100%; height: 54px; }
+
+/* ── LEAD TABLE STATUS DOT ── */
+.dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* ── FOOTER ── */
+.footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--ink4);
+}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">AP</div>
+    <span class="brand-name">Affordplan</span>
+    <div class="brand-divider"></div>
+    <span class="brand-page">Home Dashboard</span>
+  </div>
+  <div class="topbar-right">
+    <span class="tb-pill balance">₹31,208.97</span>
+    <span class="tb-pill hospital">Sunrise Multispecialty Hospital</span>
+    <span class="tb-pill role">Front-office Exec</span>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- Page head + filters -->
+<div class="page-head">
+  <div>
+    <div class="page-title">Overview</div>
+    <div class="page-sub">Leads, outreach &amp; appointments — all channels</div>
+  </div>
+  <span class="page-date">Thursday, 25 Jun 2026</span>
+</div>
+
+<div class="filter-bar">
+  <span class="f-label">Filter</span>
+  <select class="f-sel" id="fc">
+    <option>All channels</option>
+    <option>WhatsApp</option><option>Web Form</option><option>Web Chat</option>
+    <option>App</option><option>CSV Import</option><option>Email</option>
+  </select>
+  <select class="f-sel" id="fo">
+    <option>All owners</option>
+    <option>Priya M.</option><option>Anita R.</option><option>Suresh K.</option><option>Raj V.</option>
+  </select>
+  <select class="f-sel" id="fp" onchange="toggleDR()">
+    <option value="14d">Last 14 days</option>
+    <option value="7d">Last 7 days</option>
+    <option value="30d">Last 30 days</option>
+    <option value="mtd">Month to date</option>
+    <option value="custom">Custom range</option>
+  </select>
+  <div class="f-vr"></div>
+  <span id="drw" style="display:none;align-items:center;gap:6px">
+    <input class="f-date" type="date" id="fd1">
+    <span style="font-size:11px;color:var(--ink4)">to</span>
+    <input class="f-date" type="date" id="fd2">
+  </span>
+  <button class="f-btn primary">Apply</button>
+  <button class="f-btn" onclick="['fc','fo','fp'].forEach(i=>{document.getElementById(i).selectedIndex=0});document.getElementById('drw').style.display='none'">Clear</button>
+</div>
+<script>function toggleDR(){document.getElementById('drw').style.display=document.getElementById('fp').value==='custom'?'flex':'none';}</script>
+
+<!-- ═══════════════════════════════════════
+     PULSE STRIP — 4 live headline numbers
+════════════════════════════════════════ -->
+<div class="pulse-strip">
+
+  <div class="pulse-cell c-red">
+    <div class="pulse-label">Unactioned leads</div>
+    <div class="pulse-value" style="color:var(--red)">10</div>
+    <div class="pulse-sub">of 32 total · 31% of pipeline</div>
+    <div class="pulse-badge" style="background:var(--red-bg);color:var(--red)">10 SLA breached</div>
+  </div>
+
+  <div class="pulse-cell c-teal">
+    <div class="pulse-label">Patients reached (MTD)</div>
+    <div class="pulse-value" style="color:var(--teal)">280</div>
+    <div class="pulse-sub">5 campaigns · 85% delivery rate</div>
+    <div class="pulse-badge" style="background:var(--teal-bg);color:var(--teal)">↑ +4% vs last period</div>
+  </div>
+
+  <div class="pulse-cell c-amber">
+    <div class="pulse-label">Appointments booked</div>
+    <div class="pulse-value" style="color:var(--amber)">3</div>
+    <div class="pulse-sub">This period · 7 fulfilled total</div>
+    <div class="pulse-badge" style="background:var(--amber-bg);color:var(--amber)">22% conversion rate</div>
+  </div>
+
+  <div class="pulse-cell c-blue">
+    <div class="pulse-label">Revenue attributed</div>
+    <div class="pulse-value" style="color:var(--blue)">₹21K</div>
+    <div class="pulse-sub">UHID-matched · 208× ROAS</div>
+    <div class="pulse-badge" style="background:var(--blue-bg);color:var(--blue)">₹101.98 spend</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     ROW 1 — Lead pipeline  |  Outreach
+════════════════════════════════════════ -->
+<div class="section-row">
+
+  <!-- Lead pipeline (compact — no channel bars) -->
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Lead pipeline</div>
+        <div class="card-sub">Incoming · all channels · last 14 days</div>
+      </div>
+      <a class="card-link" href="#">Open inbox →</a>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+        <div class="stat-mini">
+          <div class="sm-label">Total</div>
+          <div class="sm-val">32</div>
+          <div class="sm-sub">All channels</div>
+        </div>
+        <div class="stat-mini">
+          <div class="sm-label">Unactioned</div>
+          <div class="sm-val" style="color:var(--red)">10</div>
+          <div class="sm-sub">31% of pipeline</div>
+        </div>
+        <div class="stat-mini">
+          <div class="sm-label">In progress</div>
+          <div class="sm-val" style="color:var(--blue)">9</div>
+          <div class="sm-sub">Avg age 2.1d</div>
+        </div>
+        <div class="stat-mini">
+          <div class="sm-label">Fulfilled</div>
+          <div class="sm-val" style="color:var(--teal)">7</div>
+          <div class="sm-sub">22% conversion</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+        <div class="stat-mini">
+          <div class="sm-label">SLA breach rate</div>
+          <div class="sm-val" style="font-size:18px;color:var(--red)">31%</div>
+          <div class="sm-sub">10 of 32 leads</div>
+        </div>
+        <div class="stat-mini">
+          <div class="sm-label">Time to first action</div>
+          <div class="sm-val" style="font-size:18px;color:var(--red)">263h</div>
+          <div class="sm-sub">Target: 24h</div>
+        </div>
+        <div class="stat-mini">
+          <div class="sm-label">Conversion rate</div>
+          <div class="sm-val" style="font-size:18px;color:var(--teal)">22%</div>
+          <div class="sm-sub">7 of 32</div>
+        </div>
+      </div>
+
+      <!-- Lead stage funnel — matches outreach funnel style -->
+      <div class="slabel">Lead funnel — stage breakdown</div>
+      <svg viewBox="0 0 460 175" xmlns="http://www.w3.org/2000/svg" style="width:100%;overflow:visible;margin-bottom:6px">
+        <!-- baseline y=110, max h=100, scale to max=32 -->
+        <!-- New/Unactioned: 10 → 31% → h=31 -->
+        <rect x="2"   y="10"  width="84" height="100" rx="3" fill="#2054C8" opacity=".85"/>
+        <text x="102" y="62" font-size="13" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+        <!-- Unactioned: 10 → 31% → h=31 -->
+        <rect x="114" y="79"  width="84" height="31"  rx="3" fill="#C93535" opacity=".8"/>
+        <text x="214" y="62" font-size="13" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+        <!-- In progress: 9 → 28% → h=28 -->
+        <rect x="226" y="82"  width="84" height="28"  rx="3" fill="#C07A16" opacity=".85"/>
+        <text x="326" y="62" font-size="13" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+        <!-- Fulfilled: 7 → 22% → h=22 -->
+        <rect x="338" y="88"  width="84" height="22"  rx="3" fill="#0C7C6E" opacity=".9"/>
+        <!-- baseline -->
+        <line x1="0" y1="110" x2="460" y2="110" stroke="#E6E3DB" stroke-width="1"/>
+        <!-- labels -->
+        <text x="44"  y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">Total</text>
+        <text x="156" y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">Unactioned</text>
+        <text x="268" y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">In progress</text>
+        <text x="380" y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">Fulfilled</text>
+        <!-- counts -->
+        <text x="44"  y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#2054C8" font-family="Inter,sans-serif">32</text>
+        <text x="156" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#C93535" font-family="Inter,sans-serif">10</text>
+        <text x="268" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#C07A16" font-family="Inter,sans-serif">9</text>
+        <text x="380" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#0C7C6E" font-family="Inter,sans-serif">7</text>
+        <!-- sub labels -->
+        <text x="44"  y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#A8A49C" font-family="Inter,sans-serif">100%</text>
+        <text x="156" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#C93535" font-family="Inter,sans-serif">31% stuck</text>
+        <text x="268" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#C07A16" font-family="Inter,sans-serif">28%</text>
+        <text x="380" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#0C7C6E" font-family="Inter,sans-serif">22% conv.</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Outreach performance — aggregated -->
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Outreach performance</div>
+        <div class="card-sub">All campaigns · month to date</div>
+      </div>
+      <a class="card-link" href="#">View campaigns →</a>
+    </div>
+    <div class="card-body">
+
+      <!-- KPI row -->
+      <div class="stat-row" style="margin-bottom:14px">
+        <div class="stat-mini">
+          <div class="sm-label">Sent</div>
+          <div class="sm-val">280</div>
+          <div class="sm-sub">5 campaigns</div>
+        </div>
+        <div class="stat-mini">
+          <div class="sm-label">Delivered</div>
+          <div class="sm-val" style="color:var(--teal)">238</div>
+          <div class="sm-sub">85% delivery rate</div>
+        </div>
+        <div class="stat-mini">
+          <div class="sm-label">Conversions</div>
+          <div class="sm-val" style="color:var(--teal)">16</div>
+          <div class="sm-sub">5.7% of sent</div>
+        </div>
+      </div>
+
+      <!-- Aggregated funnel SVG -->
+      <div class="slabel">Aggregated funnel — all campaigns</div>
+      <svg viewBox="0 0 460 175" xmlns="http://www.w3.org/2000/svg" style="width:100%;overflow:visible;margin-bottom:6px">
+        <!-- baseline y=110, max h=100 -->
+        <!-- Sent: 280 → 100% → h=100 -->
+        <rect x="2"   y="10"  width="64" height="100" rx="3" fill="#2054C8" opacity=".85"/>
+        <text x="82"  y="62" font-size="13" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+        <!-- Delivered: 238 → 85% → h=85 -->
+        <rect x="94"  y="25"  width="64" height="85"  rx="3" fill="#2054C8" opacity=".55"/>
+        <text x="174" y="62" font-size="13" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+        <!-- Opened: ~148 → 53% → h=53 -->
+        <rect x="186" y="57"  width="64" height="53"  rx="3" fill="#6B3FA0" opacity=".85"/>
+        <text x="266" y="62" font-size="13" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+        <!-- Clicked: ~54 → 19% → h=19 -->
+        <rect x="278" y="91"  width="64" height="19"  rx="3" fill="#C07A16" opacity=".9"/>
+        <text x="358" y="62" font-size="13" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+        <!-- Converted: 16 → 5.7% → h=6 -->
+        <rect x="370" y="104" width="64" height="6"   rx="3" fill="#0C7C6E" opacity=".9"/>
+        <!-- baseline -->
+        <line x1="0" y1="110" x2="460" y2="110" stroke="#E6E3DB" stroke-width="1"/>
+        <!-- labels -->
+        <text x="34"  y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">Sent</text>
+        <text x="126" y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">Delivered</text>
+        <text x="218" y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">Opened</text>
+        <text x="310" y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">Clicked</text>
+        <text x="402" y="124" text-anchor="middle" font-size="10" fill="#A8A49C" font-family="Inter,sans-serif">Converted</text>
+        <!-- counts -->
+        <text x="34"  y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#2054C8" font-family="Inter,sans-serif">280</text>
+        <text x="126" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#2054C8" font-family="Inter,sans-serif">238</text>
+        <text x="218" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#6B3FA0" font-family="Inter,sans-serif">148</text>
+        <text x="310" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#C07A16" font-family="Inter,sans-serif">54</text>
+        <text x="402" y="140" text-anchor="middle" font-size="13" font-weight="700" fill="#0C7C6E" font-family="Inter,sans-serif">16</text>
+        <!-- drop-offs -->
+        <text x="34"  y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#A8A49C" font-family="Inter,sans-serif">100%</text>
+        <text x="126" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#1A9468" font-family="Inter,sans-serif">−15%</text>
+        <text x="218" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#C07A16" font-family="Inter,sans-serif">−38%</text>
+        <text x="310" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#C93535" font-family="Inter,sans-serif">−64%</text>
+        <text x="402" y="156" text-anchor="middle" font-size="10" font-weight="600" fill="#C93535" font-family="Inter,sans-serif">−70%</text>
+      </svg>
+
+      <div style="height:1px;background:var(--border2);margin:12px 0"></div>
+      <div class="slabel">ROI</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div class="stat-mini"><div class="sm-label">Spend</div><div class="sm-val" style="font-size:16px">₹101.98</div><div class="sm-sub">MTD total</div></div>
+        <div class="stat-mini"><div class="sm-label">Revenue</div><div class="sm-val" style="font-size:16px;color:var(--teal)">₹21,000</div><div class="sm-sub">UHID-matched</div></div>
+        <div class="stat-mini"><div class="sm-label">ROAS</div><div class="sm-val" style="font-size:16px;color:var(--blue)">208×</div><div class="sm-sub">Revenue ÷ Spend</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     FULL WIDTH — Lead-to-outcome by channel
+════════════════════════════════════════ -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head">
+    <div>
+      <div class="card-title">Lead-to-outcome by channel</div>
+      <div class="card-sub">Lifecycle stage distribution per source · last 14 days</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;font-size:11px;flex-shrink:0">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#6EAAF7;display:inline-block"></span> New</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#E8A838;display:inline-block"></span> Contacted</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#50B892;display:inline-block"></span> In progress</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#0C7C6E;display:inline-block"></span> Fulfilled</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <!-- Stacked horizontal bars per channel -->
+
+    <!-- WhatsApp: 3 total — 2 new, 1 contacted, 0 in-progress, 0 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">WhatsApp</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:66.6%;background:#6EAAF7"></div>
+        <div style="width:33.3%;background:#E8A838"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">3</div>
+    </div>
+
+    <!-- Web Form: 5 total — 2 new, 1 contacted, 1 in-progress, 1 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">Web Form</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:40%;background:#6EAAF7"></div>
+        <div style="width:20%;background:#E8A838"></div>
+        <div style="width:20%;background:#50B892"></div>
+        <div style="width:20%;background:#0C7C6E"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">5</div>
+    </div>
+
+    <!-- App Appointment: 2 total — 0 new, 0 contacted, 0 in-progress, 2 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">App Appointment</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:100%;background:#0C7C6E"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">2</div>
+    </div>
+
+    <!-- Email: 3 total — 1 new, 1 contacted, 1 in-progress, 0 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">Email</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:33.3%;background:#6EAAF7"></div>
+        <div style="width:33.3%;background:#E8A838"></div>
+        <div style="width:33.3%;background:#50B892"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">3</div>
+    </div>
+
+    <!-- CSV Import: 5 total — 2 new, 1 contacted, 1 in-progress, 1 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">CSV Import</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:40%;background:#6EAAF7"></div>
+        <div style="width:20%;background:#E8A838"></div>
+        <div style="width:20%;background:#50B892"></div>
+        <div style="width:20%;background:#0C7C6E"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">5</div>
+    </div>
+
+    <!-- Lab Test: 2 total — 1 new, 0 contacted, 1 in-progress, 0 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">Lab Test</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:50%;background:#6EAAF7"></div>
+        <div style="width:50%;background:#50B892"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">2</div>
+    </div>
+
+    <!-- Web Booking: 3 total — 1 new, 0 contacted, 1 in-progress, 1 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">Web Booking</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:33.3%;background:#6EAAF7"></div>
+        <div style="width:33.3%;background:#50B892"></div>
+        <div style="width:33.3%;background:#0C7C6E"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">3</div>
+    </div>
+
+    <!-- Web Chat: 2 total — 2 new, 0, 0, 0 -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">Web Chat</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:100%;background:#6EAAF7"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">2</div>
+    </div>
+
+    <!-- Medicine Order: 2 total — 0 new, 0 contacted, 1 in-progress, 1 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">Medicine Order</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:50%;background:#50B892"></div>
+        <div style="width:50%;background:#0C7C6E"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">2</div>
+    </div>
+
+    <!-- Web Appointment: 2 total — 0 new, 0 contacted, 1 in-progress, 1 fulfilled -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">Web Appointment</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:50%;background:#50B892"></div>
+        <div style="width:50%;background:#0C7C6E"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">2</div>
+    </div>
+
+    <!-- Walk-in: 1 total — 1 new -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <div style="width:120px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0">Walk-in</div>
+      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--s2)">
+        <div style="width:100%;background:#6EAAF7"></div>
+      </div>
+      <div style="width:28px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0">1</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     ROW — Owner workload | Lead ageing
+════════════════════════════════════════ -->
+<div class="section-row" style="margin-bottom:16px">
+
+  <!-- Owner workload -->
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Owner workload</div>
+        <div class="card-sub">Leads assigned + SLA breach status</div>
+      </div>
+    </div>
+    <div class="card-body" style="padding-top:12px;padding-bottom:12px">
+      <table class="t" style="font-size:12px">
+        <thead>
+          <tr>
+            <th style="padding-left:0">Owner</th>
+            <th>Assigned</th>
+            <th>In progress</th>
+            <th>Fulfilled</th>
+            <th>SLA status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding-left:0">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:28px;height:28px;border-radius:50%;background:#FEF2F2;color:#991B1B;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">PM</div>
+                <div><div class="td-name">Priya M.</div><div style="font-size:10px;color:var(--ink3)">Most overloaded</div></div>
+              </div>
+            </td>
+            <td style="font-weight:600">9</td>
+            <td>3</td>
+            <td>1</td>
+            <td><span class="badge b-breach">5 breached</span></td>
+          </tr>
+          <tr>
+            <td style="padding-left:0">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:28px;height:28px;border-radius:50%;background:var(--blue-bg);color:var(--blue);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">AR</div>
+                <div><div class="td-name">Anita R.</div></div>
+              </div>
+            </td>
+            <td style="font-weight:600">8</td>
+            <td>3</td>
+            <td>2</td>
+            <td><span class="badge" style="background:var(--amber-bg);color:var(--amber);font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px">3 breached</span></td>
+          </tr>
+          <tr>
+            <td style="padding-left:0">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:28px;height:28px;border-radius:50%;background:var(--amber-bg);color:var(--amber);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">SK</div>
+                <div><div class="td-name">Suresh K.</div></div>
+              </div>
+            </td>
+            <td style="font-weight:600">7</td>
+            <td>2</td>
+            <td>3</td>
+            <td><span class="badge" style="background:var(--amber-bg);color:var(--amber);font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px">2 breached</span></td>
+          </tr>
+          <tr>
+            <td style="padding-left:0">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:28px;height:28px;border-radius:50%;background:var(--teal-bg);color:var(--teal);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">RV</div>
+                <div><div class="td-name">Raj V.</div><div style="font-size:10px;color:var(--teal)">Best this period</div></div>
+              </div>
+            </td>
+            <td style="font-weight:600">8</td>
+            <td>1</td>
+            <td>1</td>
+            <td><span class="badge b-fulfilled">0 breached</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Lead ageing -->
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Lead ageing</div>
+        <div class="card-sub">Unactioned leads by time since creation</div>
+      </div>
+    </div>
+    <div class="card-body">
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:var(--teal-bg);border-radius:7px;padding:10px 12px;text-align:center">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--teal);margin-bottom:3px">&lt; 6h</div>
+          <div style="font-size:20px;font-weight:700;color:var(--teal)">2</div>
+          <div style="font-size:10px;color:var(--ink3)">On time</div>
+        </div>
+        <div style="background:var(--amber-bg);border-radius:7px;padding:10px 12px;text-align:center">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--amber);margin-bottom:3px">6–24h</div>
+          <div style="font-size:20px;font-weight:700;color:var(--amber)">3</div>
+          <div style="font-size:10px;color:var(--ink3)">Watch</div>
+        </div>
+        <div style="background:var(--red-bg);border-radius:7px;padding:10px 12px;text-align:center">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--red);margin-bottom:3px">24–72h</div>
+          <div style="font-size:20px;font-weight:700;color:var(--red)">5</div>
+          <div style="font-size:10px;color:var(--ink3)">Urgent</div>
+        </div>
+        <div style="background:#FEF2F2;border-radius:7px;padding:10px 12px;text-align:center;border:1px solid #FECACA">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#7F1D1D;margin-bottom:3px">&gt;72h</div>
+          <div style="font-size:20px;font-weight:700;color:#7F1D1D">5</div>
+          <div style="font-size:10px;color:var(--ink3)">Critical</div>
+        </div>
+      </div>
+
+      <div class="ch-row">
+        <div class="ch-label" style="width:56px;font-size:11px">&lt; 6h</div>
+        <div class="ch-track"><div class="ch-fill-a" style="width:20%;background:var(--teal)"></div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--ink2);width:18px;text-align:right">2</div>
+        <div style="font-size:10px;color:var(--teal);width:52px;text-align:right">On time</div>
+      </div>
+      <div class="ch-row">
+        <div class="ch-label" style="width:56px;font-size:11px">6–24h</div>
+        <div class="ch-track"><div class="ch-fill-a" style="width:30%;background:var(--amber)"></div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--ink2);width:18px;text-align:right">3</div>
+        <div style="font-size:10px;color:var(--amber);width:52px;text-align:right">Watch</div>
+      </div>
+      <div class="ch-row">
+        <div class="ch-label" style="width:56px;font-size:11px">24–72h</div>
+        <div class="ch-track"><div class="ch-fill-a" style="width:50%;background:var(--red)"></div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--ink2);width:18px;text-align:right">5</div>
+        <div style="font-size:10px;color:var(--red);width:52px;text-align:right">Urgent</div>
+      </div>
+      <div class="ch-row">
+        <div class="ch-label" style="width:56px;font-size:11px">&gt; 72h</div>
+        <div class="ch-track"><div class="ch-fill-a" style="width:50%;background:#7F1D1D"></div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--ink2);width:18px;text-align:right">5</div>
+        <div style="font-size:10px;color:#7F1D1D;width:52px;text-align:right">Critical</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     FULL WIDTH — Active campaigns
+════════════════════════════════════════ -->
+<div class="card" style="margin-bottom:16px;overflow-x:auto">
+  <div class="card-head">
+    <div>
+      <div class="card-title">Active campaigns</div>
+      <div class="card-sub">Live, paused &amp; recently completed</div>
+    </div>
+    <a class="card-link" href="#">View all →</a>
+  </div>
+  <table class="t" style="min-width:1000px">
+    <thead>
+      <tr>
+        <th>Campaign</th>
+        <th>Goal</th>
+        <th>Channel</th>
+        <th>Sent</th>
+        <th>Delivery</th>
+        <th>Open rate</th>
+        <th>CTR</th>
+        <th>Conversions</th>
+        <th>Revenue attr.</th>
+        <th>Cost / conv.</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><div class="td-name">Cardiology Camp – Jun 2025</div></td>
+        <td style="color:var(--ink2);font-size:11px">Promotional</td>
+        <td><span class="badge" style="background:#FFF0F6;color:#9D174D;font-size:10px">WhatsApp</span></td>
+        <td style="font-weight:500">120</td>
+        <td>
+          <div class="conv-bar">
+            <div class="conv-track"><div class="conv-fill" style="width:87%;background:var(--teal)"></div></div>
+            <span style="font-size:11px;font-weight:600;color:var(--teal)">87%</span>
+          </div>
+        </td>
+        <td style="font-weight:600;color:var(--purple)">59.6%</td>
+        <td style="font-weight:600;color:var(--amber)">20.2%</td>
+        <td style="font-weight:600;color:var(--teal)">9 <span style="font-weight:400;color:var(--ink3);font-size:11px">(7.5%)</span></td>
+        <td style="font-weight:600;color:var(--teal)">₹11,200</td>
+        <td style="font-weight:500">₹1.32</td>
+        <td><span class="badge b-done">Done</span></td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Feedback – April Discharge</div></td>
+        <td style="color:var(--ink2);font-size:11px">Feedback</td>
+        <td><span class="badge" style="background:#F0F9FF;color:#0369A1;font-size:10px">SMS</span></td>
+        <td style="font-weight:500">72</td>
+        <td>
+          <div class="conv-bar">
+            <div class="conv-track"><div class="conv-fill" style="width:83%;background:var(--amber)"></div></div>
+            <span style="font-size:11px;font-weight:600;color:var(--amber)">83%</span>
+          </div>
+        </td>
+        <td style="font-weight:600;color:var(--purple)">44.2%</td>
+        <td style="font-weight:600;color:var(--amber)">15.8%</td>
+        <td style="font-weight:600;color:var(--teal)">4 <span style="font-weight:400;color:var(--ink3);font-size:11px">(5.6%)</span></td>
+        <td style="font-weight:600;color:var(--teal)">₹4,800</td>
+        <td style="font-weight:500">₹2.18</td>
+        <td><span class="badge b-paused">⏸ Paused</span></td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Win-back Lapsed Patients – May</div></td>
+        <td style="color:var(--ink2);font-size:11px">Win-back</td>
+        <td><span class="badge" style="background:#FFF0F6;color:#9D174D;font-size:10px">WhatsApp</span></td>
+        <td style="font-weight:500">35</td>
+        <td>
+          <div class="conv-bar">
+            <div class="conv-track"><div class="conv-fill" style="width:89%;background:var(--teal)"></div></div>
+            <span style="font-size:11px;font-weight:600;color:var(--teal)">89%</span>
+          </div>
+        </td>
+        <td style="font-weight:600;color:var(--purple)">51.4%</td>
+        <td style="font-weight:600;color:var(--amber)">18.3%</td>
+        <td style="font-weight:600;color:var(--teal)">3 <span style="font-weight:400;color:var(--ink3);font-size:11px">(8.6%)</span></td>
+        <td style="font-weight:600;color:var(--teal)">₹5,000</td>
+        <td style="font-weight:500">₹1.85</td>
+        <td><span class="badge b-live">● Live</span></td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Test – Push Notification</div></td>
+        <td style="color:var(--ink2);font-size:11px">Appt. Reminder</td>
+        <td><span class="badge" style="background:#F5F3FF;color:#5B21B6;font-size:10px">Push</span></td>
+        <td style="font-weight:500">46</td>
+        <td>
+          <div class="conv-bar">
+            <div class="conv-track"><div class="conv-fill" style="width:80%;background:var(--amber)"></div></div>
+            <span style="font-size:11px;font-weight:600;color:var(--amber)">80%</span>
+          </div>
+        </td>
+        <td class="td-muted">—</td>
+        <td class="td-muted">—</td>
+        <td class="td-muted">—</td>
+        <td class="td-muted">—</td>
+        <td class="td-muted">—</td>
+        <td><span class="badge b-live">● Live</span></td>
+      </tr>
+      <tr>
+        <td><div class="td-name">mjm</div></td>
+        <td style="color:var(--ink2);font-size:11px">Appt. Reminder</td>
+        <td><span class="badge" style="background:#F0F9FF;color:#0369A1;font-size:10px">SMS</span></td>
+        <td style="font-weight:500">7</td>
+        <td>
+          <div class="conv-bar">
+            <div class="conv-track"><div class="conv-fill" style="width:86%;background:var(--teal)"></div></div>
+            <span style="font-size:11px;font-weight:600;color:var(--teal)">86%</span>
+          </div>
+        </td>
+        <td class="td-muted">—</td>
+        <td class="td-muted">—</td>
+        <td class="td-muted">—</td>
+        <td class="td-muted">—</td>
+        <td class="td-muted">—</td>
+        <td><span class="badge b-live">● Live</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SLA breach watchlist (full width)
+════════════════════════════════════════ -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head">
+    <div>
+      <div class="card-title">SLA breach watchlist</div>
+      <div class="card-sub">Unactioned leads · sorted by age</div>
+    </div>
+    <a class="card-link" href="#">View all 10 →</a>
+  </div>
+  <div class="card-body" style="padding-top:12px;padding-bottom:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <!-- Left: breach list -->
+      <div>
+        <div class="breach-row">
+          <div>
+            <div class="breach-name">Raman Kumar</div>
+            <div class="breach-meta">walk_in · created 17 Jun</div>
+          </div>
+          <div style="text-align:right">
+            <div class="breach-age">7d old</div>
+            <span class="badge b-new">New</span>
+          </div>
+        </div>
+        <div class="breach-row">
+          <div>
+            <div class="breach-name">Meghna Pillai</div>
+            <div class="breach-meta">Web Form · created 9 Jun</div>
+          </div>
+          <div style="text-align:right">
+            <div class="breach-age">17d old</div>
+            <span class="badge b-new">New</span>
+          </div>
+        </div>
+        <div class="breach-row">
+          <div>
+            <div class="breach-name">Prashant Joshi</div>
+            <div class="breach-meta">Web Chat · Win-back campaign</div>
+          </div>
+          <div style="text-align:right">
+            <div class="breach-age">16d old</div>
+            <span class="badge b-new">New</span>
+          </div>
+        </div>
+        <div class="breach-row">
+          <div>
+            <div class="breach-name">Anitha Krishnamurthy</div>
+            <div class="breach-meta">Web Form · Win-back campaign</div>
+          </div>
+          <div style="text-align:right">
+            <div class="breach-age">14d old</div>
+            <span class="badge b-new">New</span>
+          </div>
+        </div>
+        <div class="breach-row">
+          <div>
+            <div class="breach-name">Vikram Singh</div>
+            <div class="breach-meta">Web Form · created 4 Jun</div>
+          </div>
+          <div style="text-align:right">
+            <div class="breach-age">14d old</div>
+            <span class="badge b-contacted">Contacted</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: age summary -->
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div style="background:var(--red-bg);border-radius:8px;padding:12px 14px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--red);margin-bottom:3px">Critical</div>
+            <div style="font-size:22px;font-weight:700;color:var(--red)">5</div>
+            <div style="font-size:10px;color:var(--ink3)">&gt;72h old</div>
+          </div>
+          <div style="background:var(--amber-bg);border-radius:8px;padding:12px 14px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--amber);margin-bottom:3px">At risk</div>
+            <div style="font-size:22px;font-weight:700;color:var(--amber)">5</div>
+            <div style="font-size:10px;color:var(--ink3)">24–72h old</div>
+          </div>
+          <div style="background:var(--teal-bg);border-radius:8px;padding:12px 14px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--teal);margin-bottom:3px">On time</div>
+            <div style="font-size:22px;font-weight:700;color:var(--teal)">22</div>
+            <div style="font-size:10px;color:var(--ink3)">&lt;24h old</div>
+          </div>
+        </div>
+
+        <!-- Lead ageing bars -->
+        <div style="margin-top:4px">
+          <div class="ch-row">
+            <div class="ch-label" style="width:60px">&lt; 6h</div>
+            <div class="ch-track"><div class="ch-fill-a" style="width:20%;background:var(--teal)"></div></div>
+            <div class="ch-count" style="color:var(--ink2)">2</div>
+          </div>
+          <div class="ch-row">
+            <div class="ch-label" style="width:60px">6–24h</div>
+            <div class="ch-track"><div class="ch-fill-a" style="width:30%;background:var(--amber)"></div></div>
+            <div class="ch-count" style="color:var(--ink2)">3</div>
+          </div>
+          <div class="ch-row">
+            <div class="ch-label" style="width:60px">24–72h</div>
+            <div class="ch-track"><div class="ch-fill-a" style="width:50%;background:var(--red)"></div></div>
+            <div class="ch-count" style="color:var(--ink2)">5</div>
+          </div>
+          <div class="ch-row">
+            <div class="ch-label" style="width:60px">&gt; 72h</div>
+            <div class="ch-track"><div class="ch-fill-a" style="width:50%;background:#7F1D1D"></div></div>
+            <div class="ch-count" style="color:var(--ink2)">5</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     FULL WIDTH — Recent leads
+════════════════════════════════════════ -->
+<div class="card">
+  <div class="card-head">
+    <div>
+      <div class="card-title">Recent leads</div>
+      <div class="card-sub">Last action &amp; campaign touch · sorted by recency</div>
+    </div>
+    <a class="card-link" href="#">View all leads →</a>
+  </div>
+  <table class="t">
+    <thead>
+      <tr>
+        <th>Patient</th>
+        <th>Channel</th>
+        <th>Status</th>
+        <th>Last action</th>
+        <th>Campaign touch</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><div class="td-name">Raman Kumar</div></td>
+        <td style="color:var(--ink2);font-size:12px">Walk-in</td>
+        <td><span class="badge b-new">New</span></td>
+        <td style="color:var(--red);font-size:12px">7d ago · No action</td>
+        <td class="td-muted">—</td>
+        <td style="color:var(--ink3);font-size:11px">17 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Meghna Pillai</div></td>
+        <td style="color:var(--ink2);font-size:12px">Web Form</td>
+        <td><span class="badge b-new">New</span></td>
+        <td style="color:var(--red);font-size:12px">17d ago · No action</td>
+        <td><span style="font-size:11px;color:var(--teal)">Win-back – May</span></td>
+        <td style="color:var(--ink3);font-size:11px">9 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Sudhir Pillai</div></td>
+        <td style="color:var(--ink2);font-size:12px">App Appt.</td>
+        <td><span class="badge b-progress">In progress</span></td>
+        <td style="color:var(--ink2);font-size:12px">18d ago · Status updated</td>
+        <td class="td-muted">—</td>
+        <td style="color:var(--ink3);font-size:11px">9 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Sunita Rao</div></td>
+        <td style="color:var(--ink2);font-size:12px">WhatsApp</td>
+        <td><span class="badge b-contacted">Contacted</span></td>
+        <td style="color:var(--ink2);font-size:12px">14d ago · Call attempted</td>
+        <td class="td-muted">—</td>
+        <td style="color:var(--ink3);font-size:11px">8 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Deepak Kumar</div></td>
+        <td style="color:var(--ink2);font-size:12px">WhatsApp</td>
+        <td><span class="badge b-progress">In progress</span></td>
+        <td style="color:var(--ink2);font-size:12px">8d ago · Status updated</td>
+        <td class="td-muted">—</td>
+        <td style="color:var(--ink3);font-size:11px">6 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Kiran Reddy</div></td>
+        <td style="color:var(--ink2);font-size:12px">Web Appt.</td>
+        <td><span class="badge b-fulfilled">Fulfilled</span></td>
+        <td style="color:var(--ink2);font-size:12px">15d ago · Appt. confirmed</td>
+        <td><span style="font-size:11px;color:var(--teal)">Feedback – Apr Discharge</span></td>
+        <td style="color:var(--ink3);font-size:11px">6 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Prashant Joshi</div></td>
+        <td style="color:var(--ink2);font-size:12px">Web Chat</td>
+        <td><span class="badge b-new">New</span></td>
+        <td style="color:var(--red);font-size:12px">16d ago · No action</td>
+        <td><span style="font-size:11px;color:var(--teal)">Win-back – May</span></td>
+        <td style="color:var(--ink3);font-size:11px">5 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Anitha Krishnamurthy</div></td>
+        <td style="color:var(--ink2);font-size:12px">Web Form</td>
+        <td><span class="badge b-new">New</span></td>
+        <td style="color:var(--red);font-size:12px">14d ago · No action</td>
+        <td><span style="font-size:11px;color:var(--teal)">Win-back – May</span></td>
+        <td style="color:var(--ink3);font-size:11px">5 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Vikram Singh</div></td>
+        <td style="color:var(--ink2);font-size:12px">Web Form</td>
+        <td><span class="badge b-contacted">Contacted</span></td>
+        <td style="color:var(--ink2);font-size:12px">14d ago · Call attempted</td>
+        <td class="td-muted">—</td>
+        <td style="color:var(--ink3);font-size:11px">4 Jun</td>
+      </tr>
+      <tr>
+        <td><div class="td-name">Shobha Gupta</div></td>
+        <td style="color:var(--ink2);font-size:12px">App Appt.</td>
+        <td><span class="badge b-fulfilled">Fulfilled</span></td>
+        <td style="color:var(--ink2);font-size:12px">14d ago · Appt. confirmed</td>
+        <td><span style="font-size:11px;color:var(--teal)">Cardiology Camp – Jun</span></td>
+        <td style="color:var(--ink3);font-size:11px">3 Jun</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <span>Affordplan · Home Dashboard · Sunrise Multispecialty Hospital</span>
+  <span>Exported 25 Jun 2026 · Last 14 days</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

@@ -1,67 +1,55 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useGetEngagementDashboard, useListCampaigns, useGetWallet, usePauseCampaign } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQueryClient } from "@tanstack/react-query";
+import { useGetEngagementDashboard, useGetWallet } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
-import { AlertTriangle, Pause, MessageCircle, Mail, Globe, MessageSquare, SlidersHorizontal, X } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-
-const STATUS_COLORS: Record<string, string> = {
-  live: "bg-green-100 text-green-700",
-  completed: "bg-gray-100 text-gray-600",
-  paused: "bg-amber-100 text-amber-700",
-  submitted: "bg-blue-100 text-blue-700",
-  failed: "bg-red-100 text-red-700",
-  draft: "bg-slate-100 text-slate-600",
-  approved: "bg-emerald-100 text-emerald-700",
-};
+import {
+  T, DashPage, PageHead, DCard, CardTitle, SectionLabel, MetricCard,
+  StatMini, BenchmarkBar, ActionCard, FunnelSVG, Badge, BadgeTone,
+  nf, inr, compactInr, type FunnelStage,
+} from "@/components/dashboard/ui";
 
 const CHANNEL_LABELS: Record<string, string> = {
-  whatsapp: "WhatsApp", waba: "WhatsApp", web_chat: "WhatsApp Chat",
+  whatsapp: "WhatsApp", waba: "WhatsApp", web_chat: "Web Chat",
   email: "Email", sms: "SMS", push: "Push",
 };
+const chLabel = (c: string) => CHANNEL_LABELS[c] ?? c;
+const CHANNEL_BADGE: Record<string, BadgeTone> = { whatsapp: "purple", waba: "purple", sms: "info", email: "info", web_chat: "info", push: "purple" };
 
-function ChannelIcon({ channel }: { channel: string }) {
-  const cls = "w-4 h-4 shrink-0 mx-auto";
-  if (channel === "whatsapp" || channel === "waba") return <MessageCircle className={`${cls} text-green-600`} />;
-  if (channel === "email") return <Mail className={`${cls} text-blue-500`} />;
-  if (channel === "web_chat") return <Globe className={`${cls} text-teal-500`} />;
-  return <MessageSquare className={`${cls} text-gray-500`} />;
-}
+const CAMPAIGN_STATUS: Record<string, { tone: BadgeTone; label: string }> = {
+  live: { tone: "ok", label: "● Live" },
+  completed: { tone: "neutral", label: "Completed" },
+  paused: { tone: "warn", label: "⏸ Paused" },
+  submitted: { tone: "info", label: "Submitted" },
+  approved: { tone: "ok", label: "Approved" },
+  draft: { tone: "neutral", label: "Draft" },
+  failed: { tone: "danger", label: "Failed" },
+};
+const STATUS_NOTE: Record<string, string> = {
+  live: "Sending now", completed: "Completed", paused: "Paused",
+  submitted: "Awaiting approval", approved: "Ready to launch", draft: "Not yet submitted", failed: "Delivery failed",
+};
+
+const BENCHMARKS = { delivery: 82, open: 40, ctr: 18, conv: 5 };
 
 export default function MarketingDashboard() {
   const [, navigate] = useLocation();
   const { data: dashboard, isLoading } = useGetEngagementDashboard();
-  const { data: campaigns } = useListCampaigns();
   const { data: wallet } = useGetWallet();
-  const pauseMutation = usePauseCampaign();
-  const queryClient = useQueryClient();
 
   const [filterChannel, setFilterChannel] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-
-  const isLowBalance = wallet && (wallet.balance as number) < 5000;
-  const d = dashboard as any;
-
-  const filtersActive = !!(filterChannel || filterStatus || dateFrom || dateTo);
-
-  const dateLabel = (dateFrom || dateTo)
-    ? [dateFrom, dateTo].filter(Boolean).join(" – ")
-    : "";
 
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96 text-muted-foreground">Loading…</div>
+        <DashPage><div className="flex items-center justify-center h-96 text-sm" style={{ color: T.ink3 }}>Loading…</div></DashPage>
       </AppLayout>
     );
   }
+  const d = dashboard as any;
   if (!d) return null;
 
-  const recentCampaigns: any[] = d.recentCampaigns ?? (campaigns ?? []).slice(0, 5);
+  const isLowBalance = wallet && (wallet.balance as number) < 5000;
 
   const patientsReached: number = d.patientsReachedMtd ?? 0;
   const deliveryRate: number = d.deliveryRate ?? 0;
@@ -70,266 +58,207 @@ export default function MarketingDashboard() {
   const totalSpend: number = d.totalSpend ?? 0;
   const totalRevenue: number = d.totalRevenue ?? 0;
   const roi: number = d.roi ?? 0;
+  const roas: number = d.roas ?? 0;
+  const costPerPatient: number = d.costPerPatient ?? 0;
+  const convPct = patientsReached > 0 ? Math.round((totalConversions / patientsReached) * 1000) / 10 : 0;
+  const avgBooking = totalConversions > 0 ? Math.round(totalRevenue / totalConversions) : 0;
 
-  const channelPerf: any[] = d.channelPerformance ?? [];
-  const maxReached = Math.max(...channelPerf.map((c: any) => c.reached ?? 0), 1);
+  const recentCampaigns: any[] = d.recentCampaigns ?? [];
+  const fc = d.featuredCampaign as any | null;
 
-  const filteredCampaigns = recentCampaigns.filter((c: any) => {
-    const ch = (c.channel ?? c.channels?.[0]?.channel ?? "").toLowerCase();
-    if (filterChannel && ch !== filterChannel) return false;
+  const filtered = recentCampaigns.filter((c: any) => {
+    const ch = (c.channel ?? "").toLowerCase();
+    if (filterChannel && ch !== filterChannel && !(filterChannel === "whatsapp" && (ch === "waba"))) return false;
     if (filterStatus && c.status !== filterStatus) return false;
     return true;
   });
 
-  const handlePause = (id: number) => {
-    pauseMutation.mutate({ id }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-        queryClient.invalidateQueries({ queryKey: ["engagementDashboard"] });
-      },
-    });
+  const selectStyle: React.CSSProperties = {
+    fontSize: 12, fontWeight: 500, color: T.ink1, background: T.surface2,
+    border: `1px solid ${T.border}`, borderRadius: 6, padding: "5px 9px", cursor: "pointer",
   };
 
-  function formatRevenue(n: number): string {
-    if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
-    if (n >= 1000) return `₹${Math.round(n / 1000)}K`;
-    return `₹${n.toLocaleString("en-IN")}`;
-  }
+  const fcFunnel: FunnelStage[] = fc ? [
+    { label: "Sent", count: fc.sent, sub: "100%", color: T.blue, fill: "rgba(37,99,235,.9)" },
+    { label: "Delivered", count: fc.delivered, sub: `${pct(fc.delivered, fc.sent)}%`, color: T.blue, fill: "rgba(37,99,235,.55)" },
+    { label: "Opened", count: fc.opened, sub: `${pct(fc.opened, fc.sent)}%`, color: T.purple, fill: "rgba(124,58,237,.85)" },
+    { label: "Clicked", count: fc.clicked, sub: `${pct(fc.clicked, fc.sent)}%`, color: T.amber, fill: "rgba(245,158,11,.9)" },
+    { label: "Converted", count: fc.converted, sub: `${pct(fc.converted, fc.sent)}%`, color: T.green, fill: "rgba(26,148,104,.9)" },
+  ] : [];
+
+  const fcDeliveryRate = fc && fc.sent > 0 ? Math.round((fc.delivered / fc.sent) * 1000) / 10 : 0;
+  const fcOpenRate = fc && fc.delivered > 0 ? Math.round((fc.opened / fc.delivered) * 1000) / 10 : 0;
+  const fcCtr = fc && fc.delivered > 0 ? Math.round((fc.clicked / fc.delivered) * 1000) / 10 : 0;
+  const fcConvRate = fc && fc.sent > 0 ? Math.round((fc.converted / fc.sent) * 1000) / 10 : 0;
+  const fcRoas = fc ? fc.roas : 0;
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <DashPage>
+        <PageHead
+          title="Engagement Dashboard"
+          subtitle="Outreach performance, campaign ROI & channel efficiency — month to date"
+          right={<span className="text-xs" style={{ color: T.ink3 }}>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>}
+        />
 
-        {/* ── Filter bar ─────────────────────────────── */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mr-1">
-            <SlidersHorizontal className="w-4 h-4" />
-            <span className="font-medium">Filters</span>
-          </div>
-          <select
-            value={filterChannel}
-            onChange={e => setFilterChannel(e.target.value)}
-            className="text-sm border rounded-full px-3 py-1.5 bg-background cursor-pointer focus:outline-none hover:border-foreground/40 transition-colors"
-          >
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap rounded-[10px] px-3.5 py-2.5 mb-5" style={{ background: T.surface, border: `1px solid ${T.border}`, boxShadow: "0 1px 2px rgba(0,0,0,.05)" }}>
+          <span className="text-[10px] font-bold tracking-[0.08em] uppercase" style={{ color: T.ink3 }}>Filter</span>
+          <select style={selectStyle} value={filterChannel} onChange={e => setFilterChannel(e.target.value)}>
             <option value="">All channels</option>
             <option value="whatsapp">WhatsApp</option>
-            <option value="email">Email</option>
             <option value="sms">SMS</option>
+            <option value="email">Email</option>
+            <option value="web_chat">Web Chat</option>
             <option value="push">Push</option>
           </select>
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="text-sm border rounded-full px-3 py-1.5 bg-background cursor-pointer focus:outline-none hover:border-foreground/40 transition-colors"
-          >
+          <select style={selectStyle} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
             <option value="">All statuses</option>
-            <option value="draft">Draft</option>
+            <option value="live">Live</option>
             <option value="submitted">Submitted</option>
             <option value="approved">Approved</option>
-            <option value="live">Live</option>
-            <option value="paused">Paused</option>
+            <option value="draft">Draft</option>
             <option value="completed">Completed</option>
+            <option value="paused">Paused</option>
           </select>
-          {dateLabel ? (
-            <div className="flex items-center gap-1 border rounded-full px-3 py-1.5 bg-background text-sm">
-              <span>{dateLabel}</span>
-              <button
-                onClick={() => { setDateFrom(""); setDateTo(""); }}
-                className="ml-1 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 border rounded-full px-3 py-1.5 bg-background text-sm hover:border-foreground/40 transition-colors">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                className="bg-transparent text-xs w-24 focus:outline-none cursor-pointer"
-              />
-              <span className="text-muted-foreground">–</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                className="bg-transparent text-xs w-24 focus:outline-none cursor-pointer"
-              />
-            </div>
-          )}
-          {filtersActive && (
-            <button
-              onClick={() => { setFilterChannel(""); setFilterStatus(""); setDateFrom(""); setDateTo(""); }}
-              className="text-xs text-muted-foreground hover:text-foreground underline ml-1"
-            >
-              Clear all
-            </button>
+          <span className="text-[11px] px-2 py-[5px] rounded-md" style={{ background: T.surface2, color: T.ink3, border: `1px solid ${T.border}` }}>Month to date</span>
+          {(filterChannel || filterStatus) && (
+            <button onClick={() => { setFilterChannel(""); setFilterStatus(""); }} className="text-xs px-3 py-[5px] rounded-md" style={{ border: `1px solid ${T.border}`, color: T.ink1, background: T.surface }}>Clear</button>
           )}
         </div>
 
         {/* Low balance alert */}
         {isLowBalance && (
-          <div className="flex items-center gap-3 p-3.5 rounded-lg bg-orange-50 border border-orange-200 text-orange-800 text-sm">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            <span>Wallet balance ₹{(wallet?.balance as number).toLocaleString("en-IN")} is below ₹5,000. <button className="underline font-medium" onClick={() => navigate("/settings/wallet")}>Top up →</button></span>
-          </div>
+          <button onClick={() => navigate("/settings/wallet")} className="w-full flex items-center gap-3 rounded-[10px] px-4 py-3 mb-5 text-left" style={{ background: T.amberBg, border: "1px solid #FDE68A", color: "#92400E" }}>
+            <span>⚠</span>
+            <span className="text-[13px] flex-1">Wallet balance {inr(wallet?.balance as number)} is below ₹5,000. <span className="underline font-medium">Top up →</span></span>
+          </button>
         )}
 
-        {/* ── OUTREACH ─────────────────────────── */}
-        <div>
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
-            Outreach (Month to Date)
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card className="cursor-pointer hover:border-blue-200 transition-colors" onClick={() => navigate("/marketing/campaigns")}>
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Patients Reached</p>
-                <p className="text-3xl font-bold text-blue-600">{patientsReached.toLocaleString("en-IN")}</p>
-                <p className="text-xs text-muted-foreground mt-1">{activeCampaigns} active campaign{activeCampaigns !== 1 ? "s" : ""}</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:border-green-200 transition-colors">
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Avg Delivery Rate</p>
-                <p className="text-3xl font-bold text-green-600">{deliveryRate}%</p>
-                <p className="text-xs text-muted-foreground mt-1">Across all channels</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/marketing/campaigns")}>
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Conversions</p>
-                <p className="text-3xl font-bold text-green-600">{totalConversions.toLocaleString("en-IN")}</p>
-                <p className="text-xs text-green-600 mt-1 hover:underline">View campaigns →</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/marketing/campaigns")}>
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Active Campaigns</p>
-                <p className="text-3xl font-bold">{activeCampaigns}</p>
-                <p className="text-xs text-muted-foreground mt-1">Running now</p>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Outreach KPIs */}
+        <SectionLabel>Outreach — month to date</SectionLabel>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <MetricCard accent={T.blue} label="Patients reached" value={nf(patientsReached)} valueColor={T.blue} sub={`${activeCampaigns} active campaign${activeCampaigns !== 1 ? "s" : ""}`} onClick={() => navigate("/marketing/campaigns")} />
+          <MetricCard accent={T.green} label="Avg delivery rate" value={`${deliveryRate}%`} valueColor={T.green} delta={`${deliveryRate - BENCHMARKS.delivery >= 0 ? "↑ +" : "↓ "}${deliveryRate - BENCHMARKS.delivery}pp vs industry (${BENCHMARKS.delivery}%)`} deltaTone={deliveryRate >= BENCHMARKS.delivery ? "up" : "down"} progress={{ pct: deliveryRate, color: T.green }} />
+          <MetricCard accent={T.purple} label="Conversions" value={nf(totalConversions)} valueColor={T.purple} sub={`${convPct}% of patients reached`} onClick={() => navigate("/marketing/campaigns")} />
+          <MetricCard accent="#F59E0B" label="Active campaigns" value={activeCampaigns} sub="Running now" onClick={() => navigate("/marketing/campaigns")} />
         </div>
 
-        {/* ── ROI ─────────────────────────────── */}
-        <div>
-          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground mb-3">
-            Return on Investment
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            <Card className="cursor-pointer hover:border-foreground/30 transition-colors" onClick={() => navigate("/settings/wallet")}>
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Total Spend</p>
-                <p className="text-2xl font-bold">₹{totalSpend.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <p className="text-xs text-muted-foreground mt-1">Campaign costs + fees + GST</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:border-foreground/30 transition-colors">
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">Revenue Attributed</p>
-                <p className="text-2xl font-bold">{formatRevenue(totalRevenue)}</p>
-                <p className="text-xs text-muted-foreground mt-1">From UHID-matched bookings</p>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:border-green-200 transition-colors">
-              <CardContent className="p-5">
-                <p className="text-sm text-muted-foreground mb-2">ROI</p>
-                <p className={`text-2xl font-bold ${roi > 0 ? "text-green-600" : roi < 0 ? "text-red-500" : ""}`}>{roi}%</p>
-                <p className="text-xs text-muted-foreground mt-1">Revenue / Spend</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* ── CHANNEL PERFORMANCE ─────────────── */}
-        {channelPerf.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2 pt-5 px-5">
-              <CardTitle className="text-base font-semibold">Channel Performance</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Patients reached by channel this month</p>
-            </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <div className="space-y-2 mt-1">
-                {channelPerf.map((ch: any) => (
-                  <div key={ch.channel} className="flex items-center gap-2 text-sm py-0.5">
-                    <span className="w-28 text-xs text-muted-foreground truncate shrink-0">
-                      {CHANNEL_LABELS[ch.channel] ?? ch.channel}
-                    </span>
-                    <div className="flex-1 h-[10px] bg-muted/30 rounded-sm overflow-hidden">
-                      <div
-                        className="h-full rounded-sm"
-                        style={{ width: `${(ch.reached / maxReached) * 100}%`, backgroundColor: "hsl(var(--primary) / 0.65)" }}
-                      />
-                    </div>
-                    <span className="w-10 text-xs font-medium text-right shrink-0">{ch.reached?.toLocaleString("en-IN") ?? 0}</span>
-                    <span className="w-12 text-right shrink-0 text-xs text-green-600 font-medium">
-                      {ch.deliveryRate > 0 ? `${ch.deliveryRate}%` : ""}
-                    </span>
-                  </div>
-                ))}
+        {/* ROI */}
+        <SectionLabel>Return on investment</SectionLabel>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 items-stretch">
+          <MetricCard label="Total spend" value={<span className="text-[24px]">{inr(totalSpend, 2)}</span>} sub="Campaign costs + fees + GST" onClick={() => navigate("/settings/wallet")} />
+          <MetricCard label="Revenue attributed" value={<span className="text-[24px]">{compactInr(totalRevenue)}</span>} valueColor={T.green} sub="From UHID-matched bookings" delta={`${totalConversions} conversions · ${inr(avgBooking)} avg booking`} deltaTone="up" />
+          {/* Dark ROI card */}
+          <div className="rounded-[14px] p-5 flex flex-col" style={{ background: "#1A1A18", color: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }}>
+            <div className="text-[11px] font-medium mb-1.5" style={{ color: "#9A9A92" }}>Return on investment</div>
+            <div className="text-[28px] font-bold leading-none tracking-tight" style={{ color: "#fff" }}>{nf(roi)}%</div>
+            <div className="text-[11px] mt-1.5" style={{ color: "#9A9A92" }}>Revenue ÷ Spend · Month to date</div>
+            <div className="grid grid-cols-2 gap-2 mt-auto pt-4">
+              <div className="rounded-md px-2.5 py-2" style={{ background: "rgba(255,255,255,.06)" }}>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.06em] mb-0.5" style={{ color: "#7A7A72" }}>Cost / patient</div>
+                <div className="text-[15px] font-bold" style={{ color: "#fff" }}>{inr(costPerPatient, 2)}</div>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* ── RECENT CAMPAIGNS (full width) ───── */}
-        <Card>
-          <CardHeader className="pb-2 pt-5 px-5">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold">Recent Campaigns</CardTitle>
-              <button className="text-xs text-blue-600 hover:underline shrink-0" onClick={() => navigate("/marketing/campaigns")}>
-                View all →
-              </button>
+              <div className="rounded-md px-2.5 py-2" style={{ background: "rgba(255,255,255,.06)" }}>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.06em] mb-0.5" style={{ color: "#7A7A72" }}>ROAS</div>
+                <div className="text-[15px] font-bold" style={{ color: "#4ADE80" }}>{roas}×</div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">Latest activity · sorted by recency</p>
-          </CardHeader>
-          <CardContent className="px-2 pb-3">
-            {filteredCampaigns.length === 0 ? (
-              <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
-                {recentCampaigns.length === 0 ? "No campaigns yet" : "No campaigns match filters"}
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-muted-foreground border-b">
-                    <th className="text-left font-medium py-2 px-3">Campaign</th>
-                    <th className="text-center font-medium py-2 px-2 w-8">Ch</th>
-                    <th className="text-right font-medium py-2 px-2">Sent</th>
-                    <th className="text-right font-medium py-2 px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCampaigns.slice(0, 8).map((c: any) => {
-                    const channel = c.channel ?? c.channels?.[0]?.channel ?? "";
-                    return (
-                      <tr
-                        key={c.id}
-                        className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
-                        onClick={() => navigate(`/marketing/metrics?campaign=${c.id}`)}
-                      >
-                        <td className="py-2 px-3 font-medium text-xs">{c.name}</td>
-                        <td className="py-2 px-2 text-center">
-                          <ChannelIcon channel={channel} />
-                        </td>
-                        <td className="py-2 px-2 text-right text-xs text-muted-foreground">
-                          {(c.sent ?? 0).toLocaleString("en-IN")}
-                        </td>
-                        <td className="py-2 px-3 text-right">
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                            {c.status === "completed" ? "done" : c.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-      </div>
+        {/* Campaign deep-dive */}
+        {fc && (
+          <>
+            <SectionLabel>Campaign deep-dive — {fc.name}</SectionLabel>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              <DCard>
+                <CardTitle hint="Drop-off at each stage">Delivery funnel</CardTitle>
+                <FunnelSVG stages={fcFunnel} />
+              </DCard>
+              <DCard>
+                <CardTitle hint="▎ = industry avg">Rates vs benchmarks</CardTitle>
+                <BenchmarkBar label="Delivery rate" value={fcDeliveryRate} benchmark={BENCHMARKS.delivery} color={T.green} />
+                <BenchmarkBar label="Open rate" value={fcOpenRate} benchmark={BENCHMARKS.open} color={T.purple} />
+                <BenchmarkBar label="Click-through rate" value={fcCtr} benchmark={BENCHMARKS.ctr} color={T.amber} />
+                <BenchmarkBar label="Conversion rate" value={fcConvRate} benchmark={BENCHMARKS.conv} color={T.green} />
+                <div className="h-px my-3.5" style={{ background: T.border2 }} />
+                <div className="text-[10px] font-bold uppercase tracking-[0.07em] mb-2.5" style={{ color: T.ink3 }}>Cost efficiency</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <StatMini label="Spend" value={<span className="text-[15px]">{inr(fc.spend, 2)}</span>} sub="This campaign" />
+                  <StatMini label="Revenue" value={<span className="text-[15px]">{compactInr(fc.revenueAttributed)}</span>} valueColor={T.green} sub={`${fcRoas}× ROAS`} />
+                  <StatMini label="Cost/conv." value={<span className="text-[15px]">{fc.converted > 0 ? inr(fc.costPerConversion, 2) : "—"}</span>} sub="Per booking" />
+                </div>
+              </DCard>
+            </div>
+          </>
+        )}
+
+        {/* All campaigns table */}
+        <div className="flex items-baseline justify-between mb-2.5 mt-6">
+          <span className="text-[10px] font-bold tracking-[0.09em] uppercase" style={{ color: T.ink3 }}>All campaigns</span>
+          <button onClick={() => navigate("/marketing/campaigns")} className="text-[11px] font-medium" style={{ color: T.blue }}>View all →</button>
+        </div>
+        <DCard className="mb-4 overflow-x-auto !p-0">
+          <div className="px-5 pt-5">
+            <CardTitle hint="Sorted by last activity">Campaign performance</CardTitle>
+          </div>
+          <table className="w-full text-[12px]" style={{ minWidth: 920 }}>
+            <thead>
+              <tr className="text-[10px] uppercase tracking-[0.06em]" style={{ color: T.ink3 }}>
+                {["Campaign", "Channel", "Sent", "Delivery", "Open rate", "CTR", "Conversions", "Revenue attr.", "Cost / conv.", "Status"].map((h, i) => (
+                  <th key={h} className={`text-left font-semibold py-2 pr-3 whitespace-nowrap ${i === 0 ? "pl-5" : ""}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={10} className="text-center py-10" style={{ color: T.ink3 }}>{recentCampaigns.length === 0 ? "No campaigns yet" : "No campaigns match filters"}</td></tr>
+              ) : filtered.map((c: any) => {
+                const st = CAMPAIGN_STATUS[c.status] ?? { tone: "neutral" as BadgeTone, label: c.status };
+                const hasData = c.delivered > 0;
+                const hasEngagement = c.opened > 0 || c.clicked > 0;
+                return (
+                  <tr key={c.id} style={{ borderTop: `1px solid ${T.border2}` }} className="cursor-pointer hover:bg-[#FAFAF8]" onClick={() => navigate(`/marketing/metrics?campaign=${c.id}`)}>
+                    <td className="py-2.5 pr-3 pl-5">
+                      <div className="font-medium" style={{ color: T.ink1 }}>{c.name}</div>
+                      <div className="text-[11px]" style={{ color: T.ink3 }}>{c.goal ? `${c.goal} · ` : ""}{STATUS_NOTE[c.status] ?? ""}</div>
+                    </td>
+                    <td className="py-2.5 pr-3">{c.channel ? <Badge tone={CHANNEL_BADGE[c.channel] ?? "neutral"}>{chLabel(c.channel)}</Badge> : <span style={{ color: T.ink4 }}>—</span>}</td>
+                    <td className="py-2.5 pr-3 font-medium" style={{ color: c.sent > 0 ? T.ink1 : T.ink4 }}>{nf(c.sent)}</td>
+                    <td className="py-2.5 pr-3">
+                      {hasData ? (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-11 h-1 rounded-sm overflow-hidden" style={{ background: T.surface2 }}>
+                            <div className="h-1 rounded-sm" style={{ width: `${c.deliveryRate}%`, background: c.deliveryRate >= 85 ? T.green : T.amber }} />
+                          </div>
+                          <span className="font-semibold" style={{ color: c.deliveryRate >= 85 ? T.green : T.amber }}>{c.deliveryRate}%</span>
+                        </div>
+                      ) : <span style={{ color: T.ink4 }}>—</span>}
+                    </td>
+                    <td className="py-2.5 pr-3 font-semibold" style={{ color: hasEngagement ? T.purple : T.ink4 }}>{hasEngagement ? `${c.openRate}%` : "—"}</td>
+                    <td className="py-2.5 pr-3 font-semibold" style={{ color: hasEngagement ? T.amber : T.ink4 }}>{hasEngagement ? `${c.ctr}%` : "—"}</td>
+                    <td className="py-2.5 pr-3 font-semibold" style={{ color: c.converted > 0 ? T.green : T.ink4 }}>{c.converted > 0 ? <>{c.converted} <span className="font-normal text-[11px]" style={{ color: T.ink3 }}>({c.convRate}%)</span></> : "—"}</td>
+                    <td className="py-2.5 pr-3 font-semibold" style={{ color: c.revenueAttributed > 0 ? T.green : T.ink4 }}>{c.revenueAttributed > 0 ? compactInr(c.revenueAttributed) : "—"}</td>
+                    <td className="py-2.5 pr-3" style={{ color: c.converted > 0 ? T.ink1 : T.ink4 }}>{c.converted > 0 ? inr(c.costPerConversion, 2) : "—"}</td>
+                    <td className="py-2.5 pr-5"><Badge tone={st.tone}>{st.label}</Badge></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </DCard>
+
+        {/* Recommended actions */}
+        <SectionLabel>Recommended actions</SectionLabel>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <ActionCard tone="red" eyebrow="Verify today" title="Audit campaign spend" body={`${inr(totalSpend, 2)} recorded across ${nf(patientsReached)} patients. Confirm channel fees and GST are fully attributed before the next billing cycle.`} />
+          <ActionCard tone="amber" eyebrow="This week" title="Improve click-through rate" body={fc ? `Open rate (${fcOpenRate}%) is strong but CTR (${fcCtr}%) shows a drop-off. Test a direct booking link in the message body next time.` : "Test a direct booking link in the message body to lift click-through on your next campaign."} />
+          <ActionCard tone="green" eyebrow="Next campaign" title={fc ? `Scale ${fc.name} template` : "Scale your best template"} body={fc ? "This campaign's engagement rates lead the pack. Apply its targeting criteria and message format to the next specialty drive." : "Apply your strongest campaign's targeting and message format to the next specialty drive."} />
+        </div>
+      </DashPage>
     </AppLayout>
   );
 }
+
+function pct(n: number, d: number) { return d > 0 ? Math.round((n / d) * 100) : 0; }

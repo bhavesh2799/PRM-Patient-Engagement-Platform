@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patient Engagement — Affordplan</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+:root {
+  --bg:        #F7F6F3;
+  --surface:   #FFFFFF;
+  --surface2:  #F2F1EE;
+  --border:    #E8E6E0;
+  --border2:   #F0EEE8;
+  --ink1:      #111110;
+  --ink2:      #555550;
+  --ink3:      #99998F;
+  --ink4:      #BEBEB5;
+  --green:     #1A9468;
+  --green-bg:  #EDFAF4;
+  --green-mid: #D1F5E5;
+  --red:       #D83B3B;
+  --red-bg:    #FEF2F2;
+  --amber:     #B45309;
+  --amber-bg:  #FFFBEB;
+  --amber-mid: #FEF3C7;
+  --blue:      #2563EB;
+  --blue-bg:   #EFF6FF;
+  --purple:    #7C3AED;
+  --purple-bg: #F5F3FF;
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 14px;
+  --shadow:    0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--ink1);
+  padding: 32px 36px 48px;
+  min-width: 1120px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══ HEADER ═══ */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--ink1); color: #fff;
+  font-size: 12px; font-weight: 700; letter-spacing: -.3px;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-name { font-size: 15px; font-weight: 600; color: var(--ink1); letter-spacing: -.2px; }
+.brand-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+.brand-page { font-size: 13px; color: var(--ink3); font-weight: 400; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.hospital-pill {
+  font-size: 12px; font-weight: 500; color: var(--ink2);
+  background: var(--surface2); border: 1px solid var(--border);
+  padding: 5px 12px; border-radius: 20px;
+}
+.role-pill {
+  font-size: 12px; font-weight: 500; color: var(--ink1);
+  background: var(--ink1); color: #fff;
+  padding: 5px 12px; border-radius: 20px;
+}
+.balance-pill {
+  font-size: 12px; font-weight: 600; color: var(--ink1);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 5px 12px; border-radius: 20px;
+}
+
+/* ═══ PAGE TITLE ═══ */
+.page-head { margin-bottom: 20px; }
+.page-title {
+  font-size: 22px; font-weight: 700; letter-spacing: -.4px;
+  color: var(--ink1); line-height: 1.2; margin-bottom: 4px;
+}
+.page-sub { font-size: 13px; color: var(--ink3); font-weight: 400; }
+
+/* ═══ FILTER BAR ═══ */
+.filter-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.filter-label {
+  font-size: 11px; font-weight: 600; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: .06em;
+  flex-shrink: 0; margin-right: 2px;
+}
+.filter-select {
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
+  color: var(--ink1); background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 6px 26px 6px 10px; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+  cursor: pointer; transition: border-color .15s;
+}
+.filter-select:focus { outline: none; border-color: var(--ink1); }
+.filter-date {
+  font-family: 'Inter', sans-serif; font-size: 12px; color: var(--ink1);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 10px; width: 128px;
+}
+.filter-sep { font-size: 11px; color: var(--ink4); }
+.filter-vr { width: 1px; height: 18px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+.filter-btn {
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
+  padding: 6px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); cursor: pointer;
+  background: var(--surface); color: var(--ink1);
+  transition: background .15s;
+}
+.filter-btn:hover { background: var(--surface2); }
+.filter-btn-primary {
+  background: var(--ink1); color: #fff; border-color: var(--ink1);
+}
+.filter-btn-primary:hover { background: #333; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500; color: var(--blue);
+  background: var(--blue-bg); border: 1px solid #BFDBFE;
+  border-radius: 20px; padding: 3px 9px;
+}
+.chip button { background: none; border: none; color: #93C5FD; font-size: 12px; cursor: pointer; padding: 0; line-height: 1; }
+
+
+
+/* ═══ SECTION HEADER ═══ */
+.section-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 10px; margin-top: 24px;
+}
+.section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--ink3);
+}
+.section-action { font-size: 12px; color: var(--blue); text-decoration: none; font-weight: 500; }
+
+/* ═══ GRIDS ═══ */
+.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+.g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.g2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+.g2r { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; }
+
+/* ═══ METRIC CARDS ═══ */
+.mcard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 18px;
+  box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.mcard-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: var(--radius) var(--radius) 0 0; }
+.mcard-label { font-size: 11px; font-weight: 500; color: var(--ink3); margin-bottom: 6px; letter-spacing: .01em; }
+.mcard-value { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.5px; margin-bottom: 5px; }
+.mcard-sub { font-size: 11px; color: var(--ink3); }
+.mcard-delta { font-size: 11px; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+.up   { color: var(--green); }
+.down { color: var(--red); }
+.warn { color: var(--amber); }
+.progress { height: 3px; background: var(--surface2); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.progress-fill { height: 3px; border-radius: 2px; }
+
+/* ═══ CONTENT CARDS ═══ */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px 22px;
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 13px; font-weight: 600; color: var(--ink1);
+  margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;
+}
+.card-hint { font-size: 11px; font-weight: 400; color: var(--ink3); }
+
+/* ═══ ROI CARD ═══ */
+.roi-card {
+  background: var(--ink1); border-radius: var(--radius-lg);
+  padding: 20px 22px; position: relative; overflow: hidden;
+  box-shadow: var(--shadow-md); display: flex; flex-direction: column;
+}
+.roi-flag { margin-top: auto; padding-top: 12px; background: rgba(251,191,36,.12);
+  border: 1px solid rgba(251,191,36,.25); border-radius: 6px;
+  padding: 8px 10px; font-size: 11px; color: #FBBF24; line-height: 1.5; }
+.roi-card::before {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 140px; height: 140px; border-radius: 50%;
+  background: rgba(255,255,255,.04);
+}
+.roi-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+.roi-value { font-size: 36px; font-weight: 800; color: #4ADE80; letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
+.roi-sub { font-size: 11px; color: #666; }
+
+
+/* ═══ FUNNEL ═══ */
+.funnel-svg-wrap { width: 100%; margin-bottom: 6px; }
+
+/* ═══ BENCHMARK BARS ═══ */
+.brow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.blabel { font-size: 12px; color: var(--ink2); width: 120px; flex-shrink: 0; }
+.btrack {
+  flex: 1; height: 8px; background: var(--surface2);
+  border-radius: 4px; position: relative; overflow: visible;
+}
+.bfill { height: 8px; border-radius: 4px; }
+.bindus {
+  position: absolute; top: -4px; width: 2px; height: 16px;
+  background: var(--ink3); border-radius: 1px;
+}
+.bval { font-size: 12px; font-weight: 600; width: 40px; text-align: right; flex-shrink: 0; }
+.bdiff { font-size: 11px; font-weight: 500; width: 46px; text-align: right; flex-shrink: 0; }
+
+/* ═══ INSIGHT STRIP ═══ */
+.insight {
+  background: var(--surface2); border-left: 2px solid var(--amber);
+  border-radius: 0 6px 6px 0; padding: 9px 12px;
+  font-size: 11px; color: var(--ink2); line-height: 1.6; margin-top: 14px;
+}
+.insight strong { color: var(--ink1); }
+.insight.good { border-left-color: var(--green); }
+.insight.bad  { border-left-color: var(--red); }
+
+/* ═══ MINI STAT TRIO ═══ */
+.stat-trio { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 14px; }
+.stat-mini {
+  background: var(--surface2); border-radius: 8px;
+  padding: 10px 12px;
+}
+.stat-mini-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink3); margin-bottom: 4px; }
+.stat-mini-val { font-size: 19px; font-weight: 700; letter-spacing: -.3px; }
+.stat-mini-sub { font-size: 10px; color: var(--ink3); margin-top: 2px; }
+
+/* ═══ TABLE ═══ */
+.tbl-wrap { overflow-x: auto; }
+table.dt { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.dt th {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--ink3); padding: 8px 12px;
+  text-align: left; border-bottom: 1px solid var(--border);
+  white-space: nowrap; background: var(--surface2);
+}
+table.dt th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+table.dt th:last-child  { border-radius: 0 var(--radius-sm) 0 0; }
+table.dt td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border2);
+  vertical-align: middle; color: var(--ink1);
+}
+table.dt tr:last-child td { border-bottom: none; }
+table.dt tbody tr:hover td { background: #FAFAF8; }
+.td-muted { color: var(--ink4); }
+.td-name { font-weight: 500; color: var(--ink1); }
+.td-name small { font-weight: 400; display: block; color: var(--ink3); font-size: 11px; margin-top: 1px; }
+.mbar-wrap { display: flex; align-items: center; gap: 5px; }
+.mbar-track { width: 52px; height: 4px; background: var(--surface2); border-radius: 2px; flex-shrink: 0; overflow: hidden; }
+.mbar-fill { height: 4px; border-radius: 2px; }
+.rev-cell { font-weight: 600; color: var(--green); }
+
+/* ═══ BADGES ═══ */
+.badge {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px;
+  letter-spacing: .02em; white-space: nowrap;
+}
+.b-live      { background: var(--green-bg); color: var(--green); }
+.b-completed { background: var(--surface2); color: var(--ink2); }
+.b-submitted { background: var(--blue-bg);  color: var(--blue); }
+.b-draft     { background: var(--surface2); color: var(--ink3); border: 1px dashed var(--border); }
+.b-ch        { background: var(--surface2); color: var(--ink2); font-size: 10px; padding: 2px 7px; }
+
+/* ═══ ACTION CARDS ═══ */
+.acard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 18px;
+  box-shadow: var(--shadow);
+}
+.acard-eye { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+.acard-title { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+.acard-body { font-size: 12px; color: var(--ink2); line-height: 1.6; }
+.acard.red   { border-top: 2px solid var(--red); }
+.acard.amber { border-top: 2px solid #F59E0B; }
+.acard.green { border-top: 2px solid var(--green); }
+
+/* ═══ FOOTER ═══ */
+.footer {
+  font-size: 11px; color: var(--ink4); text-align: right;
+  margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.footer-left { font-size: 11px; color: var(--ink4); }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">AP</div>
+    <span class="brand-name">Affordplan</span>
+    <div class="brand-sep"></div>
+    <span class="brand-page">Patient Engagement</span>
+  </div>
+  <div class="topbar-right">
+    <span class="balance-pill">₹31,208.97</span>
+    <span class="hospital-pill">Sunrise Multispecialty Hospital</span>
+    <span class="role-pill">Front-office Exec</span>
+  </div>
+</div>
+
+<!-- Page heading -->
+<div class="page-head">
+  <div class="page-title">Engagement Dashboard</div>
+  <div class="page-sub">Outreach performance, campaign ROI &amp; channel efficiency — month to date</div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <span class="filter-label">Filter</span>
+  <select class="filter-select" id="f-channel" onchange="updateChips()">
+    <option value="">All channels</option>
+    <option value="whatsapp">WhatsApp</option>
+    <option value="sms">SMS</option>
+    <option value="email">Email</option>
+    <option value="webchat">Web Chat</option>
+  </select>
+  <select class="filter-select" id="f-status" onchange="updateChips()">
+    <option value="">All statuses</option>
+    <option value="live">Live</option>
+    <option value="submitted">Submitted</option>
+    <option value="draft">Draft</option>
+    <option value="completed">Completed</option>
+  </select>
+  <select class="filter-select" id="f-campaign" onchange="updateChips()">
+    <option value="">All campaigns</option>
+    <option value="cardio">Cardiology Camp – Jun 2025</option>
+    <option value="test">Test campaigns</option>
+    <option value="mjm">mjm</option>
+  </select>
+  <select class="filter-select" id="f-period" onchange="updateChips()">
+    <option value="mtd">Month to date</option>
+    <option value="7d">Last 7 days</option>
+    <option value="30d">Last 30 days</option>
+    <option value="custom">Custom range</option>
+  </select>
+  <div class="filter-vr"></div>
+  <span id="drwrap" style="display:none;align-items:center;gap:6px">
+    <input class="filter-date" type="date" id="f-from">
+    <span class="filter-sep">to</span>
+    <input class="filter-date" type="date" id="f-to">
+  </span>
+  <button class="filter-btn filter-btn-primary">Apply</button>
+  <button class="filter-btn" onclick="clearFilters()">Clear</button>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto" id="chips"></div>
+</div>
+<script>
+function updateChips(){
+  var p=document.getElementById("f-period");
+  document.getElementById("drwrap").style.display=p.value==="custom"?"flex":"none";
+  var ff=[{id:"f-channel",l:"Channel"},{id:"f-status",l:"Status"},{id:"f-campaign",l:"Campaign"}];
+  var h="";
+  ff.forEach(function(f){var e=document.getElementById(f.id);if(e.value)h+="<span class='chip'>"+f.l+": "+e.options[e.selectedIndex].text+" <button onclick=\"cf('"+f.id+"')\">&#215;</button></span>";});
+  if(p.value!=="mtd")h+="<span class='chip'>Period: "+p.options[p.selectedIndex].text+" <button onclick=\"cf('f-period')\">&#215;</button></span>";
+  document.getElementById("chips").innerHTML=h;
+}
+function cf(id){document.getElementById(id).selectedIndex=0;updateChips();}
+function clearFilters(){["f-channel","f-status","f-campaign","f-period"].forEach(function(id){document.getElementById(id).selectedIndex=0;});document.getElementById("f-from").value="";document.getElementById("f-to").value="";document.getElementById("drwrap").style.display="none";document.getElementById("chips").innerHTML="";}
+</script>
+
+
+
+<!-- KPIs -->
+<div class="section-head">
+  <span class="section-label">Outreach — month to date</span>
+</div>
+<div class="g4" style="margin-bottom:14px">
+  <div class="mcard">
+    <div class="mcard-accent" style="background:linear-gradient(90deg,#2563EB,#60A5FA)"></div>
+    <div class="mcard-label">Patients reached</div>
+    <div class="mcard-value" style="color:var(--blue)">280</div>
+    <div class="mcard-sub">3 active campaigns</div>
+  </div>
+  <div class="mcard">
+    <div class="mcard-accent" style="background:linear-gradient(90deg,var(--green),#6EE7B7)"></div>
+    <div class="mcard-label">Avg delivery rate</div>
+    <div class="mcard-value" style="color:var(--green)">85%</div>
+    <div class="mcard-delta up">↑ +3pp vs industry avg (82%)</div>
+    <div class="progress" style="margin-top:9px">
+      <div class="progress-fill" style="width:85%;background:var(--green)"></div>
+    </div>
+  </div>
+  <div class="mcard">
+    <div class="mcard-accent" style="background:linear-gradient(90deg,#8B5CF6,#C4B5FD)"></div>
+    <div class="mcard-label">Conversions</div>
+    <div class="mcard-value" style="color:#7C3AED">16</div>
+    <div class="mcard-sub">5.7% of patients reached</div>
+  </div>
+  <div class="mcard">
+    <div class="mcard-accent" style="background:linear-gradient(90deg,#F59E0B,#FCD34D)"></div>
+    <div class="mcard-label">Active campaigns</div>
+    <div class="mcard-value">3</div>
+    <div class="mcard-sub">2 submitted · 1 draft pending</div>
+  </div>
+</div>
+
+<!-- ROI row -->
+<div class="section-head"><span class="section-label">Return on investment</span></div>
+<div class="g3" style="margin-bottom:14px;align-items:stretch;">
+  <div class="mcard">
+    <div class="mcard-label">Total spend</div>
+    <div class="mcard-value" style="font-size:24px">₹101.98</div>
+    <div class="mcard-sub">Campaign costs + fees + GST</div>
+  </div>
+  <div class="mcard">
+    <div class="mcard-label">Revenue attributed</div>
+    <div class="mcard-value" style="font-size:24px;color:var(--green)">₹21,000</div>
+    <div class="mcard-sub">From UHID-matched bookings</div>
+    <div class="mcard-delta up" style="margin-top:6px">16 conversions · ₹1,312 avg booking value</div>
+  </div>
+  <div class="roi-card">
+    <div class="roi-label">Return on investment</div>
+    <div class="roi-value">20,786%</div>
+    <div class="roi-sub" style="margin-top:5px">Revenue ÷ Spend · Month to date</div>
+    <div style="margin-top:auto;padding-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:rgba(255,255,255,.06);border-radius:6px;padding:8px 10px">
+        <div style="font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Cost / patient</div>
+        <div style="font-size:15px;font-weight:700;color:#fff">₹0.36</div>
+      </div>
+      <div style="background:rgba(255,255,255,.06);border-radius:6px;padding:8px 10px">
+        <div style="font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">ROAS</div>
+        <div style="font-size:15px;font-weight:700;color:#4ADE80">208×</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Funnel + Benchmarks -->
+<div class="section-head"><span class="section-label">Campaign deep-dive — Cardiology Camp, June 2025</span></div>
+<div class="g2" style="margin-bottom:14px">
+
+  <div class="card">
+    <div class="card-title">Delivery funnel <span class="card-hint">Drop-off at each stage</span></div>
+    <!-- SVG funnel: bars sit on a shared baseline, labels below -->
+    <svg class="funnel-svg-wrap" viewBox="0 0 460 200" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+      <!-- Max bar height = 120px, baseline y = 130 -->
+      <!-- Sent: 120/120 = 100% → h=120 -->
+      <rect x="2"   y="10"  width="64" height="120" rx="4" fill="#2563EB" opacity=".9"/>
+      <!-- arrow -->
+      <text x="82"  y="72" font-size="14" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+      <!-- Delivered: 104/120 = 86.7% → h=104 -->
+      <rect x="94"  y="26"  width="64" height="104" rx="4" fill="#2563EB" opacity=".62"/>
+      <!-- arrow -->
+      <text x="174" y="72" font-size="14" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+      <!-- Opened: 62/120 = 51.7% → h=62 -->
+      <rect x="186" y="68"  width="64" height="62"  rx="4" fill="#7C3AED" opacity=".85"/>
+      <!-- arrow -->
+      <text x="266" y="72" font-size="14" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+      <!-- Clicked: 21/120 = 17.5% → h=21 -->
+      <rect x="278" y="109" width="64" height="21"  rx="4" fill="#F59E0B" opacity=".9"/>
+      <!-- arrow -->
+      <text x="358" y="72" font-size="14" fill="#D0CEC8" font-family="Inter,sans-serif">›</text>
+      <!-- Converted: 9/120 = 7.5% → h=9 -->
+      <rect x="370" y="121" width="64" height="9"   rx="4" fill="#1A9468" opacity=".9"/>
+
+      <!-- Baseline -->
+      <line x1="0" y1="130" x2="460" y2="130" stroke="#E8E6E0" stroke-width="1"/>
+
+      <!-- Labels row -->
+      <text x="34"  y="147" text-anchor="middle" font-size="11" fill="#99998F" font-family="Inter,sans-serif">Sent</text>
+      <text x="126" y="147" text-anchor="middle" font-size="11" fill="#99998F" font-family="Inter,sans-serif">Delivered</text>
+      <text x="218" y="147" text-anchor="middle" font-size="11" fill="#99998F" font-family="Inter,sans-serif">Opened</text>
+      <text x="310" y="147" text-anchor="middle" font-size="11" fill="#99998F" font-family="Inter,sans-serif">Clicked</text>
+      <text x="402" y="147" text-anchor="middle" font-size="11" fill="#99998F" font-family="Inter,sans-serif">Converted</text>
+
+      <!-- Count row -->
+      <text x="34"  y="164" text-anchor="middle" font-size="14" font-weight="700" fill="#2563EB" font-family="Inter,sans-serif" letter-spacing="-0.3">120</text>
+      <text x="126" y="164" text-anchor="middle" font-size="14" font-weight="700" fill="#2563EB" font-family="Inter,sans-serif" letter-spacing="-0.3">104</text>
+      <text x="218" y="164" text-anchor="middle" font-size="14" font-weight="700" fill="#7C3AED" font-family="Inter,sans-serif" letter-spacing="-0.3">62</text>
+      <text x="310" y="164" text-anchor="middle" font-size="14" font-weight="700" fill="#D97706" font-family="Inter,sans-serif" letter-spacing="-0.3">21</text>
+      <text x="402" y="164" text-anchor="middle" font-size="14" font-weight="700" fill="#1A9468" font-family="Inter,sans-serif" letter-spacing="-0.3">9</text>
+
+      <!-- Drop-off pct row -->
+      <text x="34"  y="180" text-anchor="middle" font-size="10" font-weight="500" fill="#99998F" font-family="Inter,sans-serif">100%</text>
+      <text x="126" y="180" text-anchor="middle" font-size="10" font-weight="600" fill="#1A9468" font-family="Inter,sans-serif">−13%</text>
+      <text x="218" y="180" text-anchor="middle" font-size="10" font-weight="600" fill="#B45309" font-family="Inter,sans-serif">−40%</text>
+      <text x="310" y="180" text-anchor="middle" font-size="10" font-weight="600" fill="#D83B3B" font-family="Inter,sans-serif">−66%</text>
+      <text x="402" y="180" text-anchor="middle" font-size="10" font-weight="600" fill="#D83B3B" font-family="Inter,sans-serif">−57%</text>
+    </svg>
+
+  </div>
+
+  <div class="card">
+    <div class="card-title">Rates vs benchmarks <span class="card-hint">▎ = industry avg</span></div>
+    <div class="brow">
+      <div class="blabel">Delivery rate</div>
+      <div class="btrack">
+        <div class="bfill" style="width:86.7%;background:var(--green)"></div>
+        <div class="bindus" style="left:82%"></div>
+      </div>
+      <div class="bval" style="color:var(--green)">86.7%</div>
+      <div class="bdiff" style="color:var(--green)">+4.7%</div>
+    </div>
+    <div class="brow">
+      <div class="blabel">Open rate</div>
+      <div class="btrack">
+        <div class="bfill" style="width:59.6%;background:#7C3AED"></div>
+        <div class="bindus" style="left:40%"></div>
+      </div>
+      <div class="bval" style="color:#7C3AED">59.6%</div>
+      <div class="bdiff" style="color:var(--green)">+19.6%</div>
+    </div>
+    <div class="brow">
+      <div class="blabel">Click-through rate</div>
+      <div class="btrack">
+        <div class="bfill" style="width:20.2%;background:#F59E0B"></div>
+        <div class="bindus" style="left:18%"></div>
+      </div>
+      <div class="bval" style="color:#D97706">20.2%</div>
+      <div class="bdiff" style="color:var(--green)">+2.2%</div>
+    </div>
+    <div class="brow">
+      <div class="blabel">Conversion rate</div>
+      <div class="btrack">
+        <div class="bfill" style="width:7.5%;background:var(--green)"></div>
+        <div class="bindus" style="left:5%"></div>
+      </div>
+      <div class="bval" style="color:var(--green)">7.5%</div>
+      <div class="bdiff" style="color:var(--green)">+2.5%</div>
+    </div>
+
+    <div style="height:1px;background:var(--border2);margin:14px 0"></div>
+
+    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:10px">Cost efficiency</div>
+    <div class="stat-trio">
+      <div class="stat-mini">
+        <div class="stat-mini-label">Spend</div>
+        <div class="stat-mini-val">₹11.89</div>
+        <div class="stat-mini-sub">This campaign</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-label">Revenue</div>
+        <div class="stat-mini-val" style="color:var(--green)">₹11,200</div>
+        <div class="stat-mini-sub">942× ROAS</div>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-label">Cost/conv.</div>
+        <div class="stat-mini-val">₹1.32</div>
+        <div class="stat-mini-sub">Per booking</div>
+      </div>
+    </div>
+
+
+  </div>
+
+</div>
+
+<!-- Campaign table -->
+<div class="section-head">
+  <span class="section-label">All campaigns</span>
+  <a class="section-action" href="#">View all →</a>
+</div>
+<div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">
+  <div style="padding:18px 22px 0">
+    <div class="card-title" style="margin-bottom:0">
+      Campaign performance
+      <span class="card-hint">Sorted by last activity</span>
+    </div>
+  </div>
+  <div class="tbl-wrap" style="margin-top:14px">
+    <table class="dt">
+      <thead>
+        <tr>
+          <th style="padding-left:22px">Campaign</th>
+          <th>Channel</th>
+          <th>Sent</th>
+          <th>Delivery</th>
+          <th>Open rate</th>
+          <th>CTR</th>
+          <th>Conversions</th>
+          <th>Revenue attr.</th>
+          <th>Cost / conv.</th>
+          <th style="padding-right:22px">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Row 1: Cardiology Camp – full data -->
+        <tr>
+          <td style="padding-left:22px">
+            <div class="td-name">Cardiology Camp – Jun 2025<small>Promotional · Completed</small></div>
+          </td>
+          <td><span class="b-ch">WhatsApp</span></td>
+          <td style="font-weight:500">120</td>
+          <td>
+            <div class="mbar-wrap">
+              <div class="mbar-track"><div class="mbar-fill" style="width:86.7%;background:var(--green)"></div></div>
+              <span style="font-size:12px;font-weight:600;color:var(--green)">86.7%</span>
+            </div>
+          </td>
+          <td style="font-weight:600;color:#7C3AED">59.6%</td>
+          <td style="font-weight:600;color:#D97706">20.2%</td>
+          <td style="font-weight:600;color:var(--green)">9 <span style="font-weight:400;color:var(--ink3);font-size:11px">(7.5%)</span></td>
+          <td class="rev-cell">₹11,200</td>
+          <td style="font-weight:500">₹1.32</td>
+          <td style="padding-right:22px"><span class="badge b-completed">Completed</span></td>
+        </tr>
+        <!-- Row 2: Test Web Chat – live, partial data -->
+        <tr>
+          <td style="padding-left:22px">
+            <div class="td-name">Test – Web Chat<small>Live · Sending now</small></div>
+          </td>
+          <td><span class="b-ch">Web Chat</span></td>
+          <td style="font-weight:500">46</td>
+          <td>
+            <div class="mbar-wrap">
+              <div class="mbar-track"><div class="mbar-fill" style="width:78%;background:#D97706"></div></div>
+              <span style="font-size:12px;font-weight:600;color:#D97706">78%</span>
+            </div>
+          </td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="rev-cell">₹4,800</td>
+          <td class="td-muted">—</td>
+          <td style="padding-right:22px"><span class="badge b-live">● Live</span></td>
+        </tr>
+        <!-- Row 3: mjm -->
+        <tr>
+          <td style="padding-left:22px">
+            <div class="td-name">mjm<small>Live · Sending now</small></div>
+          </td>
+          <td><span class="b-ch">Web Chat</span></td>
+          <td style="font-weight:500">7</td>
+          <td>
+            <div class="mbar-wrap">
+              <div class="mbar-track"><div class="mbar-fill" style="width:100%;background:var(--green)"></div></div>
+              <span style="font-size:12px;font-weight:600;color:var(--green)">100%</span>
+            </div>
+          </td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td style="padding-right:22px"><span class="badge b-live">● Live</span></td>
+        </tr>
+        <!-- Row 4: Test WhatsApp A -->
+        <tr>
+          <td style="padding-left:22px">
+            <div class="td-name">Test – WhatsApp A<small>Awaiting approval</small></div>
+          </td>
+          <td><span class="b-ch">WhatsApp</span></td>
+          <td style="color:var(--ink4)">0</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td style="padding-right:22px"><span class="badge b-submitted">Submitted</span></td>
+        </tr>
+        <!-- Row 5: Test WhatsApp B -->
+        <tr>
+          <td style="padding-left:22px">
+            <div class="td-name">Test – WhatsApp B<small>Awaiting approval</small></div>
+          </td>
+          <td><span class="b-ch">WhatsApp</span></td>
+          <td style="color:var(--ink4)">0</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td style="padding-right:22px"><span class="badge b-submitted">Submitted</span></td>
+        </tr>
+        <!-- Row 6: draft -->
+        <tr>
+          <td style="padding-left:22px">
+            <div class="td-name">test<small>Not yet submitted</small></div>
+          </td>
+          <td class="td-muted">—</td>
+          <td style="color:var(--ink4)">0</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td class="td-muted">—</td>
+          <td style="padding-right:22px"><span class="badge b-draft">Draft</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Action cards -->
+<div class="section-head"><span class="section-label">Recommended actions</span></div>
+<div class="g3" style="margin-bottom:0">
+  <div class="acard red">
+    <div class="acard-eye" style="color:var(--red)">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span>
+      Verify today
+    </div>
+    <div class="acard-title">Audit campaign spend</div>
+    <div class="acard-body">₹101.98 recorded across 280 patients. Confirm channel fees and GST are fully attributed before the next billing cycle.</div>
+  </div>
+  <div class="acard amber">
+    <div class="acard-eye" style="color:#D97706">
+      <span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;display:inline-block"></span>
+      This week
+    </div>
+    <div class="acard-title">Improve click-through rate</div>
+    <div class="acard-body">Open rate (59.6%) is strong but CTR (20.2%) shows a drop-off. Test a direct booking link in the message body for the next campaign.</div>
+  </div>
+  <div class="acard green">
+    <div class="acard-eye" style="color:var(--green)">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span>
+      Next campaign
+    </div>
+    <div class="acard-title">Scale Cardiology Camp template</div>
+    <div class="acard-body">All 4 engagement rates exceeded benchmarks. Apply this campaign's targeting criteria and message format to the next specialty drive.</div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <span class="footer-left">Affordplan · Patient Engagement Dashboard</span>
+  <span>Exported June 2026 · Data: month to date</span>
+</div>
+
+</body>
+</html>

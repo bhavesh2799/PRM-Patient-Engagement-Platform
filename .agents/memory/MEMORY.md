@@ -7,3 +7,4 @@
 - [React hooks order in dashboards](hooks-order-dashboards.md) — all useState/useQuery must be declared before any early return; hoisting is required every time new state is added to a data-dependent component.
 - [Inbox bulk-assign role split](inbox-bulk-assign.md) — exec gets "Assign to me" button; manager/ap_admin gets "Assign to…" dropdown powered by useListUsers(); isManager checks both roles.
 - [Module channels list](module-channels.md) — MODULE_CHANNELS = ["medicine_order","lab_test","web_appointment","app_appointment"]; email is its own branch with subject+body composer; push removed from sourceChannel.
+- [API server stale routes](api-server-stale-routes.md) — api-server dev does not reliably hot-reload route handler edits; restart its workflow before curl-verifying new/changed response fields
