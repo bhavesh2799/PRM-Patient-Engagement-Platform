@@ -10,31 +10,39 @@ import {
 import { eq } from "drizzle-orm";
 import { logger } from "./logger.js";
 
+async function tryDelete(fn: () => Promise<unknown>, name: string): Promise<void> {
+  try {
+    await fn();
+  } catch (e: any) {
+    logger.warn({ table: name, err: e?.message }, "clearAll: skipping table (may not exist yet)");
+  }
+}
+
 async function clearAll(): Promise<void> {
-  await db.delete(notificationsTable);
-  await db.delete(uploadHistoryTable);
-  await db.delete(invoicesTable);
-  await db.delete(walletTransactionsTable);
-  await db.delete(walletTable);
-  await db.delete(campaignMetricsTable);
-  await db.delete(campaignsTable);
-  await db.delete(templateRequestsTable);
-  await db.delete(templatesTable);
-  await db.delete(segmentsTable);
-  await db.delete(messagesTable);
-  await db.delete(activityLogTable);
-  await db.delete(appointmentsTable);
-  await db.delete(leadsTable);
-  await db.delete(contactVariablesTable);
-  await db.delete(doctorsTable);
-  await db.delete(specializationsTable);
-  await db.delete(usersTable);
-  await db.delete(channelConfigTable);
-  await db.delete(sendRulesTable);
-  await db.delete(quickRepliesTable);
-  await db.delete(tagsTable);
-  await db.delete(sessionTable);
-  await db.delete(hospitalTable);
+  await tryDelete(() => db.delete(notificationsTable),      "notifications");
+  await tryDelete(() => db.delete(uploadHistoryTable),      "upload_history");
+  await tryDelete(() => db.delete(invoicesTable),           "invoices");
+  await tryDelete(() => db.delete(walletTransactionsTable), "wallet_transactions");
+  await tryDelete(() => db.delete(walletTable),             "wallet");
+  await tryDelete(() => db.delete(campaignMetricsTable),    "campaign_metrics");
+  await tryDelete(() => db.delete(campaignsTable),          "campaigns");
+  await tryDelete(() => db.delete(templateRequestsTable),   "template_requests");
+  await tryDelete(() => db.delete(templatesTable),          "templates");
+  await tryDelete(() => db.delete(segmentsTable),           "segments");
+  await tryDelete(() => db.delete(messagesTable),           "messages");
+  await tryDelete(() => db.delete(activityLogTable),        "activity_log");
+  await tryDelete(() => db.delete(appointmentsTable),       "appointments");
+  await tryDelete(() => db.delete(leadsTable),              "leads");
+  await tryDelete(() => db.delete(contactVariablesTable),   "contact_variables");
+  await tryDelete(() => db.delete(doctorsTable),            "doctors");
+  await tryDelete(() => db.delete(specializationsTable),    "specializations");
+  await tryDelete(() => db.delete(usersTable),              "users");
+  await tryDelete(() => db.delete(channelConfigTable),      "channel_config");
+  await tryDelete(() => db.delete(sendRulesTable),          "send_rules");
+  await tryDelete(() => db.delete(quickRepliesTable),       "quick_replies");
+  await tryDelete(() => db.delete(tagsTable),               "tags");
+  await tryDelete(() => db.delete(sessionTable),            "session_store");
+  await tryDelete(() => db.delete(hospitalTable),           "hospital");
 }
 
 export async function runSeed(force = false): Promise<void> {
