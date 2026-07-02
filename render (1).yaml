@@ -3,8 +3,8 @@ services:
     name: prm-patient-engagement
     runtime: node
     plan: free
-    # This builds core dependencies first, then builds the sandbox apps
-    buildCommand: pnpm install && pnpm run typecheck && pnpm --recursive run build
+    # Step 1: Install modules -> Step 2: Build dependencies -> Step 3: Run target sandbox with explicit error reporting
+    buildCommand: pnpm install && pnpm run typecheck && pnpm --filter @workspace/mockup-sandbox run build --debug
     startCommand: pnpm start
     envVars:
       - key: PORT
