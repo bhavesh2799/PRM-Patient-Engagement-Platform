@@ -3,7 +3,6 @@ services:
     name: prm-patient-engagement
     runtime: node
     plan: free
-    # Step 1: Install modules -> Step 2: Build dependencies -> Step 3: Run target sandbox with explicit error reporting
     buildCommand: pnpm install && pnpm run typecheck && pnpm --filter @workspace/mockup-sandbox run build --debug
     startCommand: pnpm start
     envVars:
@@ -11,3 +10,5 @@ services:
         value: 10000
       - key: NODE_ENV
         value: production
+      - key: BASE_PATH
+        value: /
