@@ -1,6 +1,1 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="180" height="180" rx="40" fill="#2563EB"/>
-  <text x="50%" y="50%" dy="0.02em" text-anchor="middle" dominant-baseline="central"
-        font-family="'Inter', 'Segoe UI', Helvetica, Arial, sans-serif"
-        font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-4">AP</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" fill="none" viewBox="0 0 180 180"><rect width="180" height="180" fill="#2563EB" rx="40"/><text x="50%" y="50%" fill="#FFF" dominant-baseline="central" dy=".02em" font-family="'Inter', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="92" font-weight="700" letter-spacing="-4" text-anchor="middle">AP</text></svg>
