@@ -1,35 +1,16 @@
 services:
-  # ── API (Express) ──────────────────────────────────────────────────────────
   - type: web
-    name: prm-api
+    name: prm-patient-engagement
     runtime: node
     plan: free
-    rootDir: .
-    buildCommand: pnpm install && pnpm run typecheck && pnpm --filter @workspace/api-server run build
+    buildCommand: pnpm install && pnpm run typecheck && pnpm --filter @workspace/api-server run build && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/hospital-crm run build
     startCommand: node artifacts/api-server/dist/index.mjs
     envVars:
+      - key: PORT
+        value: 10000
       - key: NODE_ENV
         value: production
+      - key: BASE_PATH
+        value: /
       - key: DATABASE_URL
-        sync: false   # set this manually in Render dashboard
-
-  # ── Frontend (Static Site) ─────────────────────────────────────────────────
-  - type: web
-    name: prm-frontend
-    runtime: static
-    plan: free
-    rootDir: .
-    buildCommand: pnpm install && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/hospital-crm run build
-    staticPublishPath: artifacts/hospital-crm/dist/public
-    routes:
-      # Proxy /api/* to the Express service — keeps same-origin for the frontend
-      - type: rewrite
-        source: /api/*
-        destination: https://prm-api.onrender.com/api/$1
-      # SPA fallback — all other routes serve index.html
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: NODE_ENV
-        value: production
+        sync: false
