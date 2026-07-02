@@ -4,7 +4,8 @@ services:
     runtime: node
     plan: free
     buildCommand: pnpm install && pnpm run typecheck && pnpm --filter @workspace/mockup-sandbox run build --debug
-    startCommand: pnpm start
+    # Install 'serve' on the fly and point it to where Vite output your assets
+    startCommand: npx serve -s artifacts/mockup-sandbox/dist -l 10000
     envVars:
       - key: PORT
         value: 10000
